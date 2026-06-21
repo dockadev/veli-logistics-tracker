@@ -6,6 +6,7 @@ import { CustomSelect } from './CustomSelect';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import { STANDARD_ITEMS } from '../utils/standardItems';
 import { isVehicleName, isStructureName } from '../utils/csvParser';
+import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 
 const STANDARD_ITEMS_ARRAY = Array.from(STANDARD_ITEMS);
 
@@ -101,6 +102,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
         if (previous && Object.keys(previous).length > 0) {
             // Compute velocity based on difference
             Object.entries(previous).forEach(([name, prevInfo]) => {
+                // Filter only Colonial/Neutral items and only crate categories
+                if (!COLONIAL_NEUTRAL_ITEMS.has(name)) return;
+                const isCrate = name.endsWith('(Crate)') || prevInfo.category === 'crate' || prevInfo.category === 'crate_vehicle';
+                if (!isCrate) return;
+
                 const currInfo = current[name];
                 const currQty = currInfo ? currInfo.count : 0;
                 const consumed = prevInfo.count - currQty;
@@ -108,7 +114,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
                 if (consumed > 0) {
                     const hoursRemaining = currQty / (consumed || 1); // rough relative rate
                     let severity: 'critical' | 'depleting' | 'low' = 'low';
-                    let suggestedQty = Math.max(50, Math.ceil(consumed * 1.5));
+                    let suggestedQty = 100;
 
                     if (currQty <= 5 || hoursRemaining <= 0.5) {
                         severity = 'critical';
@@ -132,6 +138,11 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
 
         // Add absolute low stock items (quantity <= 25) that weren't added already via velocity
         Object.entries(current).forEach(([name, itemInfo]) => {
+            // Filter only Colonial/Neutral items and only crate categories
+            if (!COLONIAL_NEUTRAL_ITEMS.has(name)) return;
+            const isCrate = name.endsWith('(Crate)') || itemInfo.category === 'crate' || itemInfo.category === 'crate_vehicle';
+            if (!isCrate) return;
+
             if (itemInfo.count <= 25) {
                 const alreadyAdded = list.some(x => x.name === name);
                 if (!alreadyAdded) {
@@ -146,17 +157,21 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
                         category: itemInfo.category as any,
                         currentQty: itemInfo.count,
                         severity,
-                        suggestedQty: 50
+                        suggestedQty: 100
                     });
                 }
             }
         });
 
-        const severityOrder = { critical: 0, depleting: 1, low: 2 };
         return list.sort((a, b) => {
-            if (severityOrder[a.severity] !== severityOrder[b.severity]) {
-                return severityOrder[a.severity] - severityOrder[b.severity];
-            }
+            const hasVelA = a.rate !== undefined && a.rate > 0;
+            const hasVelB = b.rate !== undefined && b.rate > 0;
+
+            // Prioritize items with active consumption velocity (velocity > 0) first
+            if (hasVelA && !hasVelB) return -1;
+            if (!hasVelA && hasVelB) return 1;
+
+            // Then sort each group by current quantity ascending (0 stock first)
             return a.currentQty - b.currentQty;
         }).slice(0, 12); // Limit to top 12 recommendations
     }, [depots, depotName]);
@@ -164,7 +179,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
     const handleSelectRecommendation = (rec: { name: string; category: 'item' | 'crate' | 'vehicle' | 'structure' | 'crate_vehicle'; suggestedQty: number }) => {
         setItemNameInput(rec.name);
         setItemCategory(rec.category);
-        setQuantityRequired(rec.suggestedQty);
     };
 
     const categoryOptions = useMemo(() => [
@@ -251,7 +265,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
                             <X size={16} />
                         </button>
                     </div>
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} noValidate>
                         <div className="modal-body modal-body-spacing" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1.5rem' }}>
                             {/* Left Column: Form Content */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -487,9 +501,6 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
                                                         <span>
                                                             {language === 'tr' ? 'Mevcut Stok: ' : 'Stock: '}<strong>{rec.currentQty}</strong>
-                                                        </span>
-                                                        <span style={{ color: 'var(--accent-color)', fontWeight: 600 }}>
-                                                            +{rec.suggestedQty} {language === 'tr' ? 'Öneri' : 'Suggested'}
                                                         </span>
                                                     </div>
                                                 </div>

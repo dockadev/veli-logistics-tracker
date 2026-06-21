@@ -132,13 +132,31 @@ export const App: React.FC = () => {
             if (currentUsername) {
                 localStorage.setItem(`docka_user_clan_${currentUsername}`, userClan);
             }
+            if (isSupabaseConfigured && supabase && masterKey) {
+                supabase
+                    .from('profiles')
+                    .update({ clan: userClan })
+                    .eq('id', masterKey)
+                    .then(({ error }) => {
+                        if (error) console.error('[App] Failed to sync clan to Supabase:', error);
+                    });
+            }
         } else {
             localStorage.removeItem('docka_user_clan');
             if (currentUsername) {
                 localStorage.removeItem(`docka_user_clan_${currentUsername}`);
             }
+            if (isSupabaseConfigured && supabase && masterKey) {
+                supabase
+                    .from('profiles')
+                    .update({ clan: null })
+                    .eq('id', masterKey)
+                    .then(({ error }) => {
+                        if (error) console.error('[App] Failed to clear clan from Supabase:', error);
+                    });
+            }
         }
-    }, [userClan, currentUsername]);
+    }, [userClan, currentUsername, masterKey]);
 
     const handleToggleOverlayMode = useCallback(async (enable: boolean) => {
         if (!IS_TAURI) return;
@@ -219,7 +237,16 @@ export const App: React.FC = () => {
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('docka_theme', theme);
-    }, [theme]);
+        if (isSupabaseConfigured && supabase && masterKey) {
+            supabase
+                .from('profiles')
+                .update({ theme })
+                .eq('id', masterKey)
+                .then(({ error }) => {
+                    if (error) console.error('[App] Failed to sync theme to Supabase:', error);
+                });
+        }
+    }, [theme, masterKey]);
 
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [isPersonalizeOpen, setIsPersonalizeOpen] = useState(false);
@@ -341,6 +368,40 @@ export const App: React.FC = () => {
         });
     }, [userRole, currentUsername]);
 
+    const fetchPortalUsers = useCallback(async () => {
+        if (!isSupabaseConfigured || !supabase) {
+            const storedUsers = localStorage.getItem('docka_portal_users');
+            if (storedUsers) {
+                setPortalUsers(JSON.parse(storedUsers));
+            } else {
+                setPortalUsers([]);
+            }
+            return;
+        }
+
+        try {
+            const { data: profiles, error } = await supabase
+                .from('profiles')
+                .select('id, username, role, status');
+            if (error) {
+                console.error('[App] Failed to load portal users from Supabase:', error);
+            } else if (profiles) {
+                const mappedUsers: PortalUser[] = profiles.map((p: { id: string; username: string | null; role: string | null; status: string | null }) => {
+                    return {
+                        id: p.id,
+                        username: p.username || 'Unknown',
+                        role: (p.role as UserRole) || 'member',
+                        status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected'
+                    };
+                });
+                setPortalUsers(mappedUsers);
+                localStorage.setItem('docka_portal_users', JSON.stringify(mappedUsers));
+            }
+        } catch (err) {
+            console.error('[App] Supabase fetch failed for portal users:', err);
+        }
+    }, [isSupabaseConfigured]);
+
     const checkCriticalStock = useCallback((depotName: string, items: Record<string, ItemInfo>) => {
         console.debug('checkCriticalStock stub called for:', depotName, Object.keys(items).length);
     }, []);
@@ -372,33 +433,56 @@ export const App: React.FC = () => {
 
             if (isSupabaseConfigured && supabase) {
                 try {
-                    const { data: profiles, error } = await supabase
+                    // Fetch logged-in user profile details (language, theme, clan)
+                    const { data: profile, error: profileError } = await supabase
                         .from('profiles')
-                        .select('id, username, role, status');
-                    if (error) {
-                        console.error('[App] Failed to load portal users from Supabase:', error);
-                    } else if (profiles) {
-                        const mappedUsers: PortalUser[] = profiles.map((p: { id: string; username: string | null; role: string | null; status: string | null }) => {
-                            return {
-                                id: p.id,
-                                username: p.username || 'Unknown',
-                                role: (p.role as UserRole) || 'member',
-                                status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected'
-                            };
-                        });
-                        setPortalUsers(mappedUsers);
-                        localStorage.setItem('docka_portal_users', JSON.stringify(mappedUsers));
+                        .select('language, theme, clan')
+                        .eq('id', key)
+                        .single();
+
+                    if (profileError) {
+                        console.error('[App] Failed to load current user settings from Supabase:', profileError);
+                    } else if (profile) {
+                        const dbUpdates: Record<string, any> = {};
+
+                        if (profile.language) {
+                            if (profile.language !== language) {
+                                setLanguage(profile.language as Language);
+                            }
+                        } else {
+                            dbUpdates.language = language;
+                        }
+
+                        if (profile.theme) {
+                            if (profile.theme !== theme) {
+                                setTheme(profile.theme as 'dark' | 'light');
+                            }
+                        } else {
+                            dbUpdates.theme = theme;
+                        }
+
+                        if (profile.clan) {
+                            if (profile.clan !== userClan) {
+                                setUserClan(profile.clan);
+                            }
+                        } else if (userClan) {
+                            dbUpdates.clan = userClan;
+                        }
+
+                        if (Object.keys(dbUpdates).length > 0) {
+                            await supabase
+                                .from('profiles')
+                                .update(dbUpdates)
+                                .eq('id', key);
+                        }
                     }
-                } catch (err) {
-                    console.error('[App] Supabase session fetch failed for portal users:', err);
+                } catch (profileErr) {
+                    console.error('[App] Error during settings synchronization:', profileErr);
                 }
+
+                await fetchPortalUsers();
             } else {
-                const storedUsers = localStorage.getItem('docka_portal_users');
-                if (storedUsers) {
-                    setPortalUsers(JSON.parse(storedUsers));
-                } else {
-                    setPortalUsers([]);
-                }
+                await fetchPortalUsers();
             }
 
             const storedAuditLogs = localStorage.getItem('docka_audit_logs');
@@ -1364,17 +1448,14 @@ export const App: React.FC = () => {
 
     // Manage Developer Portal Admin Operations
     const handleApproveUser = useCallback(async (id: string, approvedRole?: 'member' | 'officer') => {
-        let username = '';
-        let targetRole: UserRole = 'member';
+        const targetUser = portalUsers.find(u => u.id === id);
+        if (!targetUser) return;
+
+        const username = targetUser.username;
+        const targetRole = approvedRole || targetUser.role;
+
         setPortalUsers(prev => {
-            const next = prev.map(u => {
-                if (u.id === id) {
-                    username = u.username;
-                    targetRole = approvedRole || u.role;
-                    return { ...u, role: targetRole, status: 'approved' as const };
-                }
-                return u;
-            });
+            const next = prev.map(u => u.id === id ? { ...u, role: targetRole, status: 'approved' as const } : u);
             localStorage.setItem('docka_portal_users', JSON.stringify(next));
             return next;
         });
@@ -1392,23 +1473,22 @@ export const App: React.FC = () => {
             } catch (err) {
                 console.error('[App] Failed to approve user in Supabase:', err);
                 showToast('Failed to sync approval to database.', 'error');
+                fetchPortalUsers();
             }
         }
 
         logAction(`Approved registration request for user ${username}.`);
         showToast(`Approved registration for ${username}`, 'success');
-    }, [showToast, logAction]);
+    }, [portalUsers, isSupabaseConfigured, showToast, logAction, fetchPortalUsers]);
 
     const handleRejectUser = useCallback(async (id: string) => {
-        let username = '';
+        const targetUser = portalUsers.find(u => u.id === id);
+        if (!targetUser) return;
+
+        const username = targetUser.username;
+
         setPortalUsers(prev => {
-            const next = prev.map(u => {
-                if (u.id === id) {
-                    username = u.username;
-                    return { ...u, status: 'rejected' as const };
-                }
-                return u;
-            });
+            const next = prev.map(u => u.id === id ? { ...u, status: 'rejected' as const } : u);
             localStorage.setItem('docka_portal_users', JSON.stringify(next));
             return next;
         });
@@ -1423,23 +1503,22 @@ export const App: React.FC = () => {
             } catch (err) {
                 console.error('[App] Failed to reject user in Supabase:', err);
                 showToast('Failed to sync rejection to database.', 'error');
+                fetchPortalUsers();
             }
         }
 
         logAction(`Rejected registration request for user ${username}.`);
         showToast(`Rejected registration for ${username}`, 'warning');
-    }, [showToast, logAction]);
+    }, [portalUsers, isSupabaseConfigured, showToast, logAction, fetchPortalUsers]);
 
     const handlePromoteUser = useCallback(async (id: string) => {
-        let username = '';
+        const targetUser = portalUsers.find(u => u.id === id);
+        if (!targetUser) return;
+
+        const username = targetUser.username;
+
         setPortalUsers(prev => {
-            const next = prev.map(u => {
-                if (u.id === id) {
-                    username = u.username;
-                    return { ...u, role: 'officer' as const };
-                }
-                return u;
-            });
+            const next = prev.map(u => u.id === id ? { ...u, role: 'officer' as const } : u);
             localStorage.setItem('docka_portal_users', JSON.stringify(next));
             return next;
         });
@@ -1454,23 +1533,22 @@ export const App: React.FC = () => {
             } catch (err) {
                 console.error('[App] Failed to promote user in Supabase:', err);
                 showToast('Failed to sync promotion to database.', 'error');
+                fetchPortalUsers();
             }
         }
 
         logAction(`Promoted user ${username} to Officer role.`);
         showToast(`Promoted ${username} to Officer`, 'success');
-    }, [showToast, logAction]);
+    }, [portalUsers, isSupabaseConfigured, showToast, logAction, fetchPortalUsers]);
 
     const handleDemoteUser = useCallback(async (id: string) => {
-        let username = '';
+        const targetUser = portalUsers.find(u => u.id === id);
+        if (!targetUser) return;
+
+        const username = targetUser.username;
+
         setPortalUsers(prev => {
-            const next = prev.map(u => {
-                if (u.id === id) {
-                    username = u.username;
-                    return { ...u, role: 'member' as const };
-                }
-                return u;
-            });
+            const next = prev.map(u => u.id === id ? { ...u, role: 'member' as const } : u);
             localStorage.setItem('docka_portal_users', JSON.stringify(next));
             return next;
         });
@@ -1485,13 +1563,146 @@ export const App: React.FC = () => {
             } catch (err) {
                 console.error('[App] Failed to demote user in Supabase:', err);
                 showToast('Failed to demote user in Supabase.', 'error');
+                fetchPortalUsers();
             }
         }
 
         logAction(`Demoted user ${username} to Member role.`);
         showToast(`Demoted ${username} to Member`, 'info');
-    }, [showToast, logAction]);
+    }, [portalUsers, isSupabaseConfigured, showToast, logAction, fetchPortalUsers]);
 
+    const handleGenerateTestDepots = useCallback(async () => {
+        if (userRole !== 'developer') return;
+
+        // List of 20 regional names for test depots
+        const testRegions = [
+            'TEST-Brodytown Seaport', 'TEST-Brodytown Storage',
+            'TEST-Deadlands Depot', 'TEST-Sun Haven Port',
+            'TEST-Linn of Mercy Depot', 'TEST-Marban Hollow Port',
+            'TEST-Viper Pit Seaport', 'TEST-Weathered Expanse Depot',
+            'TEST-Great March Depot', 'TEST-Callahans Passage Port',
+            'TEST-Drowned Vale Seaport', 'TEST-Shackled Chasm Depot',
+            'TEST-Farranac Coast Port', 'TEST-Westgate Depot',
+            'TEST-Fishermans Row Seaport', 'TEST-Oarbreaker Depot',
+            'TEST-Stonewall Port', 'TEST-Heartlands Seaport',
+            'TEST-Umbral Wildwood Depot', 'TEST-Red River Seaport'
+        ];
+
+        // Standard items categories to assign randomly
+        const sampleItems = [
+            { name: "7.62mm (Crate)", category: "crate" },
+            { name: "12.7mm (Crate)", category: "crate" },
+            { name: "Argenti r.II Rifle (Crate)", category: "crate" },
+            { name: "No.2 Loughcaster (Crate)", category: "crate" },
+            { name: "Blakerow 871 (Crate)", category: "crate" },
+            { name: "Bomastone Grenade (Crate)", category: "crate" },
+            { name: "A3 Harpa Fragmentation Grenade (Crate)", category: "crate" },
+            { name: "Bandages (Crate)", category: "crate" },
+            { name: "Plasma (Crate)", category: "crate" },
+            { name: "Soldier Supplies (Crate)", category: "crate" },
+            { name: "Garrison Supplies (Crate)", category: "crate" },
+            { name: "Bunker Supplies (Crate)", category: "crate" },
+            { name: "Dunne Transport", category: "vehicle" },
+            { name: "Devitt Ironclad v.IV", category: "vehicle" },
+            { name: "Silverhand - Mk. IV", category: "vehicle" },
+            { name: "Dunne Transport (Crate)", category: "crate_vehicle" },
+            { name: "Flatbed Truck (Crate)", category: "crate_vehicle" }
+        ];
+
+        const generated: Record<string, Depot> = {};
+        const nowStr = new Date().toISOString();
+
+        testRegions.forEach(name => {
+            const current: Record<string, ItemInfo> = {};
+            const previous: Record<string, ItemInfo> = {};
+
+            // Pick 5-10 random items for this depot
+            const count = 5 + Math.floor(Math.random() * 6);
+            const shuffled = [...sampleItems].sort(() => 0.5 - Math.random());
+            
+            for (let i = 0; i < count; i++) {
+                const item = shuffled[i];
+                const qty = 5 + Math.floor(Math.random() * 90);
+                const prevChange = -20 + Math.floor(Math.random() * 40);
+                
+                current[item.name] = {
+                    count: qty,
+                    category: item.category as any
+                };
+                
+                if (Math.random() > 0.3) {
+                    previous[item.name] = {
+                        count: Math.max(0, qty - prevChange),
+                        category: item.category as any
+                    };
+                }
+            }
+
+            generated[name] = {
+                name,
+                customName: `[TEST] ${name.replace('TEST-', '')}`,
+                lastUpdated: nowStr,
+                previous: Object.keys(previous).length > 0 ? previous : null,
+                current
+            };
+        });
+
+        // Update local state (which triggers auto-save effect)
+        setDepots(prev => ({
+            ...prev,
+            ...generated
+        }));
+
+        showToast(language === 'tr' ? '20 test deposu başarıyla oluşturuldu!' : '20 test depots successfully generated!', 'success');
+        logAction('Generated 20 simulated test depots.');
+    }, [userRole, language, showToast, logAction]);
+
+    const handleClearTestDepots = useCallback(async () => {
+        if (userRole !== 'developer') return;
+
+        const testKeys = Object.keys(depots).filter(k => k.startsWith('TEST-'));
+        if (testKeys.length === 0) {
+            showToast(language === 'tr' ? 'Silinecek test deposu bulunamadı.' : 'No test depots found to delete.', 'info');
+            return;
+        }
+
+        // Delete from Supabase
+        const client = supabase;
+        if (isSupabaseConfigured && client) {
+            try {
+                // Delete in parallel
+                await Promise.all(testKeys.map(async (name) => {
+                    const { error } = await client
+                        .from('depots')
+                        .delete()
+                        .eq('name', name);
+                    if (error) console.error(`[App] Failed to delete test depot ${name}:`, error);
+                }));
+            } catch (err) {
+                console.error('[App] Failed to clear test depots from Supabase:', err);
+            }
+        }
+
+        // Update local state by removing keys
+        setDepots(prev => {
+            const next = { ...prev };
+            testKeys.forEach(k => {
+                delete next[k];
+            });
+            return next;
+        });
+
+        // Set active depot name to 'all' or another depot if active one was a test depot
+        setActiveDepotName(prev => {
+            if (prev && prev.startsWith('TEST-')) {
+                return 'all';
+            }
+            return prev;
+        });
+
+        showToast(language === 'tr' ? 'Tüm test depoları silindi!' : 'All test depots cleared!', 'warning');
+        logAction('Cleared all simulated test depots.');
+    }, [userRole, depots, language, showToast, logAction]);
 
     const activeDepot = useMemo(() => {
         if (!activeDepotName) return null;
@@ -1774,7 +1985,7 @@ export const App: React.FC = () => {
                 ) : (
                     <>
                         <section className="data-panel" style={{ position: 'relative' }}>
-                            {!activeDepot && (activeTab === 'inventory' || activeTab === 'cross-search') ? (
+                            {!activeDepot && activeTab === 'inventory' ? (
                         <div className="table-container" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
                             <div className="empty-row" style={{ border: 'none' }}>
                                 <Compass size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4, display: 'block' }} />
@@ -1783,7 +1994,7 @@ export const App: React.FC = () => {
                         </div>
                     ) : (
                         <>
-                            {activeDepot && (activeTab === 'inventory' || activeTab === 'cross-search' || activeTab === 'analytics') && (
+                            {activeDepot && (activeTab === 'inventory' || activeTab === 'analytics') && (
                                 <div className="depot-interface-header">
                                     <div className="depot-title-group" style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', width: activeTab === 'analytics' ? '100%' : 'auto' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', justifyContent: activeTab === 'analytics' ? 'space-between' : 'flex-start', width: '100%', flexWrap: 'wrap' }}>
@@ -1856,23 +2067,27 @@ export const App: React.FC = () => {
                                                 </div>
                                             )}
                                         </div>
-                                        {(activeTab === 'inventory' || activeTab === 'cross-search' || activeTab === 'analytics') && (
+                                        {(activeTab === 'inventory' || activeTab === 'analytics') && (
                                             <>
                                                 <p style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', margin: '0.35rem 0 0 0' }}>
                                                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
                                                         {activeDepotName === 'all' ? (t('global_search_desc') || 'Tüm depoların verilerinde arama yapın.') : `${t('location')}: ${activeDepot.name}`}
                                                     </span>
-                                                    <span style={{ color: 'var(--text-muted)' }}>|</span>
-                                                    <span style={{ 
-                                                        fontWeight: 700, 
-                                                        fontSize: '0.85rem', 
-                                                        color: 'var(--accent-color)'
-                                                     }}>
-                                                        {t('last_updated')}: <span title={activeDepot.lastUpdated}>{getRelativeTimeString(activeDepot.lastUpdated, language)}</span>
-                                                     </span>
+                                                    {activeDepotName !== 'all' && (
+                                                        <>
+                                                            <span style={{ color: 'var(--text-muted)' }}>|</span>
+                                                            <span style={{ 
+                                                                fontWeight: 700, 
+                                                                fontSize: '0.85rem', 
+                                                                color: 'var(--accent-color)'
+                                                            }}>
+                                                                {t('last_updated')}: <span title={activeDepot.lastUpdated}>{getRelativeTimeString(activeDepot.lastUpdated, language)}</span>
+                                                            </span>
+                                                        </>
+                                                    )}
                                                 </p>
                                                 
-                                                {activeDepot.accessCode && (
+                                                {activeDepotName !== 'all' && activeDepot.accessCode && (
                                                     <div style={{ 
                                                         display: 'flex', 
                                                         alignItems: 'center', 
@@ -1895,7 +2110,6 @@ export const App: React.FC = () => {
                                                                     cursor: 'pointer',
                                                                     userSelect: 'none'
                                                                 }}
-                                                                title={t('click_to_reveal')}
                                                             >
                                                                 {isCodeRevealed ? <Unlock size={12} className="text-positive" /> : <Lock size={12} className="text-warning" />}
                                                                 <span>{t('access_code')}:</span>
@@ -1949,6 +2163,24 @@ export const App: React.FC = () => {
                                             </button>
                                         </div>
                                     )}
+                                </div>
+                            )}
+
+                            {activeTab === 'analytics' && (
+                                <div style={{ 
+                                    margin: '0 1.5rem 1.25rem 1.5rem', 
+                                    padding: '0.85rem 1.25rem', 
+                                    background: 'rgba(245, 158, 11, 0.08)', 
+                                    border: '1px solid rgba(245, 158, 11, 0.25)', 
+                                    borderRadius: '8px', 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '0.75rem' 
+                                }}>
+                                    <AlertTriangle size={18} style={{ color: 'var(--color-warning)', flexShrink: 0 }} />
+                                    <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                                        {t('analytics_wip_warning')}
+                                    </span>
                                 </div>
                             )}
 
@@ -2081,6 +2313,10 @@ export const App: React.FC = () => {
                                          feedbacks={feedbacks}
                                          onDeleteFeedback={handleDeleteFeedback}
                                          onUpdateFeedbackStatus={handleUpdateFeedbackStatus}
+                                         depots={depots}
+                                         onGenerateTestDepots={handleGenerateTestDepots}
+                                         onDeleteTestDepots={handleClearTestDepots}
+                                         onRefreshUsers={fetchPortalUsers}
                                      />
                                  </ErrorBoundary>
                              )}
@@ -2263,11 +2499,11 @@ export const App: React.FC = () => {
                 </button>
 
                 <a
-                    href="https://discord.gg/pars-foxhole"
+                    href="https://discord.gg/F63C7cqNdF"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="vertical-nav-btn discord-nav-btn"
-                    data-tooltip="PARS"
+                    data-tooltip="VELI"
                     style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}
                 >
                     <svg
@@ -2280,7 +2516,7 @@ export const App: React.FC = () => {
                     >
                         <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.4-5c.87-.64,1.72-1.31,2.53-2a75.76,75.76,0,0,0,72.71,0c.81.7,1.66,1.37,2.53,2a68.43,68.43,0,0,1-10.4,5,77.7,77.7,0,0,0,6.63,10.85,105.73,105.73,0,0,0,31-18.83C129,54.65,122.64,31.58,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z" />
                     </svg>
-                    <span>PARS</span>
+                    <span>VELI</span>
                 </a>
             </div>
 
@@ -2489,7 +2725,7 @@ export const App: React.FC = () => {
                             {/* Regiment/Clan Tag Settings */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
                                 <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                    {language === 'tr' ? 'Koalisyon Birliği (Regiment Tag)' : 'Regiment Tag'}
+                                    {language === 'tr' ? 'Koalisyon Birliği' : 'Regiment Tag'}
                                 </span>
                                 <CustomSelect
                                     options={[

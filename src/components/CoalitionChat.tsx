@@ -517,6 +517,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                     {/* Footer Input Form */}
                     <form 
                         onSubmit={handleSendMessage}
+                        noValidate
                         style={{
                             padding: '0.75rem',
                             borderTop: '1px solid var(--border-color)',
@@ -773,6 +774,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                             {/* Footer Input Form */}
                             <form 
                                 onSubmit={handleSendMessage}
+                                noValidate
                                 style={{
                                     padding: '0.75rem',
                                     borderTop: '1px solid var(--border-color)',

@@ -117,7 +117,7 @@
 
 .search-card-progress-bar {
     height: 4px;
-    background: rgba(var(--white-rgb), 0.04);
+    background: var(--progress-bg);
     border-radius: 2px;
     overflow: hidden;
 }

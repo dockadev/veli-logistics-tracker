@@ -3,6 +3,7 @@ import { Search, Eye } from 'lucide-react';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { Depot } from '../types';
 import { getPaginationRange } from '../utils/helpers';
+import { STANDARD_ITEMS } from '../utils/standardItems';
 
 interface CrossSearchTabProps {
     depots: Record<string, Depot>;
@@ -23,6 +24,21 @@ export const CrossSearchTab: React.FC<CrossSearchTabProps> = React.memo(({ depot
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+
+    const filteredSuggestions = useMemo(() => {
+        const query = search.trim().toLowerCase();
+        if (!query) return [];
+        
+        const matches: string[] = [];
+        for (const itemKey of Array.from(STANDARD_ITEMS)) {
+            if (itemKey.toLowerCase().includes(query)) {
+                matches.push(itemKey);
+                if (matches.length >= 10) break;
+            }
+        }
+        return matches;
+    }, [search]);
 
     const itemsPerPage = 12; // Grid layout fits 12 cards beautifully per page
 
@@ -46,7 +62,7 @@ export const CrossSearchTab: React.FC<CrossSearchTabProps> = React.memo(({ depot
         Object.entries(depots).forEach(([depotName, depot]) => {
             const displayName = depot.customName || depotName;
             Object.entries(depot.current).forEach(([itemName, itemInfo]) => {
-                if (itemInfo.count > 0 && itemName.toLowerCase().includes(query)) {
+                if (itemInfo.count > 0 && itemName.toLowerCase() === query) {
                     if (!groups[itemName]) {
                         groups[itemName] = {
                             name: itemName,
@@ -92,15 +108,63 @@ export const CrossSearchTab: React.FC<CrossSearchTabProps> = React.memo(({ depot
                     </div>
 
                     {/* Futuristic Search input bar */}
-                    <div className="search-bar" style={{ maxWidth: '100%', width: '100%', height: '44px' }}>
+                    <div className="search-bar" style={{ maxWidth: '100%', width: '100%', height: '44px', position: 'relative', zIndex: 15 }}>
                         <Search size={18} className="search-icon" />
                         <input
                             type="text"
                             placeholder={t('search_item_name')}
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                setShowSuggestions(true);
+                            }}
+                            onFocus={() => setShowSuggestions(true)}
+                            onBlur={() => {
+                                // Small timeout to allow suggestion click
+                                setTimeout(() => setShowSuggestions(false), 200);
+                            }}
                             style={{ fontSize: '0.9rem' }}
+                            autoComplete="off"
                         />
+
+                        {/* Suggestions Dropdown */}
+                        {showSuggestions && filteredSuggestions.length > 0 && (
+                            <div className="suggestions-dropdown" style={{ 
+                                position: 'absolute',
+                                top: '48px',
+                                left: 0,
+                                width: '100%',
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-color)',
+                                borderRadius: 'var(--radius-md)',
+                                zIndex: 1000,
+                                maxHeight: '200px',
+                                overflowY: 'auto',
+                                boxShadow: '0 8px 24px rgba(0,0,0,0.5)'
+                            }}>
+                                {filteredSuggestions.map(suggestion => (
+                                    <div
+                                        key={suggestion}
+                                        onClick={() => {
+                                            setSearch(suggestion);
+                                            setShowSuggestions(false);
+                                        }}
+                                        className="suggestion-item-option"
+                                        style={{
+                                            padding: '0.6rem 0.85rem',
+                                            cursor: 'pointer',
+                                            fontSize: '0.8rem',
+                                            color: 'var(--text-secondary)',
+                                            transition: 'background 0.15s ease'
+                                        }}
+                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'}
+                                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                                    >
+                                        {suggestion}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -127,7 +191,11 @@ export const CrossSearchTab: React.FC<CrossSearchTabProps> = React.memo(({ depot
                                     const badgeClass = `badge-category ${catClass}`;
                                     
                                     return (
-                                        <div key={res.name} className="search-card">
+                                        <div 
+                                            key={res.name} 
+                                            className="search-card"
+                                            style={{ gridColumn: '1 / -1', transition: 'all 0.3s ease' }}
+                                        >
                                             
                                             {/* Card Header */}
                                             <div className="search-card-header">
@@ -136,36 +204,45 @@ export const CrossSearchTab: React.FC<CrossSearchTabProps> = React.memo(({ depot
                                                     {t(`cat_${res.category}` as TranslationKey)}
                                                 </span>
                                             </div>
-
+ 
                                             {/* Quantity Display */}
                                             <div className="search-card-qty-area">
                                                 <span className="search-card-qty">{res.totalCount.toLocaleString()}</span>
                                                 <span className="search-card-qty-label">{t('quantity')}</span>
                                             </div>
-
+ 
                                             {/* Depot Distribution list with progress bars */}
                                             <div className="search-card-depots">
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.65rem', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.15rem' }}>
                                                     <Eye size={10} />
                                                     <span>{t('matches_found_in')} {res.depots.length} {t('depots_label')}</span>
                                                 </div>
-                                                {res.depots.map((dep, dIdx) => {
-                                                    const percentage = res.totalCount > 0 ? (dep.count / res.totalCount) * 100 : 0;
-                                                    return (
-                                                        <div key={dIdx} className="search-card-depot-row">
-                                                            <div className="search-card-depot-row-info" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', fontWeight: 600 }}>
-                                                                <span className="search-card-depot-name" style={{ color: 'var(--text-secondary)' }}>{dep.depotName}</span>
-                                                                <span className="search-card-depot-qty" style={{ color: 'var(--text-primary)', fontWeight: 700, fontFamily: 'var(--font-heading)' }}>{dep.count.toLocaleString()}</span>
+                                                
+                                                <div style={{
+                                                    display: 'grid',
+                                                    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+                                                    gap: '1rem',
+                                                    width: '100%',
+                                                    marginTop: '0.25rem'
+                                                }}>
+                                                    {res.depots.map((dep, dIdx) => {
+                                                        const percentage = res.totalCount > 0 ? (dep.count / res.totalCount) * 100 : 0;
+                                                        return (
+                                                            <div key={dIdx} className="search-card-depot-row">
+                                                                <div className="search-card-depot-row-info" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', fontWeight: 600 }}>
+                                                                    <span className="search-card-depot-name" style={{ color: 'var(--text-secondary)' }}>{dep.depotName}</span>
+                                                                    <span className="search-card-depot-qty" style={{ color: 'var(--text-primary)', fontWeight: 700, fontFamily: 'var(--font-heading)' }}>{dep.count.toLocaleString()}</span>
+                                                                </div>
+                                                                <div className="search-card-progress-bar">
+                                                                    <div 
+                                                                        className="search-card-progress-fill" 
+                                                                        style={{ width: `${percentage}%` }}
+                                                                    />
+                                                                </div>
                                                             </div>
-                                                            <div className="search-card-progress-bar">
-                                                                <div 
-                                                                    className="search-card-progress-fill" 
-                                                                    style={{ width: `${percentage}%` }}
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                                        );
+                                                    })}
+                                                </div>
                                             </div>
                                         </div>
                                     );

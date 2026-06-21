@@ -56,14 +56,46 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
     const [approvedSessionData, setApprovedSessionData] = useState<{ role: UserRole; userId: string; username: string } | null>(null);
     const [currentUserId, setCurrentUserId] = useState<string | null>(null);
     const [showResetConfirm, setShowResetConfirm] = useState(false);
+    const subtitles = [
+        'Designed for VELI Coalition',
+        'VELI Koalisyonu için tasarlanmıştır',
+        'Projetado para a Coalizão VELI',
+        'Разработано для Коалиции VELI',
+        'Entwickelt für die VELI-Koalition'
+    ];
     const [subtitleIndex, setSubtitleIndex] = useState(0);
+    const [displayedText, setDisplayedText] = useState('');
+    const [typingPhase, setTypingPhase] = useState<'typing' | 'waiting' | 'deleting'>('typing');
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setSubtitleIndex((prev) => (prev === 0 ? 1 : 0));
-        }, 4000);
-        return () => clearInterval(interval);
-    }, []);
+        let timer: any;
+        const currentFullText = subtitles[subtitleIndex];
+
+        if (typingPhase === 'typing') {
+            if (displayedText.length < currentFullText.length) {
+                timer = setTimeout(() => {
+                    setDisplayedText(currentFullText.slice(0, displayedText.length + 1));
+                }, 50);
+            } else {
+                setTypingPhase('waiting');
+            }
+        } else if (typingPhase === 'waiting') {
+            timer = setTimeout(() => {
+                setTypingPhase('deleting');
+            }, 3000);
+        } else if (typingPhase === 'deleting') {
+            if (displayedText.length > 0) {
+                timer = setTimeout(() => {
+                    setDisplayedText(displayedText.slice(0, -1));
+                }, 30);
+            } else {
+                setSubtitleIndex((prev) => (prev + 1) % subtitles.length);
+                setTypingPhase('typing');
+            }
+        }
+
+        return () => clearTimeout(timer);
+    }, [displayedText, typingPhase, subtitleIndex]);
 
 
 
@@ -243,7 +275,7 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                     // 2. Fetch role & status from public.profiles
                     const { data: profile, error: profileError } = await supabase
                         .from('profiles')
-                        .select('role, status, username')
+                        .select('role, status, username, approval_seen')
                         .eq('id', signInData.user.id)
                         .single();
 
@@ -259,8 +291,9 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                         const fetchedUsername = profile?.username || username.trim();
                         
                         // Check if they have already acknowledged the approval
-                        const approvalSeen = localStorage.getItem('docka_approval_seen_' + signInData.user.id);
-                        if (approvalSeen === 'true') {
+                        const dbApprovalSeen = profile?.approval_seen;
+                        const approvalSeen = dbApprovalSeen ?? (localStorage.getItem('docka_approval_seen_' + signInData.user.id) === 'true');
+                        if (approvalSeen) {
                             sessionStorage.setItem('docka_session_username', fetchedUsername);
                             onLoginSuccess(userRole, signInData.user.id);
                         } else {
@@ -329,32 +362,22 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                 zIndex: 10
             }}>
                 {/* Language Toggles */}
-                <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2px' }}>
+                <div style={{ display: 'flex', gap: '0.35rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border-color)', borderRadius: '20px', padding: '2px' }}>
                     <button
                         type="button"
                         onClick={() => setLanguage('en')}
                         style={{
                             background: language === 'en' ? 'var(--accent-color)' : 'transparent',
-                            color: language === 'en' ? '#fff' : 'var(--text-secondary)',
+                            color: language === 'en' ? '#000' : 'var(--text-secondary)',
                             border: 'none',
                             borderRadius: '18px',
                             padding: '0.25rem 0.6rem',
                             fontSize: '0.7rem',
                             fontWeight: 700,
                             cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        <svg viewBox="0 0 60 30" width="12" height="8" style={{ borderRadius: '1px' }}>
-                            <rect width="60" height="30" fill="#012169"/>
-                            <path d="M0,0 L60,30 M60,0 L0,30" stroke="#fff" strokeWidth="6"/>
-                            <path d="M0,0 L60,30 M60,0 L0,30" stroke="#C8102E" strokeWidth="4"/>
-                            <path d="M30,0 L30,30 M0,15 L60,15" stroke="#fff" strokeWidth="10"/>
-                            <path d="M30,0 L30,30 M0,15 L60,15" stroke="#C8102E" strokeWidth="6"/>
-                        </svg>
                         <span>EN</span>
                     </button>
                     <button
@@ -362,26 +385,68 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                         onClick={() => setLanguage('tr')}
                         style={{
                             background: language === 'tr' ? 'var(--accent-color)' : 'transparent',
-                            color: language === 'tr' ? '#fff' : 'var(--text-secondary)',
+                            color: language === 'tr' ? '#000' : 'var(--text-secondary)',
                             border: 'none',
                             borderRadius: '18px',
                             padding: '0.25rem 0.6rem',
                             fontSize: '0.7rem',
                             fontWeight: 700,
                             cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
                             transition: 'all 0.2s ease'
                         }}
                     >
-                        <svg viewBox="0 0 30 20" width="12" height="8" style={{ borderRadius: '1px' }}>
-                            <rect width="30" height="20" fill="#E30A17"/>
-                            <circle cx="10" cy="10" r="5" fill="#fff"/>
-                            <circle cx="11.25" cy="10" r="4" fill="#E30A17"/>
-                            <polygon points="16.5,10 14.7,11.3 15.4,9.2 13.7,7.9 15.8,7.9" fill="#fff"/>
-                        </svg>
                         <span>TR</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setLanguage('pt-BR')}
+                        style={{
+                            background: language === 'pt-BR' ? 'var(--accent-color)' : 'transparent',
+                            color: language === 'pt-BR' ? '#000' : 'var(--text-secondary)',
+                            border: 'none',
+                            borderRadius: '18px',
+                            padding: '0.25rem 0.6rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <span>PT</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setLanguage('ru')}
+                        style={{
+                            background: language === 'ru' ? 'var(--accent-color)' : 'transparent',
+                            color: language === 'ru' ? '#000' : 'var(--text-secondary)',
+                            border: 'none',
+                            borderRadius: '18px',
+                            padding: '0.25rem 0.6rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <span>RU</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setLanguage('de')}
+                        style={{
+                            background: language === 'de' ? 'var(--accent-color)' : 'transparent',
+                            color: language === 'de' ? '#000' : 'var(--text-secondary)',
+                            border: 'none',
+                            borderRadius: '18px',
+                            padding: '0.25rem 0.6rem',
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease'
+                        }}
+                    >
+                        <span>DE</span>
                     </button>
                 </div>
 
@@ -483,8 +548,6 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                             Logistics Tracker App
                         </h1>
                         <p 
-                            key={subtitleIndex}
-                            className="anim-fade-in"
                             style={{ 
                                 fontFamily: 'var(--font-body), "Plus Jakarta Sans", sans-serif',
                                 fontSize: '0.92rem',
@@ -492,13 +555,14 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                                 color: 'var(--text-secondary)',
                                 margin: '0 0 1.5rem 0',
                                 fontWeight: 500,
-                                opacity: 0.95
+                                opacity: 0.95,
+                                minHeight: '2.5rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
                             }}
                         >
-                            {subtitleIndex === 0 
-                                ? 'VELI Koalisyonu için tasarlanmıştır' 
-                                : 'Designed for VELI Coalition'
-                            }
+                            <span>{displayedText}</span>
                         </p>
                         <span style={{ 
                             fontFamily: 'var(--font-body), "Plus Jakarta Sans", sans-serif',
@@ -587,10 +651,20 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                                 
                                 <button 
                                     type="button" 
-                                    onClick={() => {
+                                    onClick={async () => {
                                         if (approvedSessionData) {
                                             sessionStorage.setItem('docka_session_username', approvedSessionData.username);
                                             localStorage.setItem('docka_approval_seen_' + approvedSessionData.userId, 'true');
+                                            if (supabase) {
+                                                try {
+                                                    await supabase
+                                                        .from('profiles')
+                                                        .update({ approval_seen: true })
+                                                        .eq('id', approvedSessionData.userId);
+                                                } catch (err) {
+                                                    console.error('[Gate] Failed to sync approval_seen to Supabase:', err);
+                                                }
+                                            }
                                             onLoginSuccess(approvedSessionData.role, approvedSessionData.userId);
                                         }
                                     }}
@@ -667,7 +741,7 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                                      )}
 
                                     {/* Static Stable Form */}
-                                    <form onSubmit={handleSupabaseAuth} className="gate-form">
+                                    <form onSubmit={handleSupabaseAuth} className="gate-form" noValidate>
                                         {/* Username Input */}
                                         <div className="gate-input-group">
                                             <label className="gate-input-label">{t('auth_username_label')}</label>
@@ -710,7 +784,7 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                                 </div>
                             ) : (
                                 /* Local Master Password Screen */
-                                <form onSubmit={handleLocalLogin} className="gate-form">
+                                <form onSubmit={handleLocalLogin} className="gate-form" noValidate>
                                     <div className="secure-gate-icon-wrapper">
                                         <Lock size={26} style={{ color: 'var(--gate-accent)' }} />
                                     </div>
@@ -782,6 +856,21 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                         )}
                     </div>
                 </div>
+            </div>
+            {/* Version indicator in bottom-right corner */}
+            <div style={{
+                position: 'absolute',
+                bottom: '1rem',
+                right: '1.5rem',
+                fontSize: '0.72rem',
+                fontFamily: 'var(--font-body), sans-serif',
+                color: 'var(--text-secondary)',
+                opacity: 0.5,
+                fontWeight: 600,
+                letterSpacing: '0.05em',
+                zIndex: 10
+            }}>
+                v0.1.0
             </div>
         </div>
     );

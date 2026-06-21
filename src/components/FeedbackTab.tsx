@@ -43,7 +43,7 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
                         : 'Share your ideas, feature requests, or issues with us. Your feedback will be delivered securely and viewed exclusively by developers.'}
                 </p>
 
-                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {/* Category Selection */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                         <label className="gate-input-label" style={{ fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>

@@ -156,20 +156,19 @@
     transition: none !important;
 }
 
-/* Discord (PARS) Special Hover Animation */
+/* Discord (VELI) Special Hover Animation */
 .discord-nav-btn {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.25s, color 0.25s, box-shadow 0.25s !important;
+    transition: background-color 0.25s, color 0.25s, box-shadow 0.25s !important;
 }
 
 .discord-nav-btn:hover {
     background: var(--color-discord) !important;
     color: rgb(var(--white-rgb)) !important;
-    transform: translateX(8px) scale(1.03);
     box-shadow: 0 4px 15px rgba(var(--discord-rgb), 0.4);
 }
 
 .discord-nav-btn:hover svg {
-    transform: scale(1.15) rotate(-5deg);
+    transform: scale(1.1) rotate(-5deg);
     transition: transform 0.3s ease;
 }
 
