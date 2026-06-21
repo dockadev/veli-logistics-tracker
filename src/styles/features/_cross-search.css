@@ -1,0 +1,170 @@
+/* ============================================================
+   CROSS-SEARCH COLLAPSIBLE ROWS & TACTICAL CARD DASHBOARD
+   ============================================================ */
+
+
+
+/* ===== NEW TACTICAL CARD DASHBOARD STYLES ===== */
+
+
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.search-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    transition: all var(--transition-smooth);
+    position: relative;
+    overflow: hidden;
+}
+
+.search-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--border-hover);
+    box-shadow: 0 8px 24px rgba(var(--black-rgb), 0.4);
+}
+
+.search-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, transparent, var(--accent-color), transparent);
+    opacity: 0;
+    transition: opacity var(--transition-smooth);
+}
+
+.search-card:hover::before {
+    opacity: 1;
+}
+
+.search-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.search-card-title {
+    font-family: var(--font-heading);
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+}
+
+
+
+.search-card-qty-area {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    margin-top: 0.25rem;
+}
+
+.search-card-qty {
+    font-family: var(--font-heading);
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--accent-color);
+    line-height: 1;
+    text-shadow: 0 0 12px rgba(var(--accent-color-rgb), 0.1);
+}
+
+.search-card-qty-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 700;
+}
+
+.search-card-depots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.85rem;
+    margin-top: auto;
+}
+
+.search-card-depot-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+
+
+.search-card-depot-name {
+    color: var(--text-secondary);
+}
+
+.search-card-depot-qty {
+    color: var(--text-primary);
+    font-weight: 700;
+    font-family: var(--font-heading);
+}
+
+.search-card-progress-bar {
+    height: 4px;
+    background: rgba(var(--white-rgb), 0.04);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.search-card-progress-fill {
+    height: 100%;
+    background: var(--accent-color);
+    border-radius: 2px;
+    transition: width 0.4s ease-out;
+    box-shadow: 0 0 4px var(--accent-glow);
+}
+
+.search-empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    text-align: center;
+    background: var(--bg-card);
+    border: 1px dashed var(--border-color);
+    border-radius: var(--radius-lg);
+    gap: 1.25rem;
+}
+
+.search-empty-icon {
+    color: var(--text-muted);
+    animation: radarPulse 3s infinite;
+}
+
+@keyframes radarPulse {
+    0% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 0.8; }
+    100% { transform: scale(1); opacity: 0.5; }
+}
+
+.search-empty-title {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+}
+
+.search-empty-text {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    max-width: 420px;
+    line-height: 1.5;
+}

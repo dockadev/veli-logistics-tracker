@@ -1,0 +1,239 @@
+/* ============================================================
+   FORMS, TEXTAREAS & INPUT OVERRIDES
+   ============================================================ */
+
+/* ----- Forms & Textareas ----- */
+textarea {
+    width: 100%;
+    height: 100px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem;
+    color: var(--text-primary);
+    font-family: monospace;
+    font-size: 0.75rem;
+    resize: none;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+textarea:focus {
+    border-color: var(--border-focus);
+    background: var(--input-focus-bg);
+}
+
+/* Custom Input, Select, Option and Autocomplete dropdown styles */
+.form-group input[type="text"],
+.form-group input[type="number"],
+.form-group select,
+.select-standard,
+.input-standard {
+    background: var(--input-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-sm) !important;
+    padding: 0.55rem 0.75rem !important;
+    color: var(--text-primary) !important;
+    font-family: var(--font-body) !important;
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.form-group input:focus,
+.select-standard:focus,
+.input-standard:focus {
+    border-color: var(--border-focus) !important;
+    background: var(--input-focus-bg) !important;
+    box-shadow: 0 0 0 2px var(--accent-glow) !important;
+}
+
+.form-group input[type="checkbox"]:focus {
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+.form-group select option {
+    background-color: var(--modal-bg) !important;
+    color: var(--text-primary) !important;
+}
+
+
+
+/* Style selects with Lucide-inspired ChevronDown SVG */
+.select-standard,
+.form-group select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23f97316' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 0.9rem !important;
+    padding-right: 2.25rem !important;
+}
+
+/* Flex-row form layouts */
+.flex-row-wrap {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    position: relative;
+}
+
+.form-group-flex-2 {
+    flex: 2 1 200px;
+    margin: 0;
+    position: relative;
+}
+
+.form-group-flex-1 {
+    flex: 1 1 120px;
+    margin: 0;
+}
+
+.form-group-flex-qty {
+    flex: 1 1 100px;
+    margin: 0;
+}
+
+.btn-add-container {
+    display: flex;
+    align-items: flex-end;
+    height: 35px;
+    margin-top: 1.25rem;
+}
+
+.btn-add-action {
+    height: 35px;
+    padding: 0 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-color: var(--accent-color);
+    color: var(--accent-color);
+}
+
+.btn-add-action:hover {
+    background: var(--accent-bg);
+}
+
+/* Added items list in request modal */
+.added-items-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.added-items-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.added-items-empty {
+    padding: 1.5rem;
+    text-align: center;
+    background: rgba(var(--black-rgb), 0.1);
+    border-radius: var(--radius-sm);
+    border: 1px dashed var(--border-color);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.added-items-scroll-box {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: rgba(var(--black-rgb), 0.15);
+}
+
+.added-item-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+}
+
+.added-item-row:not(:last-child) {
+    border-bottom: 1px solid rgba(var(--white-rgb), 0.03);
+}
+
+.added-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.added-item-badge-category {
+    font-size: 0.55rem;
+    padding: 0.1rem 0.35rem;
+}
+
+.added-item-name {
+    font-size: 0.78rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.added-item-qty-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.added-item-req-qty {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+}
+
+.added-item-req-qty-strong {
+    color: var(--text-primary);
+}
+
+.delete-item-btn {
+    background: transparent;
+    border: none;
+    color: var(--color-negative);
+    cursor: pointer;
+    padding: 0.2rem;
+    display: flex;
+    align-items: center;
+    transition: transform 0.1s ease;
+}
+
+.delete-item-btn:hover {
+    transform: scale(1.1);
+}
+
+/* Suggestions dropdown for autocomplete */
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background: var(--modal-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 8px 32px rgba(var(--black-rgb), 0.6);
+    z-index: 100;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-top: 4px;
+}
+
+.suggestion-item-option {
+    padding: 0.55rem 0.75rem;
+    cursor: pointer;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(var(--white-rgb), 0.02);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.suggestion-item-option:hover {
+    background: var(--accent-bg);
+    color: var(--accent-color);
+}

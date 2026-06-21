@@ -1,0 +1,108 @@
+/* ============================================================
+   RESPONSIVE OVERRIDES & MOBILE BREAKPOINTS
+   ============================================================ */
+
+/* ===== MOBILE OVERRIDES (max-width: 768px) ===== */
+@media (max-width: 768px) {
+    body {
+        background-attachment: scroll !important;
+    }
+
+    /* App container padding adjustments for bottom navigation */
+    .app-container {
+        padding: 1rem 0.75rem 6rem 0.75rem !important;
+        gap: 1rem !important;
+    }
+
+    /* Transform Vertical Sidebar to Bottom Navigation Bar on Mobile */
+    .vertical-navigation-sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        top: auto !important;
+        transform: none !important;
+        width: 100% !important;
+        height: 60px !important;
+        border-radius: 0 !important;
+        border-left: none !important;
+        border-right: none !important;
+        border-bottom: none !important;
+        border-top: 1px solid var(--border-color) !important;
+        flex-direction: row !important;
+        justify-content: space-around !important;
+        align-items: center !important;
+        padding: 0 0.5rem !important;
+        box-shadow: 0 -4px 24px rgba(var(--black-rgb), 0.4) !important;
+        z-index: 9999 !important;
+    }
+
+    .vertical-navigation-sidebar:hover {
+        width: 100% !important;
+        padding: 0 0.5rem !important;
+    }
+
+    .vertical-nav-btn {
+        flex: 1 !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        height: 100% !important;
+        padding: 0 !important;
+        gap: 0.15rem !important;
+        border-radius: 8px !important;
+    }
+
+    .vertical-nav-btn span {
+        font-size: 0.58rem !important;
+        opacity: 1 !important;
+        transform: none !important;
+    }
+
+    /* Hide Discord button or reposition to not overlap bottom navigation */
+
+    /* Chat widget adjustment */
+    .chat-floating-btn {
+        bottom: 5rem !important;
+        right: 1rem !important;
+    }
+
+    .chat-panel-container {
+        bottom: 8.5rem !important;
+        right: 1rem !important;
+        width: calc(100vw - 2rem) !important;
+        max-width: 360px !important;
+        height: 380px !important;
+    }
+
+    /* Header adjustments */
+    header {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+        text-align: center !important;
+        padding: 1.25rem 1rem !important;
+    }
+
+
+    /* Forms and inputs */
+    .flex-row-wrap {
+        flex-direction: column !important;
+    }
+
+    .form-group-flex-1,
+    .form-group-flex-2,
+    .form-group-flex-qty,
+    .btn-add-container {
+        width: 100% !important;
+        flex: 1 1 100% !important;
+    }
+
+    .btn-add-action {
+        width: 100% !important;
+        justify-content: center !important;
+    }
+
+    /* Secure Gate Overrides */
+
+    /* Metric cards on mobile */
+}
