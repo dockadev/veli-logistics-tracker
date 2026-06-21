@@ -1,73 +1,43 @@
-# React + TypeScript + Vite
+# Veli Logistics Tracker (v0.1.1)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An advanced, high-performance desktop application for tracking Foxhole stockpiles, inventory, and logistics requests.
 
-Currently, two official plugins are available:
+## App Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+* **Cross-Search with Autocomplete:** Search for items with auto-suggestions. View stock availability across all depots immediately, sorted from highest to lowest.
+* **Dual Import Methods:** 
+  * **Manual Import:** Paste copied CSV logs directly.
+  * **Auto-Capturer:** Capture clipboard logs automatically in the background when copying depots in-game.
+* **Logistics Request System:** Create supply requests, claim pending requests to indicate delivery, and update fulfillment progress.
+* **Coalition Chat:** Real-time logistics coordination chat.
+* **Officer Portal & Audit Logs:** Detailed tracking of logistics imports and actions for officer oversight.
+* **Regiment Authentication Gate:** Access security verification for member profiles.
+* **Theme Support:** Fully responsive dark/light mode toggle with readable stock levels.
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Installation & Download
 
-## Expanding the ESLint configuration
+To get started, navigate to the **[Releases](https://github.com/dockadev/veli-logistics-tracker/releases)** page of this repository and download the appropriate package for your system:
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+* **Windows:** Download the standalone `Veli_Logistics_Tracker.exe` (portable, no installation required).
+* **Linux (Universal):** Download the standalone `Veli_Logistics_Tracker.AppImage` (portable, no installation required). Run `chmod +x Veli_Logistics_Tracker.AppImage` in the terminal to grant run permissions, then execute it directly.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+---
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Pre-Release Tester Guidelines
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Please focus on testing the following features based on your assigned role:
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 1. For Members (Standard Players)
+* **Logi Imports:** Pin a depot in-game, copy the CSV, and import it using the manual "CSV Import" or the background "Auto-Capturer" (using the window pin icon).
+* **Cross-Search:** Search for items (e.g., "Soldier Supplies") using autocomplete and verify that the stockpile bars are clearly visible in both light/dark themes and sorted correctly.
+* **Supply Requests:** Create new requests, claim/assign a request to yourself, and check if it syncs with other users.
+* **Chat:** Test real-time message sending and delivery.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+### 2. For Officers (Subaylar)
+* **Audit Logs:** Verify that all logi imports, request creations, and administrative updates are logged correctly in the "Officer Portal & Audit Logs" tab.
+* **Security:** Ensure that access keys and gate permissions enforce the proper boundary.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+### 3. Feedback Submission
+Please report any bugs or suggestions using the **Feedback** tab inside the application.

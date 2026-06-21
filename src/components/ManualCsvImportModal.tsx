@@ -51,7 +51,7 @@ export const ManualCsvImportModal: React.FC<ManualCsvImportModalProps> = ({
                             <X size={16} />
                         </button>
                     </div>
-                    <form onSubmit={handleSubmit}>
+                    <form onSubmit={handleSubmit} noValidate>
                         <div className="modal-body modal-body-spacing">
                             <p className="help-text" style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
                                 {userRole !== 'member'

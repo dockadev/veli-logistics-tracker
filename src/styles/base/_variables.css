@@ -110,6 +110,7 @@
     --color-category-crate-vehicle: #ec4899;
     --color-category-crate-vehicle-bg: rgba(236, 72, 153, 0.1);
     --color-category-crate-vehicle-border: rgba(236, 72, 153, 0.3);
+    --progress-bg: rgba(255, 255, 255, 0.04);
 }
 
 html[data-theme="dark"] {
@@ -157,6 +158,7 @@ html[data-theme="dark"] {
     --logo-shine-middle: #ffffff;
     --autofill-bg: #09090f;
     --logo-shine-side: #94a3b8;
+    --progress-bg: rgba(255, 255, 255, 0.04);
 }
 
 html[data-theme="light"] {
@@ -223,4 +225,5 @@ html[data-theme="light"] {
     --color-category-structure: #d9531e;
     --color-category-structure-bg: rgba(217, 83, 30, 0.08);
     --color-category-structure-border: rgba(217, 83, 30, 0.25);
+    --progress-bg: rgba(217, 83, 30, 0.08);
 }

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Check, Ban, ShieldAlert, UserMinus, ShieldCheck } from 'lucide-react';
+import { Search, Check, Ban, ShieldAlert, UserMinus, ShieldCheck, RotateCw } from 'lucide-react';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { PortalUser, AuditLogEntry } from '../types';
 import { AuditLogTab } from './AuditLogTab';
@@ -16,6 +16,10 @@ interface DeveloperPortalTabProps {
     feedbacks?: { id: string; username: string; message: string; created_at: string; category?: 'bug' | 'idea'; status?: 'pending' | 'in_progress' | 'completed' }[];
     onDeleteFeedback?: (id: string) => void;
     onUpdateFeedbackStatus?: (id: string, status: 'pending' | 'in_progress' | 'completed') => void;
+    depots?: Record<string, any>;
+    onGenerateTestDepots?: () => void;
+    onDeleteTestDepots?: () => void;
+    onRefreshUsers?: () => void | Promise<void>;
 }
 
 export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.memo(({
@@ -30,9 +34,13 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
     feedbacks = [],
     onDeleteFeedback,
     onUpdateFeedbackStatus,
+    depots = {},
+    onGenerateTestDepots,
+    onDeleteTestDepots,
+    onRefreshUsers,
 }) => {
     const { t, language } = useLanguage();
-    const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'users' | 'audit' | 'feedbacks'>(
+    const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'users' | 'audit' | 'feedbacks' | 'test-tools'>(
         userRole === 'officer' ? 'audit' : 'approvals'
     );
     const [searchTerm, setSearchTerm] = useState('');
@@ -41,6 +49,19 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
 
     const [feedbackPage, setFeedbackPage] = useState(1);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const handleRefresh = async () => {
+        if (!onRefreshUsers || isRefreshing) return;
+        setIsRefreshing(true);
+        try {
+            await onRefreshUsers();
+        } catch (e) {
+            console.error('[Portal] Refresh failed:', e);
+        } finally {
+            setTimeout(() => setIsRefreshing(false), 600);
+        }
+    };
 
     // Reset page on search query change or subtab change
     React.useEffect(() => {
@@ -85,11 +106,45 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
 
     return (
         <div className="table-container anim-fade-in" style={{ padding: '1rem 1.25rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.6rem' }}>
-                <ShieldAlert size={16} style={{ color: 'var(--accent-color)', filter: 'drop-shadow(0 0 4px var(--accent-glow))' }} />
-                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
-                    {userRole === 'officer' ? 'Officer Portal & Audit Logs' : t('developer_portal')}
-                </h3>
+            <style>{`
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `}</style>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <ShieldAlert size={16} style={{ color: 'var(--accent-color)', filter: 'drop-shadow(0 0 4px var(--accent-glow))' }} />
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
+                        {userRole === 'officer' ? 'Officer Portal & Audit Logs' : t('developer_portal')}
+                    </h3>
+                </div>
+                {userRole === 'developer' && onRefreshUsers && (
+                    <button
+                        onClick={handleRefresh}
+                        style={{
+                            background: 'transparent',
+                            border: 'none',
+                            padding: '4px',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: 'var(--text-secondary)',
+                            transition: 'color 0.2s',
+                            borderRadius: '4px'
+                        }}
+                        title={language === 'tr' ? 'Yenile' : 'Refresh'}
+                    >
+                        <RotateCw 
+                            size={15} 
+                            style={{ 
+                                animation: isRefreshing ? 'spin 0.6s linear infinite' : 'none',
+                                color: 'var(--text-secondary)'
+                            }} 
+                        />
+                    </button>
+                )}
             </div>
             
             <p className="help-text" style={{ marginBottom: '1rem', fontSize: '0.72rem' }}>
@@ -156,6 +211,20 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                         }}
                     >
                         <span>{language === 'tr' ? 'Geri Bildirimler' : 'Feedbacks'} ({feedbacks.length})</span>
+                    </button>
+                    <button
+                        className={`tab-btn ${activeSubTab === 'test-tools' ? 'active' : ''}`}
+                        onClick={() => setActiveSubTab('test-tools')}
+                        style={{ 
+                            padding: '0.4rem 1rem', 
+                            fontSize: '0.75rem', 
+                            borderRadius: '4px 4px 0 0', 
+                            borderBottom: activeSubTab === 'test-tools' ? '2px solid var(--accent-color)' : 'none', 
+                            background: activeSubTab === 'test-tools' ? 'rgba(249, 115, 22, 0.08)' : 'transparent', 
+                            color: activeSubTab === 'test-tools' ? 'var(--text-primary)' : 'var(--text-secondary)'
+                        }}
+                    >
+                        <span>{language === 'tr' ? 'Test Araçları' : 'Test Tools'}</span>
                     </button>
                 </div>
             )}
@@ -512,6 +581,69 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                             </button>
                         </div>
                     )}
+                </div>
+            )}
+
+            {userRole === 'developer' && activeSubTab === 'test-tools' && (
+                <div className="anim-fade-in" style={{ padding: '0.5rem 0' }}>
+                    <div style={{ 
+                        background: 'rgba(249, 115, 22, 0.05)', 
+                        border: '1px solid rgba(249, 115, 22, 0.15)', 
+                        borderRadius: '8px', 
+                        padding: '1rem', 
+                        marginBottom: '1.25rem' 
+                    }}>
+                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-color)' }}>
+                            {language === 'tr' ? 'Veri Tabanı Simülasyon Araçları' : 'Database Simulation Tools'}
+                        </h4>
+                        <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                            {language === 'tr' 
+                                ? 'Bu araç test ve görsel hata denetimi amacıyla 20 adet rastgele içerikli simüle depo oluşturmanızı sağlar. Oluşturulan depolar "TEST-" öneki ile kaydedilir ve dilediğiniz an tek tıkla temizlenebilir.' 
+                                : 'This tool allows you to generate 20 simulated depots with random stock contents for testing and visual debugging. Generated depots are saved with a "TEST-" prefix and can be cleared with a single click.'}
+                        </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                        <button
+                            type="button"
+                            className="btn btn-primary"
+                            onClick={onGenerateTestDepots}
+                            style={{ 
+                                padding: '0.45rem 1rem', 
+                                fontSize: '0.75rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.35rem',
+                                background: 'var(--accent-color)',
+                                color: '#06060c',
+                                border: 'none',
+                                fontWeight: 700
+                            }}
+                        >
+                            <span>{language === 'tr' ? '20 Test Deposu Oluştur' : 'Generate 20 Test Depots'}</span>
+                        </button>
+                        
+                        <button
+                            type="button"
+                            className="btn btn-secondary text-negative"
+                            onClick={onDeleteTestDepots}
+                            style={{ 
+                                padding: '0.45rem 1rem', 
+                                fontSize: '0.75rem', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.35rem'
+                            }}
+                        >
+                            <span>{language === 'tr' ? 'Tüm Test Depolarını Sil' : 'Clear All Test Depots'}</span>
+                        </button>
+                    </div>
+
+                    <div style={{ marginTop: '1.25rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {language === 'tr' 
+                            ? `Mevcut test deposu sayısı: ${Object.keys(depots || {}).filter(k => k.startsWith('TEST-')).length}` 
+                            : `Current test depots count: ${Object.keys(depots || {}).filter(k => k.startsWith('TEST-')).length}`}
+                    </div>
                 </div>
             )}
         </div>

@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState } from 'react';
 import { translations } from '../utils/localization';
 import type { Language } from '../utils/localization';
+import { supabase } from '../utils/supabaseClient';
 export type { Language };
 
 export type TranslationKey = keyof typeof translations.en;
@@ -20,9 +21,22 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         return (stored === 'tr' || stored === 'en' || stored === 'pt-BR' || stored === 'ru' || stored === 'de') ? (stored as Language) : 'en';
     });
 
-    const setLanguage = (lang: Language) => {
+    const setLanguage = async (lang: Language) => {
         setLanguageState(lang);
         localStorage.setItem('foxhole_depot_lang', lang);
+        if (supabase) {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    await supabase
+                        .from('profiles')
+                        .update({ language: lang })
+                        .eq('id', session.user.id);
+                }
+            } catch (e) {
+                console.error('[LanguageContext] Failed to sync language to Supabase:', e);
+            }
+        }
     };
 
     const t = (key: TranslationKey, params?: Record<string, string | number>): string => {

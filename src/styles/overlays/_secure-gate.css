@@ -61,11 +61,11 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-image: url('../../assets/veli-logo.png');
+    background-image: url('../../assets/login-bg.jpg');
     background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    opacity: 0.12;
+    opacity: 0.3;
     z-index: 1;
     pointer-events: none;
 }
@@ -369,6 +369,15 @@
 @keyframes spinSlow {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
+}
+
+.typewriter-cursor {
+    animation: cursorBlink 0.8s step-end infinite;
+}
+
+@keyframes cursorBlink {
+    from, to { opacity: 1; }
+    50% { opacity: 0; }
 }
 
 
