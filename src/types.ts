@@ -82,4 +82,15 @@ export interface PortalUser {
     username: string;
     role: UserRole;
     status: 'pending' | 'approved' | 'rejected';
+    import_count?: number;
+    request_count?: number;
+    delivery_count?: number;
+}
+
+export interface DepotHistoryEntry {
+    id: string;
+    depot_name: string;
+    items: Record<string, ItemInfo>;
+    imported_by: string;
+    imported_at: string;
 }

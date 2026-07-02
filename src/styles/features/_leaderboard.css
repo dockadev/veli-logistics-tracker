@@ -1,0 +1,70 @@
+/* ============================================================
+   DOCKA LOGISTICS TRACKER - LEADERBOARD STYLING
+   ============================================================ */
+
+.leaderboard-grid {
+    display: flex;
+    gap: 1.25rem;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.leaderboard-column {
+    background: rgba(13, 13, 17, 0.45);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), 
+                border-color 0.25s ease, 
+                box-shadow 0.25s ease;
+}
+
+.leaderboard-column:hover {
+    transform: translateY(-4px);
+    border-color: rgba(249, 115, 22, 0.2);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(249, 115, 22, 0.05);
+}
+
+.leaderboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+}
+
+.leaderboard-item {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), 
+                background-color 0.2s ease, 
+                border-color 0.2s ease,
+                box-shadow 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.015);
+}
+
+.leaderboard-item:hover {
+    transform: translateX(6px);
+    background-color: rgba(255, 255, 255, 0.035) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Rank Specific glows */
+.leaderboard-rank-1 {
+    box-shadow: 0 0 8px rgba(245, 158, 11, 0.15);
+    border-color: rgba(245, 158, 11, 0.1) !important;
+}
+
+.leaderboard-rank-2 {
+    box-shadow: 0 0 8px rgba(148, 163, 184, 0.12);
+    border-color: rgba(148, 163, 184, 0.08) !important;
+}
+
+.leaderboard-rank-3 {
+    box-shadow: 0 0 8px rgba(180, 83, 9, 0.12);
+    border-color: rgba(180, 83, 9, 0.08) !important;
+}
+
+@media (max-width: 768px) {
+    .leaderboard-grid {
+        flex-direction: column;
+    }
+}

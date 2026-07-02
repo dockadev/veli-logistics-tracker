@@ -27,6 +27,8 @@
 @import './features/_supply-requests.css';
 @import './features/_cross-search.css';
 @import './features/_depot-selector.css';
+@import './features/_analytics.css';
+@import './features/_leaderboard.css';
 
 /* === 5. OVERLAYS === */
 @import './overlays/_secure-gate.css';

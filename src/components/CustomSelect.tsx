@@ -13,6 +13,7 @@ interface CustomSelectProps {
     onChange: (value: string) => void;
     placeholder?: string;
     className?: string;
+    disabled?: boolean;
 }
 
 export const CustomSelect: React.FC<CustomSelectProps> = ({
@@ -21,7 +22,8 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
     value,
     onChange,
     placeholder = 'Select option...',
-    className = ''
+    className = '',
+    disabled = false
 }) => {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -51,8 +53,10 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
         >
             <button
                 type="button"
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => !disabled && setIsOpen(!isOpen)}
                 className="custom-select-trigger"
+                disabled={disabled}
+                style={disabled ? { opacity: 0.55, cursor: 'not-allowed', background: 'rgba(0, 0, 0, 0.1)', borderColor: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' } : undefined}
             >
                 <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
                     {selectedOption ? selectedOption.label : placeholder}

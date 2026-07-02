@@ -1,5 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Check, Ban, ShieldAlert, UserMinus, ShieldCheck, RotateCw } from 'lucide-react';
+import { 
+    Search, Check, Ban, ShieldAlert, UserMinus, 
+    ShieldCheck, RotateCw, Trash2, RefreshCw, 
+    AlertTriangle, Shield, MessageSquare, 
+    Terminal, Settings2 
+} from 'lucide-react';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { PortalUser, AuditLogEntry } from '../types';
 import { AuditLogTab } from './AuditLogTab';
@@ -20,6 +25,7 @@ interface DeveloperPortalTabProps {
     onGenerateTestDepots?: () => void;
     onDeleteTestDepots?: () => void;
     onRefreshUsers?: () => void | Promise<void>;
+    onResetLeaderboard: () => Promise<void>;
 }
 
 export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.memo(({
@@ -38,9 +44,10 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
     onGenerateTestDepots,
     onDeleteTestDepots,
     onRefreshUsers,
+    onResetLeaderboard,
 }) => {
     const { t, language } = useLanguage();
-    const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'users' | 'audit' | 'feedbacks' | 'test-tools'>(
+    const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'audit' | 'feedbacks' | 'system'>(
         userRole === 'officer' ? 'audit' : 'approvals'
     );
     const [searchTerm, setSearchTerm] = useState('');
@@ -50,6 +57,43 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
     const [feedbackPage, setFeedbackPage] = useState(1);
     const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
     const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // War Reset states
+    const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
+
+    // Local War Reset translations
+    const localTranslations: Record<string, Record<string, string>> = {
+        tr: {
+            war_control: 'SAVAŞ YÖNETİMİ & KONTROLÜ',
+            war_control_desc: 'Savaş sıfırlama, liderlik sıralamalarını temizleme ve veri yönetim araçları.',
+            reset_leaderboard: 'Savaş İstatistiklerini Sıfırla',
+            reset_warning_title: 'SAVAŞ SIFIRLAMA ONAYI',
+            reset_warning_body: 'Bu işlem, mevcut savaştaki tüm üyelerin liderlik tablosu istatistiklerini (CSV import, talep açma ve teslimat sayıları) kalıcı olarak sıfırlayacaktır. Yeni savaşa geçerken bu işlemi onaylıyor musunuz?',
+            cancel: 'İptal',
+            confirm_reset: 'Evet, Sıfırla',
+            developer_only: 'Bu işlem sadece Geliştirici (Developer) yetkisine özeldir.',
+            test_depots: 'Test Depoları Yönetimi',
+            test_depots_desc: 'Geliştirme ve görsel hata denetimi amacıyla 20 adet rastgele içerikli test deposu oluşturur veya siler.'
+        },
+        en: {
+            war_control: 'WAR CONTROL & ADMINISTRATION',
+            war_control_desc: 'War reset commands, contribution leaderboard stats clearing, and developer utility tools.',
+            reset_leaderboard: 'Reset War Stats',
+            reset_warning_title: 'WAR RESET CONFIRMATION',
+            reset_warning_body: 'This action will permanently reset all members\' leaderboard statistics (CSV imports, requests created, and deliveries completed) for the current war. Do you confirm this action for the new war?',
+            cancel: 'Cancel',
+            confirm_reset: 'Yes, Reset',
+            developer_only: 'This action is restricted to the Developer role only.',
+            test_depots: 'Test Depots Simulator',
+            test_depots_desc: 'Generates or deletes 20 simulated test depots with randomized inventory levels for debugging purposes.'
+        }
+    };
+
+    const getLocalTranslation = (key: string): string => {
+        const lang = localTranslations[language] ? language : 'en';
+        return localTranslations[lang][key] || localTranslations['en'][key] || key;
+    };
 
     const handleRefresh = async () => {
         if (!onRefreshUsers || isRefreshing) return;
@@ -63,7 +107,18 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
         }
     };
 
-    // Reset page on search query change or subtab change
+    const handleConfirmReset = async () => {
+        setIsResetting(true);
+        try {
+            await onResetLeaderboard();
+            setIsResetModalOpen(false);
+        } catch (error) {
+            console.error('Failed to reset leaderboard stats:', error);
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
     React.useEffect(() => {
         setCurrentPage(1);
         setFeedbackPage(1);
@@ -105,18 +160,59 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
     };
 
     return (
-        <div className="table-container anim-fade-in" style={{ padding: '1rem 1.25rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
+        <div className="panel-card anim-fade-in" style={{ padding: '1.25rem', border: '1px solid var(--border-color)', borderRadius: '12px', background: 'var(--bg-card, rgba(15, 15, 20, 0.45))', backdropFilter: 'blur(12px)' }}>
             <style>{`
                 @keyframes spin {
                     from { transform: rotate(0deg); }
                     to { transform: rotate(360deg); }
                 }
+                .dev-subtab-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+                    gap: 0.5rem;
+                    margin-bottom: 1.25rem;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                    padding-bottom: 0.75rem;
+                }
+                .dev-subtab-btn {
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 0.5rem;
+                    padding: 0.5rem 0.75rem;
+                    font-size: 0.75rem;
+                    font-weight: 700;
+                    border-radius: 6px;
+                    background: rgba(255, 255, 255, 0.01);
+                    border: 1px solid rgba(255, 255, 255, 0.03);
+                    color: var(--text-secondary);
+                    cursor: pointer;
+                    transition: all 0.2s ease;
+                }
+                .dev-subtab-btn:hover {
+                    background: rgba(255, 255, 255, 0.03);
+                    color: var(--text-primary);
+                }
+                .dev-subtab-btn.active {
+                    background: rgba(249, 115, 22, 0.1);
+                    border-color: rgba(249, 115, 22, 0.3);
+                    color: var(--accent-color);
+                    box-shadow: 0 0 10px rgba(249, 115, 22, 0.05);
+                }
+                .dev-portal-section-card {
+                    background: rgba(255, 255, 255, 0.01);
+                    border: 1px solid rgba(255, 255, 255, 0.03);
+                    border-radius: 8px;
+                    padding: 1rem;
+                }
             `}</style>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                    <ShieldAlert size={16} style={{ color: 'var(--accent-color)', filter: 'drop-shadow(0 0 4px var(--accent-glow))' }} />
-                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700, textTransform: 'uppercase', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
-                        {userRole === 'officer' ? 'Officer Portal & Audit Logs' : t('developer_portal')}
+
+            {/* Header Area */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <ShieldAlert size={18} style={{ color: 'var(--accent-color)', filter: 'drop-shadow(0 0 4px rgba(249,115,22,0.3))' }} />
+                    <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
+                        {userRole === 'officer' ? 'Officer Control Panel' : t('developer_portal')}
                     </h3>
                 </div>
                 {userRole === 'developer' && onRefreshUsers && (
@@ -137,7 +233,7 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                         title={language === 'tr' ? 'Yenile' : 'Refresh'}
                     >
                         <RotateCw 
-                            size={15} 
+                            size={14} 
                             style={{ 
                                 animation: isRefreshing ? 'spin 0.6s linear infinite' : 'none',
                                 color: 'var(--text-secondary)'
@@ -146,408 +242,227 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                     </button>
                 )}
             </div>
-            
-            <p className="help-text" style={{ marginBottom: '1rem', fontSize: '0.72rem' }}>
+
+            <p className="help-text" style={{ marginBottom: '1.25rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                 {userRole === 'officer' 
-                    ? 'Access historical logistics logs and security operations records.'
+                    ? 'Access historical logs, active user accounts, and security logs.'
                     : t('developer_portal_desc')}
             </p>
 
-            {/* Sub-tabs (Only for developer. Officers can only view audit logs) */}
+            {/* Navigation Tabs Grid */}
             {userRole === 'developer' && (
-                <div className="panel-tabs" style={{ display: 'flex', gap: '0.25rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0px' }}>
+                <div className="dev-subtab-grid">
                     <button
-                        className={`tab-btn ${activeSubTab === 'approvals' ? 'active' : ''}`}
+                        className={`dev-subtab-btn ${activeSubTab === 'approvals' ? 'active' : ''}`}
                         onClick={() => setActiveSubTab('approvals')}
-                        style={{ 
-                            padding: '0.4rem 1rem', 
-                            fontSize: '0.75rem', 
-                            borderRadius: '4px 4px 0 0', 
-                            borderBottom: activeSubTab === 'approvals' ? '2px solid var(--accent-color)' : 'none', 
-                            background: activeSubTab === 'approvals' ? 'rgba(249, 115, 22, 0.08)' : 'transparent', 
-                            color: activeSubTab === 'approvals' ? 'var(--text-primary)' : 'var(--text-secondary)'
-                        }}
                     >
-                        <span>{t('approvals')} ({pendingUsers.length})</span>
+                        <ShieldCheck size={14} />
+                        <span>{t('approvals')} ({pendingUsers.length + approvedUsers.length})</span>
                     </button>
                     <button
-                        className={`tab-btn ${activeSubTab === 'users' ? 'active' : ''}`}
-                        onClick={() => setActiveSubTab('users')}
-                        style={{ 
-                            padding: '0.4rem 1rem', 
-                            fontSize: '0.75rem', 
-                            borderRadius: '4px 4px 0 0', 
-                            borderBottom: activeSubTab === 'users' ? '2px solid var(--accent-color)' : 'none', 
-                            background: activeSubTab === 'users' ? 'rgba(249, 115, 22, 0.08)' : 'transparent', 
-                            color: activeSubTab === 'users' ? 'var(--text-primary)' : 'var(--text-secondary)'
-                        }}
-                    >
-                        <span>{t('users')} ({approvedUsers.length})</span>
-                    </button>
-                    <button
-                        className={`tab-btn ${activeSubTab === 'audit' ? 'active' : ''}`}
+                        className={`dev-subtab-btn ${activeSubTab === 'audit' ? 'active' : ''}`}
                         onClick={() => setActiveSubTab('audit')}
-                        style={{ 
-                            padding: '0.4rem 1rem', 
-                            fontSize: '0.75rem', 
-                            borderRadius: '4px 4px 0 0', 
-                            borderBottom: activeSubTab === 'audit' ? '2px solid var(--accent-color)' : 'none', 
-                            background: activeSubTab === 'audit' ? 'rgba(249, 115, 22, 0.08)' : 'transparent', 
-                            color: activeSubTab === 'audit' ? 'var(--text-primary)' : 'var(--text-secondary)'
-                        }}
                     >
+                        <Terminal size={14} />
                         <span>Audit Logs</span>
                     </button>
                     <button
-                        className={`tab-btn ${activeSubTab === 'feedbacks' ? 'active' : ''}`}
+                        className={`dev-subtab-btn ${activeSubTab === 'feedbacks' ? 'active' : ''}`}
                         onClick={() => setActiveSubTab('feedbacks')}
-                        style={{ 
-                            padding: '0.4rem 1rem', 
-                            fontSize: '0.75rem', 
-                            borderRadius: '4px 4px 0 0', 
-                            borderBottom: activeSubTab === 'feedbacks' ? '2px solid var(--accent-color)' : 'none', 
-                            background: activeSubTab === 'feedbacks' ? 'rgba(249, 115, 22, 0.08)' : 'transparent', 
-                            color: activeSubTab === 'feedbacks' ? 'var(--text-primary)' : 'var(--text-secondary)'
-                        }}
                     >
+                        <MessageSquare size={14} />
                         <span>{language === 'tr' ? 'Geri Bildirimler' : 'Feedbacks'} ({feedbacks.length})</span>
                     </button>
                     <button
-                        className={`tab-btn ${activeSubTab === 'test-tools' ? 'active' : ''}`}
-                        onClick={() => setActiveSubTab('test-tools')}
-                        style={{ 
-                            padding: '0.4rem 1rem', 
-                            fontSize: '0.75rem', 
-                            borderRadius: '4px 4px 0 0', 
-                            borderBottom: activeSubTab === 'test-tools' ? '2px solid var(--accent-color)' : 'none', 
-                            background: activeSubTab === 'test-tools' ? 'rgba(249, 115, 22, 0.08)' : 'transparent', 
-                            color: activeSubTab === 'test-tools' ? 'var(--text-primary)' : 'var(--text-secondary)'
-                        }}
+                        className={`dev-subtab-btn ${activeSubTab === 'system' ? 'active' : ''}`}
+                        onClick={() => setActiveSubTab('system')}
                     >
-                        <span>{language === 'tr' ? 'Test Araçları' : 'Test Tools'}</span>
+                        <Settings2 size={14} />
+                        <span>{language === 'tr' ? 'Sistem Ayarları' : 'System Control'}</span>
                     </button>
                 </div>
             )}
 
-            {/* Tab Content: Approvals */}
+            {/* Content: Approvals / User Management */}
             {userRole === 'developer' && activeSubTab === 'approvals' && (
-                <div style={{ minHeight: '180px', maxHeight: '400px', overflowY: 'auto' }}>
-                    {pendingUsers.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '2rem 1rem', opacity: 0.5 }}>
-                            <p style={{ fontSize: '0.75rem', margin: 0 }}>No pending approvals found.</p>
-                        </div>
-                    ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                            {pendingUsers.map(user => (
-                                <div 
-                                    key={user.id} 
-                                    style={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between', 
-                                        alignItems: 'center', 
-                                        background: 'var(--btn-secondary-bg)', 
-                                        border: '1px solid var(--border-color)', 
-                                        borderRadius: '8px', 
-                                        padding: '0.55rem 0.75rem' 
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)' }}>{user.username}</span>
-                                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-                                                Request: <span className={getRoleClass(user.role)} style={{ fontSize: '0.58rem', padding: '0.08rem 0.3rem', marginLeft: '0.2rem' }}>{t(`role_${user.role}` as TranslationKey) || user.role}</span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                        <button 
-                                            className="btn btn-secondary text-negative" 
-                                            onClick={() => onRejectUser(user.id)}
-                                            style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.68rem', padding: '0.25rem 0.6rem' }}
-                                        >
-                                            <Ban size={11} />
-                                            <span>{t('reject')}</span>
-                                        </button>
-                                        
-                                        <button 
-                                            className="btn btn-primary" 
-                                            onClick={() => onApproveUser(user.id, 'member')}
-                                            style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.68rem', padding: '0.25rem 0.6rem' }}
-                                        >
-                                            <Check size={11} />
-                                            <span>{t('approve')}</span>
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
-
-            {/* Tab Content: Users */}
-            {userRole === 'developer' && activeSubTab === 'users' && (
-                <div>
-                    {/* Search filter */}
-                    <div style={{ position: 'relative', marginBottom: '0.75rem' }}>
-                        <Search 
-                            size={12} 
-                            style={{ 
-                                position: 'absolute', 
-                                left: '0.6rem', 
-                                top: '50%', 
-                                transform: 'translateY(-50%)', 
-                                color: 'var(--text-muted)' 
-                            }} 
-                        />
-                        <input
-                            type="text"
-                            placeholder={t('search_user_placeholder')}
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            style={{
-                                width: '100%',
-                                padding: '0.35rem 0.5rem 0.35rem 1.8rem',
-                                fontSize: '0.75rem',
-                                background: 'rgba(0, 0, 0, 0.3)',
-                                border: '1px solid var(--border-color)',
-                                borderRadius: '30px',
-                                color: '#fff',
-                                outline: 'none'
-                            }}
-                        />
-                    </div>
-
-                    <div style={{ minHeight: '180px', maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        {approvedUsers.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '2rem 1rem', opacity: 0.5 }}>
-                                <p style={{ fontSize: '0.75rem', margin: 0 }}>No users found.</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    
+                    {/* Section: Pending Approvals */}
+                    <div className="dev-portal-section-card">
+                        <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-color)' }}>
+                            {language === 'tr' ? 'BEKLEYEN ÜYE ONAYLARI' : 'PENDING APPROVALS'} ({pendingUsers.length})
+                        </h4>
+                        {pendingUsers.length === 0 ? (
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', padding: '0.5rem 0' }}>
+                                No pending user registrations at the moment.
                             </div>
                         ) : (
-                            paginatedUsers.map(user => (
-                                <div 
-                                    key={user.id} 
-                                    style={{ 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between', 
-                                        alignItems: 'center', 
-                                        background: 'var(--btn-secondary-bg)', 
-                                        border: '1px solid var(--border-color)', 
-                                        borderRadius: '8px', 
-                                        padding: '0.5rem 0.75rem' 
-                                    }}
-                                >
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                        <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--text-primary)' }}>{user.username}</span>
-                                        <span className={getRoleClass(user.role)} style={{ fontSize: '0.58rem', padding: '0.1rem 0.35rem' }}>
-                                            {t(`role_${user.role}` as TranslationKey) || user.role}
-                                        </span>
-                                        {user.status === 'rejected' && (
-                                            <span className="badge badge-structure" style={{ fontSize: '0.58rem', padding: '0.1rem 0.35rem', background: 'rgba(244,63,94,0.15)', borderColor: 'rgba(244,63,94,0.3)', color: 'var(--color-negative)' }}>
-                                                Rejected
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '200px', overflowY: 'auto' }}>
+                                {pendingUsers.map(user => (
+                                    <div key={user.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.02)', borderRadius: '6px', padding: '0.45rem 0.65rem' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-primary)' }}>{user.username}</span>
+                                            <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
+                                                Role Requested: <span className={getRoleClass(user.role)} style={{ fontSize: '0.58rem', padding: '0.08rem 0.3rem', marginLeft: '0.2rem' }}>{t(`role_${user.role}` as TranslationKey) || user.role}</span>
                                             </span>
-                                        )}
-                                    </div>
-                                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                                        {user.role === 'member' && user.status === 'approved' && (
-                                            <button 
-                                                className="btn btn-secondary" 
-                                                onClick={() => onPromoteUser(user.id)}
-                                                style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}
-                                            >
-                                                <ShieldCheck size={11} style={{ color: 'var(--accent-color)' }} />
-                                                <span>{t('promote_to_officer')}</span>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                            <button className="btn btn-secondary text-negative" onClick={() => onRejectUser(user.id)} style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                                                <Ban size={10} />
+                                                <span>{t('reject')}</span>
                                             </button>
-                                        )}
-                                        {user.role === 'officer' && user.status === 'approved' && (
-                                            <button 
-                                                className="btn btn-secondary text-negative" 
-                                                onClick={() => onDemoteUser(user.id)}
-                                                style={{ display: 'flex', alignItems: 'center', gap: '0.15rem', fontSize: '0.65rem', padding: '0.2rem 0.5rem' }}
-                                            >
-                                                <UserMinus size={11} />
-                                                <span>{t('demote_to_member')}</span>
+                                            <button className="btn btn-primary" onClick={() => onApproveUser(user.id, 'member')} style={{ padding: '0.2rem 0.5rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                                                <Check size={10} />
+                                                <span>{t('approve')}</span>
                                             </button>
-                                        )}
+                                        </div>
                                     </div>
-                                </div>
-                            ))
+                                ))}
+                            </div>
                         )}
                     </div>
 
-                    {/* Users Pagination Controls */}
-                    {totalPages > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginTop: '0.75rem' }}>
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
-                                disabled={currentPage === 1}
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
-                                type="button"
-                            >
-                                <span>{t('previous') || 'Geri'}</span>
-                            </button>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                {currentPage} / {totalPages}
-                            </span>
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
-                                disabled={currentPage === totalPages}
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
-                                type="button"
-                            >
-                                <span>{t('next') || 'İleri'}</span>
-                            </button>
+                    {/* Section: Active Users List */}
+                    <div className="dev-portal-section-card">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            <h4 style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                {language === 'tr' ? 'SİSTEM KULLANICILARI' : 'ACTIVE USERS LIST'} ({approvedUsers.length})
+                            </h4>
+                            <div style={{ position: 'relative', width: '200px' }}>
+                                <Search size={11} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                                <input
+                                    type="text"
+                                    placeholder={t('search_user_placeholder')}
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    style={{ width: '100%', padding: '0.25rem 0.4rem 0.25rem 1.5rem', fontSize: '0.7rem', background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '15px', color: '#fff', outline: 'none' }}
+                                />
+                            </div>
                         </div>
-                    )}
+
+                        {approvedUsers.length === 0 ? (
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', padding: '0.5rem 0' }}>
+                                No users matched your search criteria.
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', maxHeight: '200px', overflowY: 'auto' }}>
+                                {paginatedUsers.map(user => (
+                                    <div key={user.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.02)', borderRadius: '6px', padding: '0.45rem 0.65rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-primary)' }}>{user.username}</span>
+                                            <span className={getRoleClass(user.role)} style={{ fontSize: '0.58rem', padding: '0.08rem 0.3rem' }}>
+                                                {t(`role_${user.role}` as TranslationKey) || user.role}
+                                            </span>
+                                            {user.status === 'rejected' && (
+                                                <span style={{ fontSize: '0.58rem', padding: '0.08rem 0.3rem', background: 'rgba(239,68,68,0.1)', color: '#ef4444', borderRadius: '4px', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                                    Rejected
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div>
+                                            {user.role === 'member' && user.status === 'approved' && (
+                                                <button className="btn btn-secondary" onClick={() => onPromoteUser(user.id)} style={{ padding: '0.2rem 0.5rem', fontSize: '0.62rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                                                    <ShieldCheck size={10} style={{ color: 'var(--accent-color)' }} />
+                                                    <span>{t('promote_to_officer')}</span>
+                                                </button>
+                                            )}
+                                            {user.role === 'officer' && user.status === 'approved' && (
+                                                <button className="btn btn-secondary text-negative" onClick={() => onDemoteUser(user.id)} style={{ padding: '0.2rem 0.5rem', fontSize: '0.62rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}>
+                                                    <UserMinus size={10} />
+                                                    <span>{t('demote_to_member')}</span>
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
+                                <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} disabled={currentPage === 1} style={{ padding: '0.2rem 0.45rem', fontSize: '0.65rem' }}>
+                                    <span>{t('previous')}</span>
+                                </button>
+                                <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                                    {currentPage} / {totalPages}
+                                </span>
+                                <button className="btn btn-secondary" onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} disabled={currentPage === totalPages} style={{ padding: '0.2rem 0.45rem', fontSize: '0.65rem' }}>
+                                    <span>{t('next')}</span>
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
-            {/* Tab Content: Audit Logs */}
+            {/* Content: Audit Logs */}
             {((userRole === 'developer' && activeSubTab === 'audit') || userRole === 'officer') && (
                 <div style={{ marginTop: '0.25rem' }}>
                     <AuditLogTab logs={auditLogs} onClearLogs={onClearAuditLogs} />
                 </div>
             )}
 
-            {/* Tab Content: Feedbacks */}
+            {/* Content: Feedback Inbox */}
             {userRole === 'developer' && activeSubTab === 'feedbacks' && (
-                <div>
-                    <div style={{ minHeight: '180px', maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.55rem', paddingRight: '0.25rem' }}>
+                <div className="dev-portal-section-card">
+                    <h4 style={{ margin: '0 0 0.75rem 0', fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-color)' }}>
+                        {language === 'tr' ? 'GERİ BİLDİRİM VE HATA İHBAR KUTUSU' : 'FEEDBACK & BUG REPORTS'} ({feedbacks.length})
+                    </h4>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', maxHeight: '350px', overflowY: 'auto' }}>
                         {feedbacks.length === 0 ? (
-                            <div style={{ textAlign: 'center', padding: '2rem 1rem', opacity: 0.5 }}>
-                                <p style={{ fontSize: '0.75rem', margin: 0 }}>
-                                    {language === 'tr' ? 'Henüz geri bildirim gönderilmemiş.' : 'No feedbacks received yet.'}
-                                </p>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', padding: '1rem 0', textAlign: 'center' }}>
+                                {language === 'tr' ? 'Henüz gönderilmiş bir geri bildirim yok.' : 'No feedback or bug reports submitted yet.'}
                             </div>
                         ) : (
                             paginatedFeedbacks.map(fb => (
-                                <div 
-                                    key={fb.id} 
-                                    style={{ 
-                                        display: 'flex', 
-                                        flexDirection: 'column',
-                                        gap: '0.45rem',
-                                        background: 'var(--btn-secondary-bg)', 
-                                        border: '1px solid var(--border-color)', 
-                                        borderRadius: '8px', 
-                                        padding: '0.75rem 0.95rem' 
-                                    }}
-                                >
+                                <div key={fb.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', background: 'rgba(255,255,255,0.01)', border: '1px solid rgba(255,255,255,0.02)', borderRadius: '6px', padding: '0.65rem 0.85rem' }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                                            <span style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--accent-color)' }}>{fb.username}</span>
-                                            <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-                                                {new Date(fb.created_at).toLocaleString(language === 'tr' ? 'tr-TR' : 'en-US')}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                                            <span style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--accent-color)' }}>{fb.username}</span>
+                                            <span style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                                                {new Date(fb.created_at).toLocaleString()}
                                             </span>
-                                            
-                                            {/* Category Badge */}
                                             {fb.category === 'bug' ? (
-                                                <span style={{ fontSize: '0.58rem', padding: '0.08rem 0.35rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#ef4444', fontWeight: 600 }}>
-                                                    {language === 'tr' ? 'Hata' : 'Bug'}
-                                                </span>
+                                                <span style={{ fontSize: '0.56rem', padding: '0.05rem 0.3rem', borderRadius: '4px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)', fontWeight: 600 }}>Bug</span>
                                             ) : (
-                                                <span style={{ fontSize: '0.58rem', padding: '0.08rem 0.35rem', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.08)', border: '1px solid rgba(249, 115, 22, 0.25)', color: 'var(--accent-color)', fontWeight: 600 }}>
-                                                    {language === 'tr' ? 'Fikir' : 'Idea'}
-                                                </span>
+                                                <span style={{ fontSize: '0.56rem', padding: '0.05rem 0.3rem', borderRadius: '4px', background: 'rgba(249,115,22,0.05)', color: 'var(--accent-color)', border: '1px solid rgba(249,115,22,0.15)', fontWeight: 600 }}>Idea</span>
                                             )}
-
-                                            {/* Status Badge */}
                                             {fb.status === 'completed' && (
-                                                <span style={{ fontSize: '0.58rem', padding: '0.08rem 0.35rem', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.25)', color: '#22c55e', fontWeight: 600 }}>
-                                                    {language === 'tr' ? 'Tamamlandı' : 'Completed'}
-                                                </span>
+                                                <span style={{ fontSize: '0.56rem', padding: '0.05rem 0.3rem', borderRadius: '4px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)', fontWeight: 600 }}>Done</span>
                                             )}
                                             {fb.status === 'in_progress' && (
-                                                <span style={{ fontSize: '0.58rem', padding: '0.08rem 0.35rem', borderRadius: '4px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.25)', color: '#3b82f6', fontWeight: 600 }}>
-                                                    {language === 'tr' ? 'Çalışılıyor' : 'In Progress'}
-                                                </span>
-                                            )}
-                                            {(!fb.status || fb.status === 'pending') && (
-                                                <span style={{ fontSize: '0.58rem', padding: '0.08rem 0.35rem', borderRadius: '4px', background: 'rgba(156, 163, 175, 0.1)', border: '1px solid rgba(156, 163, 175, 0.25)', color: '#9ca3af', fontWeight: 600 }}>
-                                                    {language === 'tr' ? 'Beklemede' : 'Pending'}
-                                                </span>
+                                                <span style={{ fontSize: '0.56rem', padding: '0.05rem 0.3rem', borderRadius: '4px', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)', fontWeight: 600 }}>In Progress</span>
                                             )}
                                         </div>
                                         {onDeleteFeedback && (
-                                            <div style={{ display: 'flex', alignItems: 'center' }}>
+                                            <div>
                                                 {confirmDeleteId === fb.id ? (
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                                                        <span style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 600 }}>
-                                                            {language === 'tr' ? 'Emin misiniz?' : 'Are you sure?'}
-                                                        </span>
-                                                        <button
-                                                            className="btn btn-secondary"
-                                                            onClick={() => setConfirmDeleteId(null)}
-                                                            style={{ padding: '0.1rem 0.3rem', fontSize: '0.58rem', minWidth: 'auto', height: 'auto' }}
-                                                            type="button"
-                                                        >
-                                                            {language === 'tr' ? 'Hayır' : 'No'}
-                                                        </button>
-                                                        <button
-                                                            className="btn btn-primary"
-                                                            onClick={() => {
-                                                                onDeleteFeedback(fb.id);
-                                                                setConfirmDeleteId(null);
-                                                            }}
-                                                            style={{ padding: '0.1rem 0.3rem', fontSize: '0.58rem', background: '#ef4444', borderColor: '#ef4444', minWidth: 'auto', height: 'auto' }}
-                                                            type="button"
-                                                        >
-                                                            {language === 'tr' ? 'Evet' : 'Yes'}
-                                                        </button>
+                                                    <div style={{ display: 'flex', gap: '0.2rem', alignItems: 'center' }}>
+                                                        <button className="btn btn-secondary" onClick={() => setConfirmDeleteId(null)} style={{ padding: '0.1rem 0.3rem', fontSize: '0.56rem' }}>No</button>
+                                                        <button className="btn btn-danger" onClick={() => { onDeleteFeedback(fb.id); setConfirmDeleteId(null); }} style={{ padding: '0.1rem 0.3rem', fontSize: '0.56rem' }}>Yes</button>
                                                     </div>
                                                 ) : (
-                                                    <button
-                                                        className="btn-dismiss-action"
-                                                        onClick={() => setConfirmDeleteId(fb.id)}
-                                                        style={{ width: '22px', height: '22px', border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.4)', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s ease' }}
-                                                        onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
-                                                        onMouseLeave={(e) => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'transparent'; }}
-                                                        title={language === 'tr' ? 'Sil' : 'Delete'}
-                                                        type="button"
-                                                    >
-                                                        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                                                    <button className="btn-dismiss-action" onClick={() => setConfirmDeleteId(fb.id)} style={{ border: 'none', background: 'transparent', color: 'rgba(255,255,255,0.45)', cursor: 'pointer', padding: '4px', borderRadius: '4px' }}>
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
                                                     </button>
                                                 )}
                                             </div>
                                         )}
                                     </div>
-                                    <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.45, textAlign: 'left' }}>
+                                    <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.4, textAlign: 'left' }}>
                                         {fb.message}
                                     </p>
-                                    {/* Status Update Controls */}
                                     {onUpdateFeedbackStatus && (
-                                        <div style={{ display: 'flex', gap: '0.45rem', marginTop: '0.35rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.45rem' }}>
+                                        <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.25rem', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.35rem' }}>
                                             {fb.status !== 'in_progress' && (
-                                                <button
-                                                    className="btn btn-secondary"
-                                                    onClick={() => onUpdateFeedbackStatus(fb.id, 'in_progress')}
-                                                    style={{ padding: '0.2rem 0.45rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
-                                                    type="button"
-                                                >
-                                                    <span>{language === 'tr' ? 'Çalışılıyor Yap' : 'Set In Progress'}</span>
-                                                </button>
+                                                <button className="btn btn-secondary" onClick={() => onUpdateFeedbackStatus(fb.id, 'in_progress')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.62rem' }}>Set Progress</button>
                                             )}
                                             {fb.status !== 'completed' && (
-                                                <button
-                                                    className="btn btn-primary"
-                                                    onClick={() => onUpdateFeedbackStatus(fb.id, 'completed')}
-                                                    style={{ padding: '0.2rem 0.45rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.15rem', background: 'rgba(34, 197, 94, 0.2)', border: '1px solid rgba(34, 197, 94, 0.4)', color: '#22c55e' }}
-                                                    type="button"
-                                                >
-                                                    <span>{language === 'tr' ? 'Tamamlandı Yap' : 'Set Completed'}</span>
-                                                </button>
+                                                <button className="btn btn-primary" onClick={() => onUpdateFeedbackStatus(fb.id, 'completed')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.62rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', borderColor: 'rgba(34, 197, 94, 0.3)' }}>Set Done</button>
                                             )}
                                             {fb.status && fb.status !== 'pending' && (
-                                                <button
-                                                    className="btn btn-secondary"
-                                                    onClick={() => onUpdateFeedbackStatus(fb.id, 'pending')}
-                                                    style={{ padding: '0.2rem 0.45rem', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.15rem', opacity: 0.6 }}
-                                                    type="button"
-                                                >
-                                                    <span>{language === 'tr' ? 'Beklemeye Al' : 'Set Pending'}</span>
-                                                </button>
+                                                <button className="btn btn-secondary" onClick={() => onUpdateFeedbackStatus(fb.id, 'pending')} style={{ padding: '0.15rem 0.4rem', fontSize: '0.62rem', opacity: 0.6 }}>Set Pending</button>
                                             )}
                                         </div>
                                     )}
@@ -555,94 +470,149 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                             ))
                         )}
                     </div>
-                    {/* Feedbacks Pagination Controls */}
                     {feedbacksTotalPages > 1 && (
-                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.75rem', marginTop: '0.75rem' }}>
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => setFeedbackPage(p => Math.max(p - 1, 1))}
-                                disabled={feedbackPage === 1}
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
-                                type="button"
-                            >
-                                <span>{language === 'tr' ? 'Geri' : 'Previous'}</span>
-                            </button>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                {feedbackPage} / {feedbacksTotalPages}
-                            </span>
-                            <button
-                                className="btn btn-secondary"
-                                onClick={() => setFeedbackPage(p => Math.min(p + 1, feedbacksTotalPages))}
-                                disabled={feedbackPage === feedbacksTotalPages}
-                                style={{ padding: '0.25rem 0.5rem', fontSize: '0.68rem', display: 'flex', alignItems: 'center', gap: '0.15rem' }}
-                                type="button"
-                            >
-                                <span>{language === 'tr' ? 'İleri' : 'Next'}</span>
-                            </button>
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem', marginTop: '0.75rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setFeedbackPage(p => Math.max(p - 1, 1))} disabled={feedbackPage === 1} style={{ padding: '0.2rem 0.45rem', fontSize: '0.65rem' }}>Prev</button>
+                            <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 700 }}>{feedbackPage} / {feedbacksTotalPages}</span>
+                            <button className="btn btn-secondary" onClick={() => setFeedbackPage(p => Math.min(p + 1, feedbacksTotalPages))} disabled={feedbackPage === feedbacksTotalPages} style={{ padding: '0.2rem 0.45rem', fontSize: '0.65rem' }}>Next</button>
                         </div>
                     )}
                 </div>
             )}
 
-            {userRole === 'developer' && activeSubTab === 'test-tools' && (
-                <div className="anim-fade-in" style={{ padding: '0.5rem 0' }}>
-                    <div style={{ 
-                        background: 'rgba(249, 115, 22, 0.05)', 
-                        border: '1px solid rgba(249, 115, 22, 0.15)', 
-                        borderRadius: '8px', 
-                        padding: '1rem', 
-                        marginBottom: '1.25rem' 
-                    }}>
-                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', fontWeight: 600, color: 'var(--accent-color)' }}>
-                            {language === 'tr' ? 'Veri Tabanı Simülasyon Araçları' : 'Database Simulation Tools'}
+            {/* Content: System Administration & War Tools */}
+            {userRole === 'developer' && activeSubTab === 'system' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    
+                    {/* Card: Test Depot Tools */}
+                    <div className="dev-portal-section-card">
+                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-color)' }}>
+                            {getLocalTranslation('test_depots')}
                         </h4>
-                        <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                            {language === 'tr' 
-                                ? 'Bu araç test ve görsel hata denetimi amacıyla 20 adet rastgele içerikli simüle depo oluşturmanızı sağlar. Oluşturulan depolar "TEST-" öneki ile kaydedilir ve dilediğiniz an tek tıkla temizlenebilir.' 
-                                : 'This tool allows you to generate 20 simulated depots with random stock contents for testing and visual debugging. Generated depots are saved with a "TEST-" prefix and can be cleared with a single click.'}
+                        <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {getLocalTranslation('test_depots_desc')}
                         </p>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                        <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={onGenerateTestDepots}
-                            style={{ 
-                                padding: '0.45rem 1rem', 
-                                fontSize: '0.75rem', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.35rem',
-                                background: 'var(--accent-color)',
-                                color: '#06060c',
-                                border: 'none',
-                                fontWeight: 700
-                            }}
-                        >
-                            <span>{language === 'tr' ? '20 Test Deposu Oluştur' : 'Generate 20 Test Depots'}</span>
-                        </button>
                         
-                        <button
-                            type="button"
-                            className="btn btn-secondary text-negative"
-                            onClick={onDeleteTestDepots}
-                            style={{ 
-                                padding: '0.45rem 1rem', 
-                                fontSize: '0.75rem', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                gap: '0.35rem'
-                            }}
-                        >
-                            <span>{language === 'tr' ? 'Tüm Test Depolarını Sil' : 'Clear All Test Depots'}</span>
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={onGenerateTestDepots}
+                                style={{ padding: '0.4rem 0.85rem', fontSize: '0.72rem', fontWeight: 700, background: 'var(--accent-color)', color: '#000', border: 'none' }}
+                            >
+                                {language === 'tr' ? '20 Test Deposu Üret' : 'Generate 20 Test Depots'}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-secondary text-negative"
+                                onClick={onDeleteTestDepots}
+                                style={{ padding: '0.4rem 0.85rem', fontSize: '0.72rem' }}
+                            >
+                                {language === 'tr' ? 'Test Depolarını Temizle' : 'Clear Test Depots'}
+                            </button>
+                        </div>
+
+                        <div style={{ marginTop: '0.75rem', fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                            {language === 'tr' 
+                                ? `Aktif test deposu sayısı: ${Object.keys(depots || {}).filter(k => k.startsWith('TEST-')).length}` 
+                                : `Active test depots in DB: ${Object.keys(depots || {}).filter(k => k.startsWith('TEST-')).length}`}
+                        </div>
                     </div>
 
-                    <div style={{ marginTop: '1.25rem', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                        {language === 'tr' 
-                            ? `Mevcut test deposu sayısı: ${Object.keys(depots || {}).filter(k => k.startsWith('TEST-')).length}` 
-                            : `Current test depots count: ${Object.keys(depots || {}).filter(k => k.startsWith('TEST-')).length}`}
+                    {/* Card: War Control Center & Leaderboard Reset (Migrated Feature) */}
+                    <div className="dev-portal-section-card" style={{ borderLeft: '3px solid #ef4444', background: 'rgba(239, 68, 68, 0.01)' }}>
+                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.78rem', fontWeight: 700, color: '#ef4444' }}>
+                            {getLocalTranslation('war_control')}
+                        </h4>
+                        <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {getLocalTranslation('war_control_desc')}
+                        </p>
+
+                        <button
+                            type="button"
+                            className="btn btn-danger"
+                            onClick={() => setIsResetModalOpen(true)}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 1rem', fontSize: '0.72rem', borderRadius: '4px', fontWeight: 700, background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+                        >
+                            <Trash2 size={13} />
+                            {getLocalTranslation('reset_leaderboard')}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Savaş Sıfırlama Onay Modalı */}
+            {isResetModalOpen && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 10000,
+                        background: 'rgba(0, 0, 0, 0.75)',
+                        backdropFilter: 'blur(8px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1.5rem'
+                    }}
+                >
+                    <div 
+                        className="panel-card anim-scale-in" 
+                        style={{
+                            maxWidth: '450px',
+                            width: '100%',
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1.25rem',
+                            background: 'rgba(15, 15, 20, 0.98)',
+                            border: '1px solid var(--border-color)'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+                            <AlertTriangle size={24} style={{ color: 'var(--color-negative, #ef4444)' }} />
+                            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
+                                {getLocalTranslation('reset_warning_title')}
+                            </h3>
+                        </div>
+
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            {getLocalTranslation('reset_warning_body')}
+                        </p>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.5rem', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.05)', border: '1px solid rgba(245, 158, 11, 0.15)', fontSize: '0.68rem', color: '#f59e0b' }}>
+                            <Shield size={14} />
+                            <span>{getLocalTranslation('developer_only')}</span>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.25rem' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setIsResetModalOpen(false)}
+                                disabled={isResetting}
+                                style={{ padding: '0.4rem 1rem', fontSize: '0.75rem', borderRadius: '15px' }}
+                            >
+                                {getLocalTranslation('cancel')}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={handleConfirmReset}
+                                disabled={isResetting}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 1rem', fontSize: '0.75rem', borderRadius: '15px', fontWeight: 600, background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+                            >
+                                {isResetting ? (
+                                    <RefreshCw size={14} className="anim-spin" />
+                                ) : (
+                                    <Trash2 size={14} />
+                                )}
+                                {getLocalTranslation('confirm_reset')}
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}

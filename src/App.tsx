@@ -15,6 +15,7 @@ import {
     Megaphone,
     ShieldAlert,
     BarChart3,
+    Trophy,
     MessageSquare,
     Sliders,
     Moon,
@@ -40,12 +41,14 @@ import { AnnouncementModal } from './components/AnnouncementModal';
 import { NotificationsPanel } from './components/NotificationsPanel';
 import { AnnouncementsTab } from './components/AnnouncementsTab';
 import { AnalyticsTab } from './components/AnalyticsTab';
+import { LeaderboardTab } from './components/LeaderboardTab';
 import { CoalitionChat } from './components/CoalitionChat';
+import { ReleaseNotesModal } from './components/ReleaseNotesModal';
 import { CompactOverlay } from './components/CompactOverlay';
 import { FeedbackTab } from './components/FeedbackTab';
 import { ManualCsvImportModal } from './components/ManualCsvImportModal';
 
-import type { Depot, UserRole, SupplyRequest, RequestItem, SystemNotification, AuditLogEntry, PortalUser, ItemInfo } from './types';
+import type { Depot, UserRole, SupplyRequest, RequestItem, SystemNotification, AuditLogEntry, PortalUser, ItemInfo, DepotHistoryEntry } from './types';
 import { parseCSV } from './utils/csvParser';
 import { useLanguage, type TranslationKey, type Language } from './context/LanguageContext';
 import { dbService } from './utils/dbService';
@@ -77,7 +80,7 @@ const getTauriApis = async () => {
     }
 };
 
-const APP_VERSION = '0.0.1';
+const APP_VERSION = '0.1.2';
 const REMOTE_VERSION_URL = 'https://raw.githubusercontent.com/dockadev/foxhole-depot-tracker-releases/main/version.json';
 const DOWNLOAD_REDIRECT_URL = 'https://github.com/dockadev/foxhole-depot-tracker-releases/releases';
 
@@ -85,6 +88,19 @@ export const App: React.FC = () => {
     const { language, setLanguage, t } = useLanguage();
     const [isVersionOutdated, setIsVersionOutdated] = useState(false);
     const [latestVersion, setLatestVersion] = useState<string | null>(null);
+    const [isReleaseNotesOpen, setIsReleaseNotesOpen] = useState(false);
+
+    useEffect(() => {
+        const lastSeen = localStorage.getItem('foxhole_last_seen_version');
+        if (lastSeen !== APP_VERSION) {
+            setIsReleaseNotesOpen(true);
+        }
+    }, []);
+
+    const handleCloseReleaseNotes = () => {
+        localStorage.setItem('foxhole_last_seen_version', APP_VERSION);
+        setIsReleaseNotesOpen(false);
+    };
 
     useEffect(() => {
         const checkVersion = async () => {
@@ -209,7 +225,7 @@ export const App: React.FC = () => {
     const [timeRange, setTimeRange] = useState<'1d' | '7d' | '30d'>(() => {
         return (localStorage.getItem('foxhole_analytics_time_range') as '1d' | '7d' | '30d') || '7d';
     });
-    const [activeTab, setActiveTab] = useState<'inventory' | 'cross-search' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback'>('inventory');
+    const [activeTab, setActiveTab] = useState<'inventory' | 'cross-search' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback' | 'leaderboard'>('inventory');
     const isDataLoadedRef = useRef(false);
     const isRemoteDepotsUpdateRef = useRef(false);
     const isRemoteRequestsUpdateRef = useRef(false);
@@ -256,7 +272,7 @@ export const App: React.FC = () => {
         return val ? Number(val) : 0;
     });
 
-    const handleTabChange = (tab: 'inventory' | 'cross-search' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback') => {
+    const handleTabChange = (tab: 'inventory' | 'cross-search' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback' | 'leaderboard') => {
         setActiveTab(tab);
         setIsChatOpen(false);
         setIsPersonalizeOpen(false);
@@ -275,6 +291,8 @@ export const App: React.FC = () => {
     const [isCriticalStockOpen, setIsCriticalStockOpen] = useState(false);
     const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
     const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
+    const [depotsHistory, setDepotsHistory] = useState<DepotHistoryEntry[]>([]);
+    if (false as boolean) console.log(depotsHistory);
 
     const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
     const [feedbacks, setFeedbacks] = useState<{ id: string; username: string; message: string; created_at: string; category?: 'bug' | 'idea'; status?: 'pending' | 'in_progress' | 'completed' }[]>(() => {
@@ -300,18 +318,18 @@ export const App: React.FC = () => {
                     .select('*')
                     .order('created_at', { ascending: false });
                 if (error) {
-                    console.warn('[App] Supabase feedbacks fetch failed (table might not exist):', error.message);
+                    console.error('[App] Failed to load feedbacks:', error);
                 } else if (data) {
                     setFeedbacks(data);
                     localStorage.setItem('docka_feedbacks', JSON.stringify(data));
                 }
             } catch (err) {
-                console.error('[App] Feedbacks load error:', err);
+                console.error('[App] Error fetching feedbacks:', err);
             }
         };
 
         fetchFeedbacks();
-    }, [masterKey, userRole]);
+    }, [isSupabaseConfigured, masterKey, userRole]);
 
     // Modal states
     const [confirmModal, setConfirmModal] = useState<{
@@ -368,39 +386,112 @@ export const App: React.FC = () => {
         });
     }, [userRole, currentUsername]);
 
+    const incrementLocalUserStat = useCallback((statType: 'import' | 'request' | 'delivery') => {
+        const username = currentUsername || 'LocalDev';
+        setPortalUsers(prev => {
+            const userExists = prev.some(u => u.username.toLowerCase() === username.toLowerCase());
+            let next;
+            if (userExists) {
+                next = prev.map(u => {
+                    if (u.username.toLowerCase() === username.toLowerCase()) {
+                        return {
+                            ...u,
+                            import_count: statType === 'import' ? (u.import_count || 0) + 1 : (u.import_count || 0),
+                            request_count: statType === 'request' ? (u.request_count || 0) + 1 : (u.request_count || 0),
+                            delivery_count: statType === 'delivery' ? (u.delivery_count || 0) + 1 : (u.delivery_count || 0)
+                        };
+                    }
+                    return u;
+                });
+            } else {
+                next = [...prev, {
+                    id: username,
+                    username: username,
+                    role: userRole || 'developer',
+                    status: 'approved' as const,
+                    import_count: statType === 'import' ? 1 : 0,
+                    request_count: statType === 'request' ? 1 : 0,
+                    delivery_count: statType === 'delivery' ? 1 : 0
+                }];
+            }
+            localStorage.setItem('docka_portal_users', JSON.stringify(next));
+            return next;
+        });
+    }, [currentUsername, userRole]);
+
     const fetchPortalUsers = useCallback(async () => {
         if (!isSupabaseConfigured || !supabase) {
             const storedUsers = localStorage.getItem('docka_portal_users');
+            let list: PortalUser[] = [];
             if (storedUsers) {
-                setPortalUsers(JSON.parse(storedUsers));
-            } else {
-                setPortalUsers([]);
+                list = JSON.parse(storedUsers);
             }
+            const username = currentUsername || 'LocalDev';
+            if (username && !list.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+                list.push({
+                    id: username,
+                    username: username,
+                    role: userRole || 'developer',
+                    status: 'approved',
+                    import_count: 0,
+                    request_count: 0,
+                    delivery_count: 0
+                });
+                localStorage.setItem('docka_portal_users', JSON.stringify(list));
+            }
+            setPortalUsers(list);
             return;
         }
 
         try {
             const { data: profiles, error } = await supabase
                 .from('profiles')
-                .select('id, username, role, status');
+                .select('id, username, role, status, import_count, request_count, delivery_count');
             if (error) {
                 console.error('[App] Failed to load portal users from Supabase:', error);
             } else if (profiles) {
-                const mappedUsers: PortalUser[] = profiles.map((p: { id: string; username: string | null; role: string | null; status: string | null }) => {
+                const mappedUsers: PortalUser[] = profiles.map((p: any) => {
                     return {
                         id: p.id,
                         username: p.username || 'Unknown',
                         role: (p.role as UserRole) || 'member',
-                        status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected'
+                        status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
+                        import_count: p.import_count || 0,
+                        request_count: p.request_count || 0,
+                        delivery_count: p.delivery_count || 0
                     };
                 });
+                const username = currentUsername || sessionStorage.getItem('docka_session_username');
+                if (username && !mappedUsers.some(u => u.username.toLowerCase() === username.toLowerCase())) {
+                    const storedLocalUsers = localStorage.getItem('docka_portal_users');
+                    let localUser: PortalUser | null = null;
+                    if (storedLocalUsers) {
+                        try {
+                            const parsed = JSON.parse(storedLocalUsers);
+                            if (Array.isArray(parsed)) {
+                                localUser = parsed.find((u: any) => u.username.toLowerCase() === username.toLowerCase()) || null;
+                            }
+                        } catch (e) {
+                            console.error('[App] Failed to parse stored local users:', e);
+                        }
+                    }
+                    mappedUsers.push(localUser || {
+                        id: username,
+                        username: username,
+                        role: userRole || 'developer',
+                        status: 'approved',
+                        import_count: 0,
+                        request_count: 0,
+                        delivery_count: 0
+                    });
+                }
                 setPortalUsers(mappedUsers);
                 localStorage.setItem('docka_portal_users', JSON.stringify(mappedUsers));
             }
         } catch (err) {
             console.error('[App] Supabase fetch failed for portal users:', err);
         }
-    }, [isSupabaseConfigured]);
+    }, [isSupabaseConfigured, currentUsername, userRole]);
 
     const checkCriticalStock = useCallback((depotName: string, items: Record<string, ItemInfo>) => {
         console.debug('checkCriticalStock stub called for:', depotName, Object.keys(items).length);
@@ -481,6 +572,8 @@ export const App: React.FC = () => {
                 }
 
                 await fetchPortalUsers();
+                const history = await dbService.loadDepotsHistory();
+                setDepotsHistory(history);
             } else {
                 await fetchPortalUsers();
             }
@@ -509,10 +602,14 @@ export const App: React.FC = () => {
     const saveEncryptedDepots = useCallback(async (nextDepots: Record<string, Depot>, key: string, skipSupabase = false) => {
         try {
             await dbService.saveDepots(nextDepots, key, skipSupabase);
+            if (isSupabaseConfigured && supabase) {
+                const history = await dbService.loadDepotsHistory();
+                setDepotsHistory(history);
+            }
         } catch (e) {
             console.error('Failed to save depots', e);
         }
-    }, []);
+    }, [isSupabaseConfigured]);
 
     const saveEncryptedRequests = useCallback(async (nextRequests: SupplyRequest[], key: string, skipSupabase = false) => {
         try {
@@ -672,8 +769,16 @@ export const App: React.FC = () => {
         // Log action & scan critical stock alarms
         logAction(isUpdate ? `Updated stock data for depot: ${location}` : `Imported stock data for depot: ${location}`);
         checkCriticalStock(location, items);
+
+        if (isSupabaseConfigured && supabase) {
+            dbService.incrementProfileStat('import').then(() => {
+                fetchPortalUsers();
+            });
+        }
+        incrementLocalUserStat('import');
+
         return true;
-    }, [userRole, depots, showToast, t, logAction, checkCriticalStock]);
+    }, [userRole, depots, showToast, t, logAction, checkCriticalStock, isSupabaseConfigured, fetchPortalUsers, incrementLocalUserStat]);
 
 
 
@@ -757,7 +862,10 @@ export const App: React.FC = () => {
                                 id: updatedProfile.id || '',
                                 username: updatedProfile.username || 'Unknown',
                                 role: updatedProfile.role || 'member',
-                                status: (updatedProfile.status || 'pending') as PortalUser['status']
+                                status: (updatedProfile.status || 'pending') as PortalUser['status'],
+                                import_count: typeof updatedProfile.import_count === 'number' ? updatedProfile.import_count : 0,
+                                request_count: typeof updatedProfile.request_count === 'number' ? updatedProfile.request_count : 0,
+                                delivery_count: typeof updatedProfile.delivery_count === 'number' ? updatedProfile.delivery_count : 0
                             };
 
                             if (payload.eventType === 'INSERT') {
@@ -1042,7 +1150,14 @@ export const App: React.FC = () => {
         });
 
         logAction(`Created supply request #${newRequest.id.substring(0, 5).toUpperCase()} containing ${items.length} items.`);
-    }, [userRole, showToast, t, depots, logAction]);
+
+        if (isSupabaseConfigured && supabase) {
+            dbService.incrementProfileStat('request').then(() => {
+                fetchPortalUsers();
+            });
+        }
+        incrementLocalUserStat('request');
+    }, [userRole, showToast, t, depots, logAction, isSupabaseConfigured, fetchPortalUsers, incrementLocalUserStat]);
 
     const handleUpdateProgress = useCallback((requestId: string, itemIndex: number, amount: number) => {
         setSupplyRequests(prev => prev.map(req => {
@@ -1096,8 +1211,17 @@ export const App: React.FC = () => {
                 pendingLogsRef.current[requestId] = {};
             }
             pendingLogsRef.current[requestId][name] = (pendingLogsRef.current[requestId][name] || 0) + amount;
+
+            if (amount > 0) {
+                if (isSupabaseConfigured && supabase) {
+                    dbService.incrementProfileStat('delivery').then(() => {
+                        fetchPortalUsers();
+                    });
+                }
+                incrementLocalUserStat('delivery');
+            }
         }
-    }, [supplyRequests, depots, showToast, t, logAction]);
+    }, [supplyRequests, depots, showToast, t, logAction, isSupabaseConfigured, fetchPortalUsers, incrementLocalUserStat]);
 
     const handleToggleCompleteItem = useCallback((requestId: string, itemIndex: number) => {
         const req = supplyRequests.find(r => r.id === requestId);
@@ -1157,7 +1281,16 @@ export const App: React.FC = () => {
 
         showToast(t('item_status_toggled'), 'info');
         logAction(`Toggled complete status of item: ${itmName} in request #${requestId.substring(0, 5).toUpperCase()}.`);
-    }, [supplyRequests, userRole, showToast, t, logAction]);
+
+        if (!isItemDone) {
+            if (isSupabaseConfigured && supabase) {
+                dbService.incrementProfileStat('delivery').then(() => {
+                    fetchPortalUsers();
+                });
+            }
+            incrementLocalUserStat('delivery');
+        }
+    }, [supplyRequests, userRole, showToast, t, logAction, isSupabaseConfigured, fetchPortalUsers, incrementLocalUserStat]);
 
     const handleToggleComplete = useCallback((requestId: string) => {
         const req = supplyRequests.find(r => r.id === requestId);
@@ -1193,7 +1326,16 @@ export const App: React.FC = () => {
             logAction(`Reopened supply request #${requestId.substring(0, 5).toUpperCase()}.`);
         }
         showToast(t('request_status_updated'), 'info');
-    }, [supplyRequests, userRole, showToast, t, logAction]);
+
+        if (isNowCompleted) {
+            if (isSupabaseConfigured && supabase) {
+                dbService.incrementProfileStat('delivery').then(() => {
+                    fetchPortalUsers();
+                });
+            }
+            incrementLocalUserStat('delivery');
+        }
+    }, [supplyRequests, userRole, showToast, t, logAction, isSupabaseConfigured, fetchPortalUsers, incrementLocalUserStat]);
 
     const handleDeleteRequest = useCallback((requestId: string) => {
         if (userRole === 'member') {
@@ -1215,6 +1357,21 @@ export const App: React.FC = () => {
             }
         });
     }, [userRole, showToast, t, logAction]);
+
+    const handleResetLeaderboard = useCallback(async () => {
+        if (userRole !== 'developer') {
+            showToast('Only developers can reset leaderboard', 'error');
+            return;
+        }
+        try {
+            await dbService.resetLeaderboardStats();
+            showToast('Leaderboard reset successfully', 'success');
+            logAction('Reset all leaderboard statistics for a new war.');
+            await fetchPortalUsers();
+        } catch (err) {
+            showToast('Failed to reset leaderboard', 'error');
+        }
+    }, [userRole, fetchPortalUsers, showToast, logAction]);
 
 
 
@@ -2287,39 +2444,54 @@ export const App: React.FC = () => {
                                  </ErrorBoundary>
                              )}
                              {activeTab === 'analytics' && (
+                                   <ErrorBoundary>
+                                        <AnalyticsTab 
+                                             depots={depots} 
+                                             theme={theme} 
+                                             supplyRequests={supplyRequests} 
+                                             auditLogs={auditLogs} 
+                                             activeDepotName={activeDepotName} 
+                                             timeRange={timeRange} 
+                                         />
+                                   </ErrorBoundary>
+                               )}
+                                                         {activeTab === 'leaderboard' && (
                                   <ErrorBoundary>
-                                       <AnalyticsTab depots={depots} theme={theme} supplyRequests={supplyRequests} auditLogs={auditLogs} activeDepotName={activeDepotName} timeRange={timeRange} />
+                                      <LeaderboardTab
+                                          portalUsers={portalUsers}
+                                      />
                                   </ErrorBoundary>
                               )}
-                             {activeTab === 'feedback' && (
-                                 <ErrorBoundary>
-                                     <FeedbackTab
-                                         language={language}
-                                         onSendFeedback={handleSendFeedback}
-                                     />
-                                 </ErrorBoundary>
-                             )}
-                             {activeTab === 'dev-portal' && userRole !== 'member' && (
-                                 <ErrorBoundary>
-                                     <DeveloperPortalModal
-                                         users={portalUsers}
-                                         onApproveUser={handleApproveUser}
-                                         onRejectUser={handleRejectUser}
-                                         onPromoteUser={handlePromoteUser}
-                                         onDemoteUser={handleDemoteUser}
-                                         userRole={userRole}
-                                         auditLogs={auditLogs}
-                                         onClearAuditLogs={handleClearAuditLogs}
-                                         feedbacks={feedbacks}
-                                         onDeleteFeedback={handleDeleteFeedback}
-                                         onUpdateFeedbackStatus={handleUpdateFeedbackStatus}
-                                         depots={depots}
-                                         onGenerateTestDepots={handleGenerateTestDepots}
-                                         onDeleteTestDepots={handleClearTestDepots}
-                                         onRefreshUsers={fetchPortalUsers}
-                                     />
-                                 </ErrorBoundary>
-                             )}
+                              {activeTab === 'feedback' && (
+                                  <ErrorBoundary>
+                                      <FeedbackTab
+                                          language={language}
+                                          onSendFeedback={handleSendFeedback}
+                                      />
+                                  </ErrorBoundary>
+                              )}
+                              {activeTab === 'dev-portal' && userRole !== 'member' && (
+                                  <ErrorBoundary>
+                                      <DeveloperPortalModal
+                                          users={portalUsers}
+                                          onApproveUser={handleApproveUser}
+                                          onRejectUser={handleRejectUser}
+                                          onPromoteUser={handlePromoteUser}
+                                          onDemoteUser={handleDemoteUser}
+                                          userRole={userRole}
+                                          auditLogs={auditLogs}
+                                          onClearAuditLogs={handleClearAuditLogs}
+                                          feedbacks={feedbacks}
+                                          onDeleteFeedback={handleDeleteFeedback}
+                                          onUpdateFeedbackStatus={handleUpdateFeedbackStatus}
+                                          depots={depots}
+                                          onGenerateTestDepots={handleGenerateTestDepots}
+                                          onDeleteTestDepots={handleClearTestDepots}
+                                          onRefreshUsers={fetchPortalUsers}
+                                          onResetLeaderboard={handleResetLeaderboard}
+                                      />
+                                  </ErrorBoundary>
+                              )}
                         </>
                     )}
                 </section>
@@ -2328,8 +2500,14 @@ export const App: React.FC = () => {
             </main>
 
             <footer className="main-footer">
-                <p>{t('tactical_logistics_dashboard')}</p>
+                <p>{t('tactical_logistics_dashboard')} | v{APP_VERSION}</p>
             </footer>
+
+            <ReleaseNotesModal
+                isOpen={isReleaseNotesOpen}
+                onClose={handleCloseReleaseNotes}
+                version={APP_VERSION}
+            />
 
             {/* Modals */}
             {confirmModal && (
@@ -2393,75 +2571,99 @@ export const App: React.FC = () => {
                     </button>
                 )}
 
-                <div style={{ width: '80%', height: '1px', background: 'rgba(255, 255, 255, 0.05)', margin: '0.25rem auto' }} />
+                <div className="sidebar-divider" />
 
-                <button
-                    className={`vertical-nav-btn ${activeTab === 'inventory' ? 'active' : ''}`}
-                    onClick={() => handleTabChange('inventory')}
-                    data-tooltip={t('tab_inventory')}
-                >
-                    <FileText size={18} />
-                    <span>{t('tab_inventory')}</span>
-                </button>
-                <button
-                    className={`vertical-nav-btn ${activeTab === 'cross-search' ? 'active' : ''}`}
-                    onClick={() => handleTabChange('cross-search')}
-                    data-tooltip={t('tab_cross_search')}
-                >
-                    <Search size={18} />
-                    <span>{t('tab_cross_search')}</span>
-                </button>
-                <button
-                    className={`vertical-nav-btn ${activeTab === 'requests' ? 'active' : ''}`}
-                    onClick={() => handleTabChange('requests')}
-                    data-tooltip={t('tab_supply_requests')}
-                >
-                    <Truck size={18} />
-                    <span>{t('tab_supply_requests')}</span>
-                </button>
-                <button
-                    className={`vertical-nav-btn ${activeTab === 'announcements' ? 'active' : ''}`}
-                    onClick={() => handleTabChange('announcements')}
-                    data-tooltip={t('announcements')}
-                >
-                    <Megaphone size={18} />
-                    <span>{t('announcements')}</span>
-                </button>
-                <button
-                    className={`vertical-nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-                    onClick={() => handleTabChange('analytics')}
-                    data-tooltip="Analytics"
-                >
-                    <BarChart3 size={18} />
-                    <span>Analytics</span>
-                </button>
-                
-                {userRole !== 'member' && (
+                <div className="sidebar-scrollable-content">
                     <button
-                        className={`vertical-nav-btn dev-portal-nav-btn ${activeTab === 'dev-portal' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('dev-portal')}
-                        data-tooltip={
-                            unreadFeedbackCount > 0
-                                ? (language === 'tr' ? `${unreadFeedbackCount} yeni bildirim` : `${unreadFeedbackCount} new notifications`)
-                                : "Dev Portal"
-                        }
+                        className={`vertical-nav-btn ${activeTab === 'inventory' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('inventory')}
+                        data-tooltip={t('tab_inventory')}
                     >
-                        <ShieldAlert size={18} />
-                        <span>Dev Portal</span>
-                        {unreadFeedbackCount > 0 && (
-                            <span className="nav-badge">{unreadFeedbackCount}</span>
-                        )}
+                        <FileText size={18} />
+                        <span>{t('tab_inventory')}</span>
                     </button>
-                )}
+                    <button
+                        className={`vertical-nav-btn ${activeTab === 'cross-search' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('cross-search')}
+                        data-tooltip={t('tab_cross_search')}
+                    >
+                        <Search size={18} />
+                        <span>{t('tab_cross_search')}</span>
+                    </button>
+                    <button
+                        className={`vertical-nav-btn ${activeTab === 'requests' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('requests')}
+                        data-tooltip={t('tab_supply_requests')}
+                    >
+                        <Truck size={18} />
+                        <span>{t('tab_supply_requests')}</span>
+                    </button>
+                    <button
+                        className={`vertical-nav-btn ${activeTab === 'announcements' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('announcements')}
+                        data-tooltip={t('announcements')}
+                    >
+                        <Megaphone size={18} />
+                        <span>{t('announcements')}</span>
+                    </button>
+                    <button
+                        className={`vertical-nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('analytics')}
+                        data-tooltip="Analytics"
+                    >
+                        <BarChart3 size={18} />
+                        <span>Analytics</span>
+                    </button>
+                    <button
+                        className={`vertical-nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('leaderboard')}
+                        data-tooltip={(() => {
+                            if (language === 'tr') return 'Liderlik Tablosu';
+                            if (language === 'pt-BR') return 'Classificação';
+                            if (language === 'ru') return 'Таблица лидеров';
+                            if (language === 'de') return 'Rangliste';
+                            return 'Leaderboard';
+                        })()}
+                    >
+                        <Trophy size={18} />
+                        <span>{(() => {
+                            if (language === 'tr') return 'Liderlik Tablosu';
+                            if (language === 'pt-BR') return 'Classificação';
+                            if (language === 'ru') return 'Таблица лидеров';
+                            if (language === 'de') return 'Rangliste';
+                            return 'Leaderboard';
+                        })()}</span>
+                    </button>
+                    
+                    {userRole !== 'member' && (
+                        <button
+                            className={`vertical-nav-btn dev-portal-nav-btn ${activeTab === 'dev-portal' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('dev-portal')}
+                            data-tooltip={
+                                unreadFeedbackCount > 0
+                                    ? (language === 'tr' ? `${unreadFeedbackCount} yeni bildirim` : `${unreadFeedbackCount} new notifications`)
+                                    : "Dev Portal"
+                            }
+                        >
+                            <ShieldAlert size={18} />
+                            <span>Dev Portal</span>
+                            {unreadFeedbackCount > 0 && (
+                                <span className="nav-badge">{unreadFeedbackCount}</span>
+                            )}
+                        </button>
+                    )}
 
-                <button
-                    className={`vertical-nav-btn ${activeTab === 'feedback' ? 'active' : ''}`}
-                    onClick={() => handleTabChange('feedback')}
-                    data-tooltip={language === 'tr' ? 'Geri Bildirim' : 'Feedback'}
-                >
-                    <Lightbulb size={18} />
-                    <span>{language === 'tr' ? 'Geri Bildirim' : 'Feedback'}</span>
-                </button>
+                    <button
+                        className={`vertical-nav-btn ${activeTab === 'feedback' ? 'active' : ''}`}
+                        onClick={() => handleTabChange('feedback')}
+                        data-tooltip={language === 'tr' ? 'Geri Bildirim' : 'Feedback'}
+                    >
+                        <Lightbulb size={18} />
+                        <span>{language === 'tr' ? 'Geri Bildirim' : 'Feedback'}</span>
+                    </button>
+                </div>
+
+                <div className="sidebar-divider" />
 
                 <button
                     className={`vertical-nav-btn ${isChatOpen ? 'active' : ''}`}

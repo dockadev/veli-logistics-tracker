@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
     TrendingUp, TrendingDown, Layers, 
-    Package, Truck, Warehouse, Calendar, Info
+    Package, Truck, Warehouse, Calendar, Info,
+    AlertTriangle, CheckCircle2, BarChart3
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import type { Depot, ItemInfo, SupplyRequest, AuditLogEntry } from '../types';
+import type { Depot, SupplyRequest, AuditLogEntry, ItemInfo } from '../types';
 import { getRelativeTimeString } from '../utils/helpers';
 
 interface AnalyticsTabProps {
@@ -34,6 +35,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
     const [showRunwayInfo, setShowRunwayInfo] = useState(false);
     const [showCoverageInfo, setShowCoverageInfo] = useState(false);
     const [showHeatmapInfo, setShowHeatmapInfo] = useState(false);
+    const [tooltipState, setTooltipState] = useState<{ visible: boolean; content: string; x: number; y: number }>({ visible: false, content: '', x: 0, y: 0 });
 
     useEffect(() => {
         const handleOutsideClick = (e: MouseEvent) => {
@@ -51,6 +53,79 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         };
     }, []);
 
+    // Localized dictionary for the header and bottleneck section
+    const t = (key: string): string => {
+        const translations: Record<string, Record<string, string>> = {
+            tr: {
+                analytics_title: 'LOJİSTİK ANALİTİK VE TAKTİK RAPORU',
+                bottlenecks: 'TAKTİKSEL DARBOĞAZ VE HIZLI SEVKİYAT ALARMLARI',
+                no_bottlenecks: 'Aktif bir lojistik darboğazı tespit edilmedi. Harika iş!',
+                stock_level: 'Mevcut Stok',
+                critical_limit: 'Kritik Eşik',
+                active_requests: 'Bekleyen Talep',
+                item: 'Eşya',
+                crate: 'Kasa',
+                vehicle: 'Araç',
+                crate_vehicle: 'Kutulu Araç',
+                structure: 'Yapı'
+            },
+            en: {
+                analytics_title: 'LOGISTICS ANALYTICS & TACTICAL REPORT',
+                bottlenecks: 'TACTICAL BOTTLENECK & URGENT DISPATCH ALERTS',
+                no_bottlenecks: 'No active logistical bottlenecks detected. Excellent job!',
+                stock_level: 'Stock Level',
+                critical_limit: 'Critical Limit',
+                active_requests: 'Pending Request',
+                item: 'Item',
+                crate: 'Crate',
+                vehicle: 'Vehicle',
+                crate_vehicle: 'Crate Vehicle',
+                structure: 'Structure'
+            },
+            pt: {
+                analytics_title: 'RELATÓRIO OPERACIONAL E TÁCTICO',
+                bottlenecks: 'ALERTAS TÁCTICOS DE GARGALOS',
+                no_bottlenecks: 'Nenhum gargalo logístico ativo detectado. Excelente trabalho!',
+                stock_level: 'Nível de Estoque',
+                critical_limit: 'Limite Crítico',
+                active_requests: 'Pedidos Pendentes',
+                item: 'Item',
+                crate: 'Caixa',
+                vehicle: 'Veículo',
+                crate_vehicle: 'Veículo de Caixa',
+                structure: 'Estrutura'
+            },
+            ru: {
+                analytics_title: 'ОПЕРАТИВНО-ТАКТИЧЕСКИЙ ОТЧЕТ',
+                bottlenecks: 'ТАКТИЧЕСКИЕ ПРЕДУПРЕЖДЕНИЯ О ДЕФИЦИТЕ',
+                no_bottlenecks: 'Активных логистических дефицитов не обнаружено. Отличная работа!',
+                stock_level: 'Уровень запасов',
+                critical_limit: 'Критический лимит',
+                active_requests: 'Ожидает доставки',
+                item: 'Предмет',
+                crate: 'Ящик',
+                vehicle: 'Техника',
+                crate_vehicle: 'Техника в ящике',
+                structure: 'Постройка'
+            },
+            de: {
+                analytics_title: 'LOGISTIK-ANALYSE & TAKTISCHER BERICHT',
+                bottlenecks: 'ENGPÄSSE & DRINGLICHE VERSANDALARME',
+                no_bottlenecks: 'Keine aktiven Engpässe festgestellt. Gute Arbeit!',
+                stock_level: 'Lagerbestand',
+                critical_limit: 'Kritische Grenze',
+                active_requests: 'Offene Anfragen',
+                item: 'Gegenstand',
+                crate: 'Kiste',
+                vehicle: 'Fahrzeug',
+                crate_vehicle: 'Kisten-Fahrzeug',
+                structure: 'Struktur'
+            }
+        };
+        const lang = translations[language] ? language : 'en';
+        return translations[lang][key] || translations['en'][key] || key;
+    };
+
     if (depotList.length === 0) {
         return (
             <div className="panel-card anim-fade-in" style={{ padding: '3rem', textAlign: 'center', maxWidth: '600px', margin: '2rem auto' }}>
@@ -60,7 +135,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 </h2>
                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', lineHeight: '1.6' }}>
                     {language === 'tr' 
-                        ? 'Analitik verilerini görüntülemek için lütfen en az bir depo envanter CSV verisi içe aktarın.' 
+                        ? 'Analitik verilerini görüntülemek için lütfen enaz bir depo envanter CSV verisi içe aktarın.' 
                         : 'Please import at least one depot inventory CSV file to view analytics metrics.'}
                 </p>
             </div>
@@ -160,27 +235,33 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
 
     // Selected Depot Overview details
     let selectedDepotTotalItems = 0;
-    const selectedDepotCategoryCounts = {
-        item: 0,
+    const selectedDepotCategoryCounts: Record<string, number> = {
         crate: 0,
         vehicle: 0,
-        structure: 0,
-        crate_vehicle: 0
+        structure: 0
     };
 
     Object.values(targetDepot.current || {}).forEach(item => {
         selectedDepotTotalItems += item.count;
-        if (selectedDepotCategoryCounts[item.category] !== undefined) {
-            selectedDepotCategoryCounts[item.category] += item.count;
-        } else {
-            selectedDepotCategoryCounts.item += item.count;
+        if (item.category === 'crate' || item.category === 'crate_vehicle' || item.category === 'item') {
+            selectedDepotCategoryCounts.crate += item.count;
+        } else if (item.category === 'vehicle') {
+            selectedDepotCategoryCounts.vehicle += item.count;
+        } else if (item.category === 'structure') {
+            selectedDepotCategoryCounts.structure += item.count;
         }
     });
+
+    const crateVehiclesCount = useMemo(() => {
+        return Object.values(targetDepot.current || {}).reduce((acc, item) => {
+            return item.category === 'crate_vehicle' ? acc + item.count : acc;
+        }, 0);
+    }, [targetDepot]);
 
     const grandTotal = Object.values(selectedDepotCategoryCounts).reduce((acc, c) => acc + c, 0) || 1;
 
     // 1. Consumption Velocity & Runway Forecasting
-    const consumptionData = React.useMemo(() => {
+    const consumptionData = useMemo(() => {
         if (!targetDepot || !targetDepot.previous || !isWithinRange) return [];
 
         const current = targetDepot.current || {};
@@ -208,7 +289,6 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             }
         });
 
-        // Sort by shortest hoursRemaining first, then by highest consumption rate
         return list.sort((a, b) => {
             if (a.hoursRemaining !== b.hoursRemaining) {
                 return a.hoursRemaining - b.hoursRemaining;
@@ -217,8 +297,169 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         });
     }, [targetDepot, rangeLimitMs, isWithinRange]);
 
-    // 2. Production Requests Coverage
-    const orderMatchDetails = React.useMemo(() => {
+    // 2. Bottleneck Alerts Calculation
+    const bottleneckAlerts = useMemo(() => {
+        const alerts: {
+            itemName: string;
+            category: string;
+            stock: number;
+            limit: number;
+            reasons: string[];
+            recommendations: string[];
+            depotName: string;
+            depotCustomName: string;
+        }[] = [];
+
+        const targetDepotList = selectedDepotName === 'all' 
+            ? Object.values(depots) 
+            : [depots[selectedDepotName]].filter(Boolean) as Depot[];
+
+        const getThreshold = (name: string, cat: string): number => {
+            const lower = name.toLowerCase();
+            if (cat === 'vehicle' || cat === 'crate_vehicle') return 10;
+            if (cat === 'crate') return 30;
+            if (lower.includes('material') || lower.includes('alloy') || lower.includes('supply')) return 250;
+            return 50;
+        };
+
+        targetDepotList.forEach(dep => {
+            const currentItems = dep.current || {};
+            const previousItems = dep.previous || {};
+            const hours = rangeLimitMs / (60 * 60 * 1000);
+            
+            const depotAlertsMap = new Map<string, {
+                itemName: string;
+                category: string;
+                stock: number;
+                limit: number;
+                reasons: string[];
+                recommendations: string[];
+                depotName: string;
+                depotCustomName: string;
+            }>();
+
+            // A. Runway Depletion Warning for this specific depot
+            Object.entries(currentItems).forEach(([itemName, itemInfo]) => {
+                const prevInfo = previousItems[itemName];
+                if (prevInfo) {
+                    const consumed = prevInfo.count - itemInfo.count;
+                    if (consumed > 0) {
+                        const rate = consumed / hours;
+                        if (rate > 0) {
+                            const hoursRemaining = itemInfo.count / rate;
+                            if (hoursRemaining < 24) {
+                                const remHours = Math.round(hoursRemaining % 24);
+                                const timeText = language === 'tr'
+                                    ? (hoursRemaining === 0 ? 'Tükendi' : `${remHours} saat içinde tükenecek`)
+                                    : (hoursRemaining === 0 ? 'Depleted' : `depleting in ${remHours}h`);
+                                
+                                const alert = depotAlertsMap.get(itemName) || {
+                                    itemName,
+                                    category: itemInfo.category,
+                                    stock: itemInfo.count,
+                                    limit: 0,
+                                    reasons: [],
+                                    recommendations: [],
+                                    depotName: dep.name,
+                                    depotCustomName: dep.customName || dep.name
+                                };
+                                alert.reasons.push(language === 'tr' 
+                                    ? `Yüksek tüketim hızı (${timeText})` 
+                                    : `High consumption rate (${timeText})`);
+                                depotAlertsMap.set(itemName, alert);
+                            }
+                        }
+                    }
+                }
+            });
+
+            // B. Open Orders Deficit & Safety Threshold for this specific depot
+            const depotRequests = supplyRequests.filter(req => req.status === 'open' && req.depotName === dep.name);
+            
+            const requestDeficits: Record<string, { needed: number; category: string }> = {};
+            depotRequests.forEach(req => {
+                req.items.forEach(item => {
+                    const remaining = item.quantityRequired - item.quantityDelivered;
+                    if (remaining > 0) {
+                        if (!requestDeficits[item.itemName]) {
+                            requestDeficits[item.itemName] = { needed: 0, category: item.itemCategory };
+                        }
+                        requestDeficits[item.itemName].needed += remaining;
+                    }
+                });
+            });
+
+            Object.entries(requestDeficits).forEach(([itemName, reqInfo]) => {
+                const itemStock = currentItems[itemName]?.count || 0;
+                const limit = getThreshold(itemName, reqInfo.category);
+                
+                if (itemStock < reqInfo.needed || itemStock < limit) {
+                    const alert = depotAlertsMap.get(itemName) || {
+                        itemName,
+                        category: reqInfo.category,
+                        stock: itemStock,
+                        limit: limit,
+                        reasons: [],
+                        recommendations: [],
+                        depotName: dep.name,
+                        depotCustomName: dep.customName || dep.name
+                    };
+
+                    alert.limit = Math.max(alert.limit, limit);
+
+                    if (itemStock < reqInfo.needed) {
+                        const diff = reqInfo.needed - itemStock;
+                        alert.reasons.push(language === 'tr'
+                            ? `Açık talep eksiği var (${diff} adet eksik)`
+                            : `Pending request deficit (missing ${diff} units)`);
+                    }
+                    if (itemStock < limit) {
+                        alert.reasons.push(language === 'tr'
+                            ? `Güvenlik stoğu altında (Mevcut: ${itemStock} / Eşik: ${limit})`
+                            : `Below safety limit (Current: ${itemStock} / Limit: ${limit})`);
+                    }
+
+                    depotAlertsMap.set(itemName, alert);
+                }
+            });
+
+            // C. Generate Transfer Recommendations from other depots
+            depotAlertsMap.forEach((alert, itemName) => {
+                const sources: { depotCustomName: string; stock: number }[] = [];
+                Object.entries(depots).forEach(([otherDepName, otherDep]) => {
+                    if (otherDepName !== dep.name && otherDep.current?.[itemName]) {
+                        const otherStock = otherDep.current[itemName].count;
+                        const otherLimit = getThreshold(itemName, otherDep.current[itemName].category);
+                        if (otherStock > otherLimit) {
+                            sources.push({
+                                depotCustomName: otherDep.customName || otherDepName,
+                                stock: otherStock
+                            });
+                        }
+                    }
+                });
+
+                if (sources.length > 0) {
+                    sources.sort((a, b) => b.stock - a.stock);
+                    const bestSource = sources[0];
+                    alert.recommendations.push(language === 'tr'
+                        ? `${bestSource.depotCustomName} deposundan transfer yapın (${bestSource.stock} adet mevcut)`
+                        : `Transfer from ${bestSource.depotCustomName} (${bestSource.stock} units available)`);
+                } else {
+                    alert.recommendations.push(language === 'tr'
+                        ? 'Yeni bir üretim siparişi (Production Order) oluşturun'
+                        : 'Create a new production order');
+                }
+            });
+
+            depotAlertsMap.forEach(alert => alerts.push(alert));
+        });
+
+        return alerts;
+    }, [depots, supplyRequests, selectedDepotName, rangeLimitMs, language]);
+
+    // 3. Production Requests Coverage
+    const orderMatchDetails = useMemo(() => {
         const filtered = supplyRequests.filter(req => req.status === 'open' && (selectedDepotName === 'all' || req.depotName === selectedDepotName));
         
         return filtered.map(req => {
@@ -236,7 +477,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                     matchPct,
                     category: item.itemCategory
                 };
-            }).filter(item => item.needed > 0); // only show pending items
+            }).filter(item => item.needed > 0);
 
             let totalTargetLevel = 0;
             let totalStock = 0;
@@ -255,10 +496,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 items: itemsProgress,
                 matchPct
             };
-        }).sort((a, b) => b.matchPct - a.matchPct); // sort by match percentage or created time
+        }).sort((a, b) => b.matchPct - a.matchPct);
     }, [supplyRequests, selectedDepotName, depots, targetDepot]);
 
-    const overallCoverageScore = React.useMemo(() => {
+    const overallCoverageScore = useMemo(() => {
         let totalTargetLevel = 0;
         let totalStock = 0;
         orderMatchDetails.forEach(order => {
@@ -270,8 +511,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         return totalTargetLevel > 0 ? Math.round((totalStock / totalTargetLevel) * 100) : 100;
     }, [orderMatchDetails]);
 
-    // 3. Activity Heatmap
-    const heatmapData = React.useMemo(() => {
+    // 4. Activity Heatmap
+    const heatmapData = useMemo(() => {
         const grid = Array(7).fill(null).map(() => Array(24).fill(0));
         let maxCount = 0;
 
@@ -279,18 +520,18 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             if (log.timestamp) {
                 try {
                     const date = new Date(log.timestamp);
-                    let day = date.getDay(); // 0 is Sunday, 1 is Monday...
-                    day = day === 0 ? 6 : day - 1; // 0 is Monday, 6 is Sunday
-                    const hour = date.getHours(); // 0 to 23
+                    let day = date.getDay();
+                    day = day === 0 ? 6 : day - 1;
+                    const hour = date.getHours();
 
                     if (day >= 0 && day < 7 && hour >= 0 && hour < 24) {
                         grid[day][hour]++;
                         if (grid[day][hour] > maxCount) {
                             maxCount = grid[day][hour];
-                         }
-                     }
+                        }
+                    }
                 } catch (e) {
-                     // skip
+                    // skip
                 }
             }
         });
@@ -300,36 +541,95 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
 
     const getCategoryColor = (cat: string) => {
         switch (cat) {
-            case 'crate_vehicle': return '#a855f7'; // Purple
-            case 'vehicle': return '#3b82f6'; // Blue
-            case 'structure': return '#94a3b8'; // Grey
-            case 'crate': return '#f59e0b'; // Amber
-            default: return '#10b981'; // Green (item)
+            case 'vehicle': return '#3b82f6';
+            case 'structure': return '#94a3b8';
+            case 'crate': return '#f59e0b';
+            default: return '#10b981';
         }
     };
 
     const getCategoryLabel = (cat: string) => {
-        if (language === 'tr') {
-            switch (cat) {
-                case 'crate_vehicle': return 'Kutu Araç';
-                case 'vehicle': return 'Araç';
-                case 'structure': return 'Yapı';
-                case 'crate': return 'Kasa';
-                default: return 'Tekil Malzeme';
-            }
-        } else {
-            switch (cat) {
-                case 'crate_vehicle': return 'Crate Vehicle';
-                case 'vehicle': return 'Vehicle';
-                case 'structure': return 'Structure';
-                case 'crate': return 'Crate';
-                default: return 'Single Item';
-            }
-        }
+        if (cat === 'crate') return language === 'tr' ? 'Kutular (Crates)' : 'Crates';
+        return t(cat);
     };
 
     return (
         <div className="anim-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.5rem' }}>
+            
+            {/* Header with Title */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.75rem', marginBottom: '0.25rem' }}>
+                <BarChart3 size={20} style={{ color: 'var(--accent-color)' }} />
+                <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+                    {t('analytics_title')}
+                </h2>
+            </div>
+
+            {/* Tactical Bottlenecks Alarm Panel */}
+            {bottleneckAlerts.length === 0 ? (
+                <div className="panel-card" style={{ padding: '1.25rem', borderLeft: '3px solid #10b981', background: 'rgba(16, 185, 129, 0.01)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <CheckCircle2 size={18} style={{ color: '#10b981' }} />
+                        <h3 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 800, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', color: '#10b981' }}>
+                            {t('bottlenecks')}
+                        </h3>
+                    </div>
+                    <div style={{ marginTop: '0.75rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        {t('no_bottlenecks')}
+                    </div>
+                </div>
+            ) : (
+                <div className="panel-card" style={{ padding: '1.25rem', borderLeft: '3px solid var(--color-negative, #ef4444)', background: 'rgba(239, 68, 68, 0.01)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.85rem' }}>
+                        <AlertTriangle size={18} style={{ color: 'var(--color-negative, #ef4444)' }} />
+                        <h3 style={{ margin: 0, fontSize: '0.82rem', fontWeight: 800, fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', color: 'var(--text-primary)' }}>
+                            {t('bottlenecks')}
+                        </h3>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.85rem' }}>
+                        {bottleneckAlerts.map(alert => (
+                            <div 
+                                key={`${alert.depotName}-${alert.itemName}`} 
+                                style={{ 
+                                    background: 'rgba(239, 68, 68, 0.03)', 
+                                    border: '1px solid rgba(239, 68, 68, 0.12)', 
+                                    borderRadius: '8px', 
+                                    padding: '0.75rem', 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    gap: '0.5rem'
+                                }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                                    <span style={{ fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-primary)', lineHeight: '1.3' }}>
+                                        {selectedDepotName === 'all' ? `[${alert.depotCustomName}] ${alert.itemName}` : alert.itemName}
+                                    </span>
+                                    <span style={{ fontSize: '0.62rem', fontWeight: 700, background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '0.15rem 0.4rem', borderRadius: '4px' }}>
+                                        {alert.category.toUpperCase()}
+                                    </span>
+                                </div>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+                                    {alert.reasons.map((reason, idx) => (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                            <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ef4444' }} />
+                                            <span>{reason}</span>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.45rem', marginTop: '0.15rem', display: 'flex', flexDirection: 'column', gap: '0.2rem', fontSize: '0.68rem' }}>
+                                    {alert.recommendations.map((rec, idx) => (
+                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: 'var(--accent-color)', fontWeight: 600 }}>
+                                            <Info size={12} style={{ flexShrink: 0 }} />
+                                            <span>{rec}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
 
             {/* General Metrics Row for Selected Depot */}
             <div className="analytics-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
@@ -348,15 +648,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 </div>
 
                 <div className="metric-card" style={{ background: 'var(--bg-card, rgba(255, 255, 255, 0.02))', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ background: 'rgba(168, 85, 247, 0.1)', border: '1px solid rgba(168, 85, 247, 0.2)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
-                        <Truck size={20} style={{ color: '#a855f7' }} />
+                    <div style={{ background: 'rgba(232, 121, 249, 0.1)', border: '1px solid rgba(232, 121, 249, 0.2)', padding: '0.5rem', borderRadius: 'var(--radius-sm)' }}>
+                        <Truck size={20} style={{ color: '#e879f9' }} />
                     </div>
                     <div>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600, letterSpacing: '0.04em', display: 'block' }}>
                             {language === 'tr' ? 'KUTU ARAÇLAR' : 'CRATE VEHICLES'}
                         </span>
                         <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-                            {selectedDepotCategoryCounts.crate_vehicle.toLocaleString()}
+                            {crateVehiclesCount.toLocaleString()}
                         </span>
                     </div>
                 </div>
@@ -743,7 +1043,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                                         top: '100%',
                                         left: 0,
                                         zIndex: 100,
-                                        width: '450px',
+                                        width: '280px',
                                         background: 'rgba(20, 20, 23, 0.95)',
                                         backdropFilter: 'blur(8px)',
                                         border: '1px solid var(--border-color)',
@@ -756,49 +1056,37 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                                         boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5), 0 4px 6px -2px rgba(0,0,0,0.3)'
                                     }}>
                                         {language === 'tr' 
-                                            ? 'Her aktif lojistik siparişi için hedef stok seviyesi (Mevcut Stok + Kalan İhtiyaç) belirlenir. Eşleşme skoru, mevcut stoğun bu hedef stok seviyesine oranı (Mevcut Stok / Hedef Stok Seviyesi) olarak hesaplanır.' 
-                                            : 'For each active production order, a target stock level is determined (Current Stock + Remaining Need). The coverage score represents the ratio of current stock to this target level (Current Stock / Target Stock Level).'}
+                                            ? 'Bekleyen lojistik taleplerdeki malzeme ihtiyaçları ile depoların mevcut stokları eşleştirilerek, taleplerin depodaki stoklarca karşılanabilme oranları hesaplanır.' 
+                                            : 'Compares pending logistic request quantities with current depot stocks to calculate the percentage of demand that can be covered by available inventory.'}
                                     </div>
                                 )}
                             </div>
                         </div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 700, padding: '0.15rem 0.5rem', borderRadius: '4px', background: 'rgba(249, 115, 22, 0.1)', color: 'var(--accent-color)', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
-                            {language === 'tr' ? 'Genel Eşleşme Skoru: ' : 'Overall Match Score: '}{overallCoverageScore}%
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                            <span>{language === 'tr' ? 'GENEL EŞLEŞME:' : 'OVERALL SATURATION:'}</span>
+                            <strong style={{ color: 'var(--accent-color)', fontSize: '0.8rem' }}>{overallCoverageScore}%</strong>
                         </div>
                     </div>
 
                     {orderMatchDetails.length === 0 ? (
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                            {language === 'tr' ? 'Aktif lojistik talebi/siparişi bulunmuyor.' : 'No active production orders found.'}
+                            {language === 'tr' ? 'Bekleyen lojistik istek bulunmuyor.' : 'No pending supply requests found.'}
                         </div>
                     ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', maxHeight: '380px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.85rem', maxHeight: '350px', overflowY: 'auto', paddingRight: '0.25rem' }}>
                             {orderMatchDetails.map(order => {
-                                const borderClass = order.matchPct === 100 ? '1px solid rgba(16, 185, 129, 0.25)' : order.matchPct >= 50 ? '1px solid rgba(249, 115, 22, 0.2)' : '1px solid rgba(239, 68, 68, 0.2)';
-                                const bgClass = order.matchPct === 100 ? 'rgba(16, 185, 129, 0.02)' : 'rgba(255, 255, 255, 0.01)';
                                 return (
-                                    <div key={order.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', padding: '0.85rem', background: bgClass, borderRadius: '8px', border: borderClass }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                                                <span style={{ fontWeight: 700, fontSize: '0.72rem', color: 'var(--text-primary)' }}>
-                                                    {language === 'tr' ? 'Talep ID: ' : 'Request ID: '}#{order.id.slice(0, 8)}
-                                                </span>
-                                                <span style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-                                                    {getRelativeTimeString(order.createdTime, language)}
-                                                    {selectedDepotName === 'all' && ` - ${order.depotCustomName}`}
-                                                </span>
-                                            </div>
-                                            <span style={{ 
-                                                fontSize: '0.68rem', 
-                                                fontWeight: 800, 
-                                                padding: '0.15rem 0.4rem', 
-                                                borderRadius: '4px', 
-                                                background: order.matchPct === 100 ? 'rgba(16, 185, 129, 0.15)' : order.matchPct >= 50 ? 'rgba(249, 115, 22, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-                                                color: order.matchPct === 100 ? '#10b981' : order.matchPct >= 50 ? 'var(--accent-color)' : '#ef4444',
-                                                border: order.matchPct === 100 ? '1px solid rgba(16, 185, 129, 0.25)' : order.matchPct >= 50 ? '1px solid rgba(249, 115, 22, 0.25)' : '1px solid rgba(239, 68, 68, 0.25)'
-                                            }}>
+                                    <div key={order.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', padding: '0.65rem', background: 'rgba(255,255,255,0.01)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.02)' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7rem' }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                                {order.depotCustomName}
+                                            </span>
+                                            <span style={{ color: order.matchPct === 100 ? '#10b981' : 'var(--accent-color)', fontWeight: 700 }}>
                                                 {order.matchPct}% {language === 'tr' ? 'Eşleşme' : 'Match'}
                                             </span>
+                                        </div>
+                                        <div style={{ fontSize: '0.6rem', color: 'var(--text-muted)' }}>
+                                            {language === 'tr' ? 'Oluşturulma: ' : 'Created: '}{getRelativeTimeString(order.createdTime, language)}
                                         </div>
                                         
                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', borderTop: '1px solid rgba(255, 255, 255, 0.03)', paddingTop: '0.45rem' }}>
@@ -932,7 +1220,18 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                                                 return (
                                                     <div 
                                                         key={hourIdx} 
-                                                        title={tooltip} 
+                                                        onMouseEnter={(e) => {
+                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                            setTooltipState({
+                                                                visible: true,
+                                                                content: tooltip,
+                                                                x: rect.left + rect.width / 2,
+                                                                y: rect.top - 8
+                                                            });
+                                                        }}
+                                                        onMouseLeave={() => {
+                                                            setTooltipState(prev => ({ ...prev, visible: false }));
+                                                        }}
                                                         style={{ 
                                                             width: '22px', 
                                                             height: '22px', 
@@ -953,6 +1252,32 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                     </div>
                 )}
             </div>
+
+            {/* Floating Custom HTML Tooltip */}
+            {tooltipState.visible && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        top: tooltipState.y,
+                        left: tooltipState.x,
+                        transform: 'translate(-50%, -100%)',
+                        zIndex: 99999,
+                        background: 'rgba(15, 15, 20, 0.95)',
+                        backdropFilter: 'blur(4px)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '4px',
+                        padding: '0.35rem 0.55rem',
+                        fontSize: '0.68rem',
+                        color: 'var(--text-primary)',
+                        pointerEvents: 'none',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+                        fontWeight: 600,
+                        whiteSpace: 'nowrap'
+                    }}
+                >
+                    {tooltipState.content}
+                </div>
+            )}
 
         </div>
     );

@@ -570,10 +570,9 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                             letterSpacing: '0.12em',
                             color: 'var(--text-secondary)',
                             opacity: 0.65,
-                            fontWeight: 600,
-                            textTransform: 'uppercase'
+                            textTransform: 'none'
                         }}>
-                            made by docka
+                            Made by docka
                         </span>
                     </div>
                 </div>

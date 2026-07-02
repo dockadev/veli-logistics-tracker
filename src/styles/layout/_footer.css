@@ -53,5 +53,5 @@
     background: var(--card-header-bg);
     font-family: var(--font-heading);
     letter-spacing: 0.05em;
-    text-transform: uppercase;
+    text-transform: none;
 }

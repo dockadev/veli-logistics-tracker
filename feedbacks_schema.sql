@@ -26,16 +26,28 @@ FOR INSERT
 TO anon, authenticated 
 WITH CHECK (true);
 
--- Policy to allow developers to view feedbacks
-CREATE POLICY "Allow select for all users" 
+-- Policy to allow only developers and officers to view feedbacks
+CREATE POLICY "Allow select for developers and officers" 
 ON public.feedbacks 
 FOR SELECT 
-TO anon, authenticated 
-USING (true);
+TO authenticated 
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE public.profiles.id = auth.uid() 
+        AND (public.profiles.role = 'developer' OR public.profiles.role = 'officer')
+    )
+);
 
--- Policy to allow developers to delete feedbacks
-CREATE POLICY "Allow delete for all users" 
+-- Policy to allow only developers to delete feedbacks
+CREATE POLICY "Allow delete for developers only" 
 ON public.feedbacks 
 FOR DELETE 
-TO anon, authenticated 
-USING (true);
+TO authenticated 
+USING (
+    EXISTS (
+        SELECT 1 FROM public.profiles 
+        WHERE public.profiles.id = auth.uid() 
+        AND public.profiles.role = 'developer'
+    )
+);

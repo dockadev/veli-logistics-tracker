@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import type { Depot, SupplyRequest } from '../types';
+import type { Depot, SupplyRequest, DepotHistoryEntry } from '../types';
 import { isVehicleName } from './csvParser';
 
 function migrateDepot(depot: Depot): Depot {
@@ -99,6 +99,47 @@ export const dbService = {
                             .upsert(rows, { onConflict: 'name' });
                         if (error) {
                             console.error('[DB Service] Error saving depots to Supabase:', error);
+                        } else {
+                            // Find the most recently updated depot to record in history
+                            let newestDepotName = '';
+                            let newestTime = 0;
+                            Object.entries(depots).forEach(([name, depot]) => {
+                                if (depot.lastUpdated) {
+                                    const t = new Date(depot.lastUpdated).getTime();
+                                    if (t > newestTime) {
+                                        newestTime = t;
+                                        newestDepotName = name;
+                                    }
+                                }
+                            });
+
+                            if (newestDepotName && (new Date().getTime() - newestTime < 60000)) {
+                                const newestDepot = depots[newestDepotName];
+                                // Check if this history entry was already logged to prevent double-logging
+                                const { data: existing } = await supabase
+                                    .from('depots_history')
+                                    .select('id')
+                                    .eq('depot_name', newestDepotName)
+                                    .eq('imported_at', newestDepot.lastUpdated)
+                                    .limit(1);
+
+                                if (!existing || existing.length === 0) {
+                                    await supabase.from('depots_history').insert({
+                                        depot_name: newestDepotName,
+                                        items: newestDepot.current,
+                                        imported_by: session.user.id,
+                                        imported_at: newestDepot.lastUpdated
+                                    });
+
+                                    // Clean up history older than 7 days
+                                    const sevenDaysAgo = new Date();
+                                    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                                    await supabase
+                                        .from('depots_history')
+                                        .delete()
+                                        .lt('imported_at', sevenDaysAgo.toISOString());
+                                }
+                            }
                         }
                     }
                     return;
@@ -242,5 +283,52 @@ export const dbService = {
                 console.error('[DB Service] Supabase clear all failed:', err);
             }
         }
+    },
+
+    async incrementProfileStat(statType: 'import' | 'request' | 'delivery'): Promise<void> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { error } = await supabase.rpc('increment_profile_stat', { stat_type: statType });
+                if (error) {
+                    console.error(`[DB Service] Error incrementing profile stat ${statType}:`, error);
+                }
+            } catch (err) {
+                console.error('[DB Service] RPC call failed for incrementProfileStat:', err);
+            }
+        }
+    },
+
+    async resetLeaderboardStats(): Promise<void> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { error } = await supabase.rpc('reset_leaderboard_stats');
+                if (error) {
+                    throw error;
+                }
+            } catch (err) {
+                console.error('[DB Service] RPC call failed for resetLeaderboardStats:', err);
+                throw err;
+            }
+        }
+    },
+
+    async loadDepotsHistory(): Promise<DepotHistoryEntry[]> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('depots_history')
+                    .select('*')
+                    .order('imported_at', { ascending: true });
+                if (error) {
+                    console.error('[DB Service] Error loading depots history:', error);
+                    return [];
+                }
+                return data || [];
+            } catch (err) {
+                console.error('[DB Service] Supabase loadDepotsHistory failed:', err);
+                return [];
+            }
+        }
+        return [];
     }
 };

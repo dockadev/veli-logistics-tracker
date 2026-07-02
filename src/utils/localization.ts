@@ -7,7 +7,7 @@ export const translations = {
         officer_access: "Officer Authority",
         member_access: "Normal Authority",
         disconnect: "Log Out",
-        tactical_logistics_dashboard: "made by docka",
+        tactical_logistics_dashboard: "Made by docka",
 
         // CSV Input Panel
         csv_input: "CSV Input",
@@ -353,7 +353,7 @@ export const translations = {
         officer_access: "Subay Yetkisi",
         member_access: "Normal Yetki",
         disconnect: "Çıkış Yap",
-        tactical_logistics_dashboard: "made by docka",
+        tactical_logistics_dashboard: "Made by docka",
 
         // CSV Input Panel
         csv_input: "CSV Veri Girişi",
@@ -690,7 +690,7 @@ export const translations = {
         officer_access: "Autoridade de Oficial",
         member_access: "Autoridade Normal",
         disconnect: "Sair",
-        tactical_logistics_dashboard: "feito por docka",
+        tactical_logistics_dashboard: "Feito por docka",
 
         // CSV Input Panel
         csv_input: "Entrada CSV",
@@ -1027,7 +1027,7 @@ export const translations = {
         officer_access: "Права офицера",
         member_access: "Обычные права",
         disconnect: "Выйти",
-        tactical_logistics_dashboard: "разработчик docka",
+        tactical_logistics_dashboard: "Разработчик: docka",
 
         // CSV Input Panel
         csv_input: "Ввод CSV",
@@ -1364,7 +1364,7 @@ export const translations = {
         officer_access: "Offiziersberechtigung",
         member_access: "Normale Berechtigung",
         disconnect: "Abmelden",
-        tactical_logistics_dashboard: "entwickelt von docka",
+        tactical_logistics_dashboard: "Entwickelt von docka",
 
         // CSV Input Panel
         csv_input: "CSV-Eingabe",

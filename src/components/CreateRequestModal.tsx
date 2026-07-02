@@ -10,7 +10,7 @@ import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 
 const STANDARD_ITEMS_ARRAY = Array.from(STANDARD_ITEMS);
 
-function getItemCategoryFromName(name: string): 'item' | 'crate' | 'vehicle' | 'structure' | 'crate_vehicle' {
+function getItemCategoryFromName(name: string): 'crate' | 'vehicle' | 'structure' | 'crate_vehicle' {
     const isCrate = name.endsWith('(Crate)');
     if (isVehicleName(name)) {
         return isCrate ? 'crate_vehicle' : 'vehicle';
@@ -18,7 +18,7 @@ function getItemCategoryFromName(name: string): 'item' | 'crate' | 'vehicle' | '
     if (isStructureName(name)) {
         return 'structure';
     }
-    return isCrate ? 'crate' : 'item';
+    return 'crate';
 }
 
 interface CreateRequestModalProps {
@@ -41,7 +41,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
     const { t, language } = useLanguage();
     const [depotName, setDepotName] = useState('');
     const [itemNameInput, setItemNameInput] = useState('');
-    const [itemCategory, setItemCategory] = useState<'item' | 'crate' | 'vehicle' | 'structure' | 'crate_vehicle'>('item');
+    const [itemCategory, setItemCategory] = useState<'crate' | 'vehicle' | 'structure' | 'crate_vehicle'>('crate');
     const [quantityRequired, setQuantityRequired] = useState<number>(100);
     const [addedItems, setAddedItems] = useState<Omit<RequestItem, 'quantityDelivered'>[]>([]);
     
@@ -54,7 +54,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
         if (isOpen) {
             setDepotName(activeDepotName || (depotKeys.length > 0 ? depotKeys[0] : ''));
             setItemNameInput('');
-            setItemCategory('item');
+            setItemCategory('crate');
             setQuantityRequired(100);
             setAddedItems([]);
             setShowSuggestions(false);
@@ -176,13 +176,17 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
         }).slice(0, 12); // Limit to top 12 recommendations
     }, [depots, depotName]);
 
-    const handleSelectRecommendation = (rec: { name: string; category: 'item' | 'crate' | 'vehicle' | 'structure' | 'crate_vehicle'; suggestedQty: number }) => {
+    const handleSelectRecommendation = (rec: { name: string; category: any; suggestedQty: number }) => {
         setItemNameInput(rec.name);
-        setItemCategory(rec.category);
+        setItemCategory(rec.category === 'item' ? 'crate' : rec.category);
     };
 
+    const isCategoryLocked = useMemo(() => {
+        const trimmed = itemNameInput.trim();
+        return STANDARD_ITEMS.has(trimmed);
+    }, [itemNameInput]);
+
     const categoryOptions = useMemo(() => [
-        { value: 'item', label: t('cat_item') },
         { value: 'crate', label: t('cat_crate') },
         { value: 'vehicle', label: t('cat_vehicle') },
         { value: 'crate_vehicle', label: t('cat_crate_vehicle') },
@@ -229,7 +233,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
         ]);
 
         setItemNameInput('');
-        setItemCategory('item');
+        setItemCategory('crate');
         setQuantityRequired(100);
         setShowSuggestions(false);
     };
@@ -343,17 +347,20 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
                                     </div>
                                 </div>
 
-                                <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', width: '100%' }}>
-                                    {/* Category Select (Auto-detected if matched) */}
-                                    <div className="form-group" style={{ flex: '2 1 180px', margin: 0 }}>
-                                        <label htmlFor="requestCategory" style={{ fontSize: '0.62rem' }}>{t('category')}</label>
-                                        <CustomSelect
-                                            id="requestCategory"
-                                            options={categoryOptions}
-                                            value={itemCategory}
-                                            onChange={(val) => setItemCategory(val as 'item' | 'crate' | 'vehicle' | 'structure' | 'crate_vehicle')}
-                                        />
-                                    </div>
+                            <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end', width: '100%' }}>
+                                {/* Category Select (Auto-detected if matched) */}
+                                <div className="form-group" style={{ flex: '2 1 180px', margin: 0 }}>
+                                    <label htmlFor="requestCategory" style={{ fontSize: '0.62rem' }}>
+                                        {t('category')} {isCategoryLocked && <span style={{ color: 'var(--accent-color)', fontSize: '0.58rem', marginLeft: '0.2rem' }}>({language === 'tr' ? 'Kilitli' : 'Locked'})</span>}
+                                    </label>
+                                    <CustomSelect
+                                        id="requestCategory"
+                                        options={categoryOptions}
+                                        value={itemCategory}
+                                        onChange={(val) => setItemCategory(val as 'crate' | 'vehicle' | 'structure' | 'crate_vehicle')}
+                                        disabled={isCategoryLocked}
+                                    />
+                                </div>
 
                                     {/* Required Quantity */}
                                     <div className="form-group" style={{ flex: '1 1 100px', margin: 0 }}>

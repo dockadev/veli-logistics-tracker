@@ -135,10 +135,8 @@ export function parseCSV(text: string): { location: string; timestamp: string; i
                     }
                 } else if (blockIndex === 3 || blockIndex === 4 || isStructureName(name)) {
                     category = 'structure';
-                } else if (isCrate) {
-                    category = 'crate';
                 } else {
-                    category = 'item';
+                    category = 'crate';
                 }
 
                 items[name] = { count, category };
