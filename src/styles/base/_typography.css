@@ -1,0 +1,26 @@
+/* ============================================================
+   TYPOGRAPHY & TEXT UTILITIES
+   ============================================================ */
+
+/* Global Typography Declarations */
+h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+}
+
+p, span, td, th, input, button, select, textarea {
+    font-family: var(--font-body);
+}
+
+
+
+
+.help-text {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.8rem;
+    line-height: 1.5;
+}
+
+.text-right {
+    text-align: right;
+}

@@ -1,0 +1,180 @@
+/* ============================================================
+   DEPOT SELECTOR MODAL
+   ============================================================ */
+
+.modal-regions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.region-item-btn {
+    padding: 0.65rem 0.85rem;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-family: var(--font-heading);
+    font-size: 0.78rem;
+    font-weight: 500;
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    transition: background-color 0.12s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.12s cubic-bezier(0.16, 1, 0.3, 1), color 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.region-item-btn.has-depots {
+    color: var(--text-primary);
+}
+
+.region-item-btn:hover,
+.region-item-btn.active {
+    font-weight: 700;
+    background: var(--accent-bg);
+    color: var(--accent-color);
+    border-color: var(--accent-color);
+}
+
+.region-badge-count {
+    font-size: 0.62rem;
+    background: var(--btn-secondary-bg);
+    color: var(--text-secondary);
+    padding: 0.1rem 0.35rem;
+    border-radius: 10px;
+    font-weight: 700;
+    transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.region-item-btn.active .region-badge-count {
+    background: var(--accent-color);
+    color: var(--btn-primary-text);
+}
+
+
+.depot-modal-item {
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.depot-modal-item.active {
+    background: var(--accent-bg);
+    border-color: var(--accent-color);
+}
+
+.depot-modal-item:hover {
+    transform: translate3d(4px, 0, 0);
+    background: var(--btn-secondary-bg-hover, rgba(var(--white-rgb), 0.05));
+    border-color: var(--accent-color);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.2);
+}
+
+.depot-modal-item-title {
+    font-family: var(--font-heading);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+}
+
+.depot-modal-item-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.62rem;
+    color: var(--text-secondary);
+}
+
+.depot-modal-item-region {
+    color: var(--accent-color);
+    font-weight: 600;
+}
+
+.modal-regions-column {
+    width: 40%;
+    border-right: 1px solid var(--border-color);
+    overflow-y: auto;
+    background: var(--modal-sidebar-bg);
+    padding: 0.75rem;
+    transition: opacity 0.2s ease;
+    contain: content;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-regions-title {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 0.5rem 0.65rem;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.25rem;
+}
+
+.modal-region-badge-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.modal-depots-column {
+    width: 60%;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    contain: content;
+    -webkit-overflow-scrolling: touch;
+}
+
+.modal-depots-column.expanded {
+    width: 100%;
+}
+
+.modal-depots-title {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 0 0.5rem 0.75rem 0.5rem;
+    letter-spacing: 0.08em;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0.75rem;
+}
+
+/* Visibility grouping classes for DOM-cached list rendering */
+.depot-region-group {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.depot-region-group.visible {
+    display: flex;
+}
+
+.depot-search-group {
+    display: none;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.depot-search-group.visible {
+    display: flex;
+}
+
+.modal-region-arrow {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.12s cubic-bezier(0.16, 1, 0.3, 1), transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-region-arrow.visible {
+    opacity: 1;
+    transform: translateX(0);
+}

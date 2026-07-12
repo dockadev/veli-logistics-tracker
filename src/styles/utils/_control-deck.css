@@ -1,0 +1,71 @@
+/* ============================================================
+   CONTROL DECK SIDEBAR (iOS Style premium slide-out & Morphing)
+   ============================================================ */
+
+
+@keyframes backdropFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Morphing Container */
+
+/* Closed state (acts as trigger button) */
+.control-deck-container.closed {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    cursor: pointer;
+    background: var(--btn-secondary-bg);
+}
+
+.control-deck-container.closed:hover {
+    transform: scale(1.06);
+    border-color: var(--border-hover);
+    background: var(--bg-card-hover);
+    box-shadow: 0 6px 20px var(--accent-glow);
+}
+
+/* Open state (acts as expanded panel) */
+.control-deck-container.open {
+    width: 270px;
+    height: 310px;
+    border-radius: var(--radius-md);
+    cursor: default;
+    box-shadow: 0 12px 40px rgba(var(--black-rgb), 0.6), 0 0 15px var(--accent-glow);
+}
+
+/* Opacity transitions for child views */
+
+.control-deck-container.open .control-deck-trigger-content {
+    opacity: 0;
+    pointer-events: none;
+    position: absolute;
+}
+
+
+.control-deck-container.open .control-deck-expanded-content {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+
+
+
+
+
+
+
+.control-deck-capsule-btn.active {
+    background: var(--accent-color);
+    color: var(--btn-primary-text);
+    box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+/* Discord Popovers links */
+
+
+
+
+

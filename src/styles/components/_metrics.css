@@ -1,0 +1,100 @@
+/* ============================================================
+   METRICS PANELS & STAT CARDS
+   ============================================================ */
+
+.metrics-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 1300px) { .metrics-container { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 768px) { .metrics-container { grid-template-columns: 1fr; } }
+
+.stat-card-modern {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.15rem;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(var(--black-rgb), 0.15);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.stat-card-modern::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--accent-color);
+    opacity: 0.4;
+    transition: opacity 0.2s ease;
+}
+
+.stat-card-modern:hover {
+    transform: translateY(-3px);
+    border-color: var(--border-hover);
+    box-shadow: 0 8px 24px rgba(var(--black-rgb), 0.25);
+}
+
+.stat-card-modern:hover::before {
+    opacity: 1;
+}
+
+.stat-card-modern.text-positive::before { background: var(--color-positive); }
+.stat-card-modern.text-positive:hover {
+    border-color: var(--color-positive-border);
+    box-shadow: 0 8px 24px var(--color-positive-bg);
+}
+
+.stat-card-modern.text-negative::before { background: var(--color-negative); }
+.stat-card-modern.text-negative:hover {
+    border-color: var(--color-negative-border);
+    box-shadow: 0 8px 24px var(--color-negative-bg);
+}
+
+.stat-card-modern.text-warning::before { background: var(--color-warning); }
+.stat-card-modern.text-warning:hover {
+    border-color: var(--color-warning-border);
+    box-shadow: 0 8px 24px var(--color-warning-bg);
+}
+
+.stat-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card-title {
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+}
+
+.stat-card-value {
+    font-family: var(--font-heading);
+    font-size: 1.85rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+    margin-bottom: 0.25rem;
+}
+
+.stat-card-modern.text-positive .stat-card-value { color: var(--color-positive); }
+.stat-card-modern.text-negative .stat-card-value { color: var(--color-negative); }
+.stat-card-modern.text-warning .stat-card-value { color: var(--color-warning); }
+
+.stat-card-sub {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}

@@ -1,0 +1,89 @@
+/* ============================================================
+   RESET, SCROLLBAR & BODY DEFAULTS
+   ============================================================ */
+
+/* ----- Reset ----- */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+svg {
+    display: inline-block;
+    vertical-align: middle;
+}
+
+/* ----- Scrollbars ----- */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: rgba(var(--black-rgb), 0.15);
+}
+::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+    background: var(--accent-color);
+}
+
+/* ----- Body Settings ----- */
+body {
+    background-color: var(--bg-main);
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(var(--accent-color-rgb), 0.04) 0px, transparent 50%),
+        radial-gradient(at 100% 100%, rgba(var(--accent-color-rgb), 0.03) 0px, transparent 50%);
+    background-attachment: fixed;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+    line-height: 1.6;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) rgba(var(--black-rgb), 0.15);
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+}
+
+input, textarea, [contenteditable="true"] {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
+
+/* Chrome/Safari/Edge Autofill overrides to match Dark Theme */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 1000px var(--autofill-bg) inset !important;
+    -webkit-text-fill-color: var(--text-primary) !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+/* Disable text selection on brand logo and header/title elements */
+.logo-area,
+.logo-area *,
+.card-header,
+.card-header *,
+.modal-header,
+.modal-header *,
+.modal-depots-title,
+.modal-regions-title,
+.depot-interface-header,
+.depot-interface-header *,
+.main-footer,
+.badge-category,
+.diff-val,
+.stat-card-title {
+    user-select: none;
+    -webkit-user-select: none;
+}

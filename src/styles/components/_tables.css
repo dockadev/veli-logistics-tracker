@@ -1,0 +1,225 @@
+/* ============================================================
+   DATA TABLES & TABLE WRAPPER
+   ============================================================ */
+
+/* ----- Table Container Component ----- */
+.table-container {
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    overflow: visible;
+    box-shadow: 0 4px 20px rgba(var(--black-rgb), 0.15);
+    transition: border-color 0.2s ease;
+}
+
+.table-container:hover {
+    border-color: var(--border-hover);
+}
+
+.table-actions {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    background: var(--card-header-bg);
+    position: relative;
+    z-index: 11;
+}
+
+.search-bar {
+    position: relative;
+    width: 100%;
+}
+
+.search-icon {
+    position: absolute;
+    left: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.search-bar input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.75rem 0.55rem 2.2rem;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.search-bar input:focus {
+    border-color: var(--border-focus);
+    background: var(--input-focus-bg);
+}
+
+.filters-scroll {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.filter-group {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.filter-group-secondary {
+    display: flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    border-top: 1px solid rgba(var(--white-rgb), 0.05);
+    padding-top: 0.75rem;
+    width: 100%;
+}
+
+.filter-btn {
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    padding: 0.25rem 0.65rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.7rem;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.filter-btn:hover {
+    color: var(--text-primary);
+    border-color: var(--border-hover);
+    background: var(--btn-secondary-bg-hover, rgba(var(--white-rgb), 0.05));
+}
+
+.filter-btn.active {
+    background: var(--accent-color);
+    border-color: var(--accent-color);
+    color: var(--btn-primary-text);
+}
+
+/* ----- High-Performance Table Wrapper ----- */
+.table-wrapper {
+    flex-grow: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 310px);
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.8rem;
+}
+
+.data-table th {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--text-muted);
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--table-header-bg);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    letter-spacing: 0.05em;
+}
+
+.data-table td {
+    padding: 0.65rem 1.25rem;
+    border-bottom: 1px solid rgba(var(--white-rgb), 0.02);
+    color: var(--text-secondary);
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.data-table tbody tr {
+    background: transparent;
+}
+
+.data-table tbody tr:hover td {
+    background-color: rgba(var(--white-rgb), 0.02);
+    color: var(--text-primary);
+}
+
+.td-change-positive {
+    box-shadow: inset 3px 0 0 0 var(--color-positive);
+    padding-left: 1.35rem !important;
+}
+
+.td-change-negative {
+    box-shadow: inset 3px 0 0 0 var(--color-negative);
+    padding-left: 1.35rem !important;
+}
+
+.td-change-new {
+    box-shadow: inset 3px 0 0 0 var(--color-warning);
+    padding-left: 1.35rem !important;
+}
+
+.empty-row {
+    text-align: center;
+    padding: 3rem 1.5rem !important;
+    color: var(--text-muted);
+}
+
+/* Category & Difference Badges */
+.badge-category {
+    font-family: var(--font-heading);
+    font-size: 0.62rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.1rem 0.45rem;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
+    border: 1px solid rgba(var(--white-rgb), 0.05);
+    color: var(--text-secondary);
+    background-color: rgba(var(--white-rgb), 0.02);
+}
+
+.diff-val {
+    font-family: var(--font-heading);
+    font-weight: 700;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    display: inline-block;
+    min-width: 44px;
+    font-size: 0.72rem;
+    text-align: center;
+    border: 1px solid transparent;
+}
+
+.diff-positive {
+    background-color: var(--color-positive-bg);
+    border-color: var(--color-positive-border);
+    color: var(--color-positive);
+}
+
+.diff-negative {
+    background-color: var(--color-negative-bg);
+    border-color: var(--color-negative-border);
+    color: var(--color-negative);
+}
+
+.diff-zero {
+    color: var(--text-muted);
+}
+
+.diff-new {
+    background-color: var(--color-warning-bg);
+    border: 1px dashed var(--color-warning-border);
+    color: var(--color-warning);
+}

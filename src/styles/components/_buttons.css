@@ -1,0 +1,174 @@
+/* ============================================================
+   BUTTON STYLES & VARIANTS
+   ============================================================ */
+
+.btn-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    outline: none;
+    border: 1px solid transparent;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+}
+
+/* Hover Submenu for Nav Buttons */
+.nav-item-dropdown-container {
+    position: relative;
+    display: inline-block;
+    width: 100%;
+}
+
+.nav-flyout-submenu {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 100%;
+    margin-left: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+    border-radius: var(--radius-sm);
+    padding: 0.35rem;
+    min-width: 190px;
+    z-index: 1000;
+}
+
+.nav-item-dropdown-container:hover .nav-flyout-submenu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    animation: fadeIn 0.15s ease-out;
+}
+
+.nav-flyout-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+    width: 100%;
+}
+
+.nav-flyout-item:hover {
+    background: rgba(249, 115, 22, 0.12);
+    color: var(--accent-color);
+}
+
+.btn-primary {
+    background: var(--accent-color);
+    color: var(--btn-primary-text);
+    border-color: var(--accent-color);
+    font-weight: 700;
+    box-shadow: 0 2px 10px rgba(var(--accent-color-rgb), 0.15);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(var(--accent-color-rgb), 0.3);
+    filter: brightness(1.1);
+}
+
+.btn-secondary {
+    background: var(--btn-secondary-bg);
+    border-color: var(--border-color);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background: var(--btn-secondary-bg-hover, rgba(var(--white-rgb), 0.08));
+    border-color: var(--border-hover);
+    transform: translateY(-1px);
+}
+
+.btn-danger {
+    background: var(--color-negative-bg);
+    border-color: var(--color-negative-border);
+    color: var(--color-negative);
+    width: 100%;
+}
+
+.btn-danger:hover {
+    background: var(--color-negative-border);
+    border-color: var(--color-negative);
+    transform: translateY(-1px);
+}
+
+/* ----- Category Badges ----- */
+.badge {
+    font-family: var(--font-heading);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    display: inline-block;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.badge-item {
+    background: var(--color-category-item-bg);
+    border: 1px solid var(--color-category-item-border);
+    color: var(--color-category-item);
+}
+
+.badge-crate {
+    background: var(--color-category-crate-bg);
+    border: 1px solid var(--color-category-crate-border);
+    color: var(--color-category-crate);
+}
+
+.badge-vehicle {
+    background: var(--color-category-vehicle-bg);
+    border: 1px solid var(--color-category-vehicle-border);
+    color: var(--color-category-vehicle);
+}
+
+.badge-structure {
+    background: var(--color-category-structure-bg);
+    border: 1px solid var(--color-category-structure-border);
+    color: var(--color-category-structure);
+}
+
+.badge-crate-vehicle {
+    background: var(--color-category-crate-vehicle-bg);
+    border: 1px solid var(--color-category-crate-vehicle-border);
+    color: var(--color-category-crate-vehicle);
+}
+
+.badge-logistics-lead, .badge-logistics_lead, .badge-shippable {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+
+

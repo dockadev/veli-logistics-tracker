@@ -1,0 +1,115 @@
+/* ============================================================
+   PANEL CARDS & CARD HEADERS
+   ============================================================ */
+
+.panel-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    box-shadow: 0 4px 20px rgba(var(--black-rgb), 0.2);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.panel-card:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 6px 24px rgba(var(--accent-color-rgb), 0.08);
+}
+
+.popover-card {
+    z-index: 99999 !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.2) !important;
+}
+
+.card-header {
+    padding: 0.85rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    background: var(--card-header-bg);
+    transition: border-color 0.2s ease;
+}
+
+.card-header svg {
+    color: var(--accent-color);
+    filter: drop-shadow(0 0 3px var(--accent-glow));
+    transition: color 0.2s ease;
+}
+
+.card-header h2 {
+    font-family: var(--font-heading);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.card-body {
+    padding: 1.25rem;
+}
+
+/* Health Region Accordion Header & Depot Cards Hover Effects */
+.health-region-toggle {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.45rem 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.health-region-toggle:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
+}
+
+.depot-health-card {
+    padding: 0.9rem 1rem;
+    background: rgba(255, 255, 255, 0.015);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    transition: all 0.2s ease;
+}
+
+.depot-health-card:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.35);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 8px rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Demand Tab needed & surplus card custom hovers */
+.needed-demand-card {
+    border: 1px solid rgba(239, 68, 68, 0.15) !important;
+    background: rgba(239, 68, 68, 0.01) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.needed-demand-card:hover {
+    border-color: rgba(239, 68, 68, 0.65) !important;
+    box-shadow: none !important;
+}
+
+.surplus-stock-card {
+    border: 1px solid rgba(16, 185, 129, 0.15) !important;
+    background: rgba(16, 185, 129, 0.01) !important;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.surplus-stock-card:hover {
+    border-color: rgba(16, 185, 129, 0.65) !important;
+    box-shadow: none !important;
+}
+

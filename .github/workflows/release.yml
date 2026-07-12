@@ -1,0 +1,52 @@
+name: "Publish Release"
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish-tauri:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend & compile Tauri binaries
+        run: npm run tauri build -- --no-bundle
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Prepare Windows standalone binary
+        run: |
+          Copy-Item -Path "src-tauri/target/release/app.exe" -Destination "src-tauri/target/release/Veli_Logistics_Tracker.exe" -Force
+        shell: pwsh
+
+      - name: Upload portable release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          files: |
+            src-tauri/target/release/Veli_Logistics_Tracker.exe
+          tag_name: ${{ github.ref_name }}
+          name: "Veli Logistics Tracker ${{ github.ref_name }}"
+          body: "Pre-release portable build of Veli Logistics Tracker. No installation required."
+          draft: true
+          prerelease: true
+          fail_on_unmatched_files: false

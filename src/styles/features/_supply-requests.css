@@ -1,0 +1,321 @@
+/* ============================================================
+   SUPPLY REQUEST BOARD & REQUEST CARDS
+   ============================================================ */
+
+/* ===== SUPPLY REQUEST BOARD STYLES ===== */
+
+.request-card-open {
+    background: var(--request-card-open-bg);
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.15);
+}
+
+.request-card-open:hover {
+    border-color: var(--border-hover);
+    box-shadow: 0 6px 18px var(--accent-glow);
+}
+
+.request-card-completed {
+    background: var(--color-positive-bg);
+    border: 1px solid var(--color-positive-border);
+    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.1);
+}
+
+.request-card-completed:hover {
+    border-color: var(--color-positive);
+}
+
+/* Category Badges for Requests */
+.badge {
+    font-family: var(--font-heading);
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    display: inline-block;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.badge-item {
+    background: var(--color-category-item-bg);
+    border: 1px solid var(--color-category-item-border);
+    color: var(--color-category-item);
+}
+
+.badge-crate {
+    background: var(--color-category-crate-bg);
+    border: 1px solid var(--color-category-crate-border);
+    color: var(--color-category-crate);
+}
+
+.badge-vehicle {
+    background: var(--color-category-vehicle-bg);
+    border: 1px solid var(--color-category-vehicle-border);
+    color: var(--color-category-vehicle);
+}
+
+.badge-structure {
+    background: var(--color-category-structure-bg);
+    border: 1px solid var(--color-category-structure-border);
+    color: var(--color-category-structure);
+}
+
+.badge-crate-vehicle {
+    background: var(--color-category-crate-vehicle-bg);
+    border: 1px solid var(--color-category-crate-vehicle-border);
+    color: var(--color-category-crate-vehicle);
+}
+
+.badge-logistics-lead, .badge-logistics_lead, .badge-shippable {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #f59e0b;
+}
+
+/* SupplyRequestsTab Semantics */
+.requests-tab-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    width: 100%;
+}
+
+.requests-header-panel {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    padding: 1rem;
+    border-radius: var(--radius-sm);
+}
+
+.requests-filter-group-wrapper {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.requests-filter-group {
+    display: flex;
+    background: var(--input-bg);
+    padding: 2px;
+    border-radius: 4px;
+}
+
+.requests-tab-btn-mini {
+    font-size: 0.7rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 3px;
+}
+
+.requests-empty-state-card {
+    padding: 4rem 2rem;
+    text-align: center;
+}
+
+.requests-empty-state-icon {
+    margin: 0 auto 0.75rem;
+    opacity: 0.4;
+    display: block;
+}
+
+.requests-grid-layout {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+    gap: 1.25rem;
+    width: 100%;
+}
+
+.request-card-component {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    border-radius: var(--radius-sm);
+    padding: 1.25rem;
+    transition: transform var(--transition-smooth), border-color var(--transition-smooth), box-shadow var(--transition-smooth);
+    gap: 1rem;
+    will-change: transform, border-color, box-shadow;
+}
+
+.request-card-component:hover {
+    transform: translateY(-2px);
+}
+
+.request-card-header-layout {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.75rem;
+    margin-bottom: 0.75rem;
+}
+
+.request-card-title-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.request-card-title-container span.depot-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.08em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.request-card-title-container h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.request-card-title-container span.time-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+}
+
+.request-card-progress-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.35rem;
+}
+
+.request-card-progress-container span.pct-label {
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.request-card-progress-bar-track {
+    width: 80px;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.request-card-progress-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: width;
+}
+
+.request-card-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+}
+
+.request-card-item-box {
+    background: var(--card-header-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 0.85rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.request-card-item-row-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.request-card-item-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.request-card-item-name {
+    font-size: 0.8rem;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.request-card-item-progress-text {
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.request-card-item-progress-bar-track {
+    width: 100%;
+    height: 4px;
+    background: var(--border-color);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.request-card-item-progress-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: width;
+}
+
+.request-card-item-actions-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.2rem;
+    gap: 0.4rem;
+}
+
+.request-card-item-btn-group {
+    display: flex;
+    gap: 0.3rem;
+    flex-grow: 1;
+}
+
+.request-card-item-btn {
+    padding: 0.25rem 0.45rem;
+    font-size: 0.62rem;
+    flex-grow: 1;
+    min-width: 32px;
+}
+
+.request-card-item-complete-btn {
+    padding: 0.25rem 0.45rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+}
+
+.request-card-actions-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.75rem;
+    margin-top: auto;
+    gap: 0.5rem;
+}
+
+.request-card-footer-btn-reopen {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.7rem;
+    flex-grow: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+}
+
+.request-card-footer-btn-delete {
+    padding: 0.4rem 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 30px;
+}

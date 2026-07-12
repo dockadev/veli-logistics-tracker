@@ -1,0 +1,57 @@
+/* ============================================================
+   FOOTER & ACTIVE DEPOT INFO
+   ============================================================ */
+
+/* ----- Active Depot Info Section ----- */
+.depot-interface-header {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1.25rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1.5rem;
+    box-shadow: 0 4px 15px rgba(var(--black-rgb), 0.15);
+    transition: border-color 0.2s ease;
+}
+
+.depot-interface-header:hover {
+    border-color: var(--border-hover);
+}
+
+.depot-title-group h2 {
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+    letter-spacing: 0.02em;
+}
+
+.depot-title-group p {
+    font-size: 0.7rem;
+    color: var(--text-secondary);
+    font-family: var(--font-heading);
+}
+
+.depot-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* ----- Footer Component ----- */
+.main-footer {
+    text-align: center;
+    padding: 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    margin-top: auto;
+    background: var(--card-header-bg);
+    font-family: var(--font-heading);
+    letter-spacing: 0.05em;
+    text-transform: none;
+}

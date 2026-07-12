@@ -1,0 +1,256 @@
+/* ============================================================
+   MODAL SYSTEM & LAYOUTS
+   ============================================================ */
+
+.modal-backdrop-blur {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: var(--modal-backdrop-bg, rgba(3, 3, 6, 0.95));
+    z-index: 1000;
+    animation: backdropIn 0.2s ease-out forwards;
+    pointer-events: auto;
+    transform: translate3d(0, 0, 0);
+    will-change: opacity;
+}
+
+.modal-wrapper {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1001;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+}
+
+@keyframes backdropIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.modal-container {
+    background: var(--modal-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    width: 92%;
+    max-width: 500px;
+    box-shadow: 0 16px 48px rgba(var(--black-rgb), 0.8);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    animation: modalSlideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: auto;
+}
+
+.modal-container.modal-sm {
+    max-width: 400px;
+}
+
+.modal-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--modal-header-bg);
+}
+
+.modal-header h3 {
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--text-primary);
+    text-transform: uppercase;
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.3rem;
+    border-radius: var(--radius-sm);
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.modal-close:hover {
+    color: var(--text-primary);
+    background: var(--btn-secondary-bg-hover, rgba(var(--white-rgb), 0.05));
+}
+
+.modal-body {
+    padding: 1.25rem;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    margin-bottom: 0.85rem;
+}
+
+.form-group label {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.form-group input[type="text"] {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.55rem 0.75rem;
+    color: var(--text-primary);
+    font-family: var(--font-body);
+    font-size: 0.8rem;
+    outline: none;
+    transition: border-color 0.15s ease;
+}
+
+.form-group input:focus {
+    border-color: var(--border-focus);
+    background: var(--input-focus-bg);
+}
+
+.modal-footer {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    background: var(--modal-header-bg);
+}
+
+@keyframes modalSlideDown {
+    from { opacity: 0; transform: translateY(-16px) scale(0.97); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Modal sizing extensions */
+.modal-container-lg {
+    max-width: 580px;
+    width: 95%;
+}
+
+.modal-container-xl {
+    max-width: 800px;
+    width: 94%;
+}
+
+.modal-body-spacing {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding-bottom: 0.5rem;
+}
+
+.modal-divider {
+    border-bottom: 1px solid var(--border-color);
+    margin: 0.25rem 0;
+}
+
+.modal-section-title {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+}
+
+.modal-body-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+/* Modal layout helper classes */
+.modal-header-layout {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.modal-map-icon {
+    color: var(--accent-color);
+    filter: drop-shadow(0 0 4px var(--accent-glow));
+}
+
+.modal-title-text {
+    margin: 0;
+    letter-spacing: 0.08em;
+}
+
+.modal-search-container {
+    padding: 0.85rem 1.5rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--card-header-bg);
+}
+
+.modal-search-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.modal-search-clear-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.modal-body-layout {
+    padding: 0;
+    display: flex;
+    min-height: 380px;
+    max-height: 480px;
+}
+
+.modal-empty-state {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    padding: 2.5rem;
+    text-align: center;
+    gap: 0.65rem;
+}
+
+/* VELI AI Recommendation List hover effect */
+.veli-ai-rec-row {
+    transition: all 0.15s ease-in-out !important;
+}
+
+.veli-ai-rec-row:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.veli-ai-rec-row:active {
+    transform: translateY(0);
+}

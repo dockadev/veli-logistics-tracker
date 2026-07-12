@@ -1,0 +1,164 @@
+/* ============================================================
+   TOAST NOTIFICATION SYSTEM
+   ============================================================ */
+
+.toast-container {
+    position: fixed;
+    top: 5.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    pointer-events: none;
+    max-width: 420px;
+    width: calc(100% - 3rem);
+}
+
+.toast-message {
+    pointer-events: auto;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 0.85rem 1.25rem;
+    box-shadow: 0 10px 40px rgba(var(--black-rgb), 0.6), 0 0 15px var(--accent-glow);
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    transform: translate3d(0, 0, 0);
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: transform var(--transition-smooth), opacity var(--transition-smooth), border-color 0.3s, box-shadow 0.3s;
+}
+
+.toast-message.toast-fade-out {
+    animation: toastSlideOut 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.toast-message.success {
+    border: 1px solid rgba(var(--color-positive-rgb), 0.35);
+    border-left: 5px solid var(--color-positive);
+    box-shadow: 0 10px 40px rgba(var(--black-rgb), 0.6), 0 0 20px rgba(var(--color-positive-rgb), 0.2);
+}
+
+.toast-message.success svg {
+    color: var(--color-positive);
+}
+
+.toast-message.error {
+    border: 1px solid rgba(var(--color-negative-rgb), 0.35);
+    border-left: 5px solid var(--color-negative);
+    box-shadow: 0 10px 40px rgba(var(--black-rgb), 0.6), 0 0 20px rgba(var(--color-negative-rgb), 0.2);
+}
+
+.toast-message.error svg {
+    color: var(--color-negative);
+}
+
+.toast-message.warning {
+    border: 1px solid rgba(var(--color-warning-rgb), 0.35);
+    border-left: 5px solid var(--color-warning);
+    box-shadow: 0 10px 40px rgba(var(--black-rgb), 0.6), 0 0 20px rgba(var(--color-warning-rgb), 0.2);
+}
+
+.toast-message.warning svg {
+    color: var(--color-warning);
+}
+
+.toast-message.info {
+    border: 1px solid rgba(var(--color-category-item-rgb), 0.35);
+    border-left: 5px solid var(--color-category-item);
+    box-shadow: 0 10px 40px rgba(var(--black-rgb), 0.6), 0 0 20px rgba(var(--color-category-item-rgb), 0.2);
+}
+
+.toast-message.info svg {
+    color: var(--color-category-item);
+}
+
+/* Premium timer ring */
+.toast-timer-ring {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: auto;
+    color: var(--text-secondary);
+}
+
+.toast-message.success .toast-timer-ring {
+    color: var(--color-positive);
+}
+.toast-message.error .toast-timer-ring {
+    color: var(--color-negative);
+}
+.toast-message.warning .toast-timer-ring {
+    color: var(--color-warning);
+}
+.toast-message.info .toast-timer-ring {
+    color: var(--accent-color);
+}
+
+.toast-timer-ring-fill {
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+    animation: toast-ring-countdown 5s linear forwards;
+}
+
+@keyframes toast-ring-countdown {
+    from {
+        stroke-dashoffset: 0;
+    }
+    to {
+        stroke-dashoffset: 50.24;
+    }
+}
+
+.toast-content {
+    flex-grow: 1;
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    line-height: 1.4;
+}
+
+.toast-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.2rem;
+    border-radius: 4px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.toast-close:hover {
+    color: var(--text-primary);
+    background: var(--btn-secondary-bg);
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translate3d(0, -120%, 0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+@keyframes toastSlideOut {
+    from {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+    to {
+        opacity: 0;
+        transform: translate3d(0, -120%, 0);
+    }
+}
