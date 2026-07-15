@@ -40,7 +40,8 @@ function remapSubregion(name: string): string {
     return name;
 }
 
-export function parseCSV(text: string): { location: string; timestamp: string; items: Record<string, ItemInfo>; townName?: string | null } | { error: string; details?: string } | null {
+export function parseCSV(rawText: string): { location: string; timestamp: string; items: Record<string, ItemInfo>; townName?: string | null } | { error: string; details?: string } | null {
+    const text = rawText.replace(/[\u2013\u2014]/g, '-');
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) return null;
 

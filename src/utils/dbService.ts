@@ -50,7 +50,10 @@ export const dbService = {
                                 const parsed = typeof row.data === 'string' && (row.data.startsWith('{') || row.data.startsWith('['))
                                     ? JSON.parse(row.data)
                                     : row.data;
-                                record[row.name] = migrateDepot(parsed);
+                                const migrated = migrateDepot(parsed);
+                                const cleanName = row.name.replace(/[\u2013\u2014]/g, '-');
+                                migrated.name = cleanName;
+                                record[cleanName] = migrated;
                             } catch (e) {
                                 console.error(`[DB Service] Failed to parse depot ${row.name}:`, e);
                             }
@@ -68,10 +71,14 @@ export const dbService = {
         if (!localDepotsStr) return {};
         try {
             const parsed = JSON.parse(localDepotsStr);
+            const cleanRecord: Record<string, Depot> = {};
             Object.keys(parsed).forEach(key => {
-                parsed[key] = migrateDepot(parsed[key]);
+                const cleanKey = key.replace(/[\u2013\u2014]/g, '-');
+                const migrated = migrateDepot(parsed[key]);
+                migrated.name = cleanKey;
+                cleanRecord[cleanKey] = migrated;
             });
-            return parsed;
+            return cleanRecord;
         } catch (e) {
             console.error('[DB Service] Local parsing of depots failed:', e);
             return {};
@@ -587,7 +594,7 @@ export const dbService = {
                 console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
             }
         }
-        return '0.1.61';
+        return '0.1.62';
     },
 
     async saveMinAppVersion(version: string): Promise<void> {

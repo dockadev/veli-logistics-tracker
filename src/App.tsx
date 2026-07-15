@@ -119,7 +119,7 @@ const getTauriApis = async () => {
     }
 };
 
-const APP_VERSION = '0.1.61';
+const APP_VERSION = '0.1.62';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);

@@ -11,7 +11,7 @@ interface SecureGateOverlayProps {
     version?: string;
 }
 
-export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, theme: _theme, setTheme: _setTheme, version = '0.1.61' }) => {
+export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, theme: _theme, setTheme: _setTheme, version = '0.1.62' }) => {
     const { language, setLanguage, t } = useLanguage();
 
     const [loginError, setLoginError] = useState('');
