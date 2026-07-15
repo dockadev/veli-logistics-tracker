@@ -1,6 +1,7 @@
 import type { ItemInfo } from '../types';
 import { STANDARD_ITEMS } from './standardItems';
 import { getItemOfficialCategory } from './itemCategories';
+import { ITEM_TRANSLATIONS } from './itemTranslations';
 
 export function isVehicleName(name: string): boolean {
     const lower = name.toLowerCase();
@@ -34,12 +35,12 @@ export function isStructureName(name: string): boolean {
 function remapSubregion(name: string): string {
     const trimmed = name.trim();
     if (trimmed === 'Glimmerhaven') return "Light's End";
-    if (trimmed === 'Loftmire') return 'Blemish';
+    if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
     if (trimmed === 'Rising Loom') return 'Therizo';
     return name;
 }
 
-export function parseCSV(text: string): { location: string; timestamp: string; items: Record<string, ItemInfo>; townName?: string | null } | { error: string } | null {
+export function parseCSV(text: string): { location: string; timestamp: string; items: Record<string, ItemInfo>; townName?: string | null } | { error: string; details?: string } | null {
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) return null;
 
@@ -77,8 +78,13 @@ export function parseCSV(text: string): { location: string; timestamp: string; i
                 }
                 const trimmed = part.trim();
                 if (trimmed === 'Glimmerhaven') return "Light's End";
-                if (trimmed === 'Loftmire') return 'Blemish';
+                if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
                 if (trimmed === 'Rising Loom') return 'Therizo';
+                
+                const lower = trimmed.toLowerCase();
+                if (lower === 'seehafen' || lower === 'porto' || lower === 'морской порт') return 'Seaport';
+                if (lower === 'lagerdepot' || lower === 'depósito de suprimentos' || lower === 'склад') return 'Storage Depot';
+                
                 return part;
             });
             const region = mappedParts[0];
@@ -123,6 +129,7 @@ export function parseCSV(text: string): { location: string; timestamp: string; i
     const items: Record<string, ItemInfo> = {};
     let hasMalformedLine = false;
     let hasExtraItems = false;
+    let failedItemName = '';
     const parsedItemNames = new Set<string>();
     const NORMALIZED_TO_STANDARD_MAP = new Map<string, string>();
     STANDARD_ITEMS.forEach(item => {
@@ -156,12 +163,19 @@ export function parseCSV(text: string): { location: string; timestamp: string; i
             }
 
             const normalizedName = name.replace(/[“”]/g, '"');
-            if (!NORMALIZED_TO_STANDARD_MAP.has(normalizedName)) {
+            let finalName = normalizedName;
+            const lookupKey = normalizedName.toLowerCase();
+            if (ITEM_TRANSLATIONS[lookupKey]) {
+                finalName = ITEM_TRANSLATIONS[lookupKey];
+            }
+
+            if (!NORMALIZED_TO_STANDARD_MAP.has(finalName)) {
                 hasExtraItems = true;
+                failedItemName = name;
                 return;
             }
-            const standardName = NORMALIZED_TO_STANDARD_MAP.get(normalizedName)!;
-            parsedItemNames.add(normalizedName);
+            const standardName = NORMALIZED_TO_STANDARD_MAP.get(finalName)!;
+            parsedItemNames.add(finalName);
 
             if (count > 0) {
                 const officialCat = getItemOfficialCategory(standardName);
@@ -179,7 +193,7 @@ export function parseCSV(text: string): { location: string; timestamp: string; i
         return { error: 'csv_malformed_line' };
     }
     if (hasExtraItems) {
-        return { error: 'csv_extra_items' };
+        return { error: 'csv_extra_items', details: failedItemName };
     }
 
     // Missing items from standard list are allowed and treated as 0 count/omitted.

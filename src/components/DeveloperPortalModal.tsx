@@ -27,6 +27,8 @@ interface DeveloperPortalTabProps {
     onDeleteTestDepots?: () => void;
     onRefreshUsers?: () => void | Promise<void>;
     onResetLeaderboard: () => Promise<void>;
+    minAppVersion?: string;
+    onUpdateMinAppVersion?: (version: string) => Promise<void>;
 }
 
 export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.memo(({
@@ -46,6 +48,8 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
     onDeleteTestDepots,
     onRefreshUsers,
     onResetLeaderboard,
+    minAppVersion = '0.1.60',
+    onUpdateMinAppVersion,
 }) => {
     const { t, language } = useLanguage();
     const [activeSubTab, setActiveSubTab] = useState<'approvals' | 'audit' | 'feedbacks' | 'system'>(
@@ -63,6 +67,30 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
     const [isResetModalOpen, setIsResetModalOpen] = useState(false);
     const [isResetting, setIsResetting] = useState(false);
 
+    const [tempMinVersion, setTempMinVersion] = useState(minAppVersion);
+    const [isSavingVersion, setIsSavingVersion] = useState(false);
+    const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+
+    React.useEffect(() => {
+        setTempMinVersion(minAppVersion);
+    }, [minAppVersion]);
+
+    const handleSaveMinVersion = () => {
+        if (!onUpdateMinAppVersion || !tempMinVersion.trim()) return;
+        setIsVersionModalOpen(true);
+    };
+
+    const handleConfirmSaveMinVersion = async () => {
+        if (!onUpdateMinAppVersion) return;
+        setIsVersionModalOpen(false);
+        setIsSavingVersion(true);
+        try {
+            await onUpdateMinAppVersion(tempMinVersion);
+        } finally {
+            setIsSavingVersion(false);
+        }
+    };
+
     // Local War Reset translations
     const localTranslations: Record<string, Record<string, string>> = {
         tr: {
@@ -75,7 +103,15 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
             confirm_reset: 'Evet, Sıfırla',
             developer_only: 'Bu işlem sadece Geliştirici (Developer) yetkisine özeldir.',
             test_depots: 'Test Depoları Yönetimi',
-            test_depots_desc: 'Geliştirme ve görsel hata denetimi amacıyla 20 adet rastgele içerikli test deposu oluşturur veya siler.'
+            test_depots_desc: 'Geliştirme ve görsel hata denetimi amacıyla 20 adet rastgele içerikli test deposu oluşturur veya siler.',
+            version_title: 'SÜRÜM YÖNETİMİ & KONTROLÜ',
+            version_desc: 'Uygulamaya giriş yapabilecek minimum sürümü belirleyin. Bu sürümün altındaki kullanıcılar uygulamayı kullanamayacak ve indirme sayfasına yönlendirilecektir.',
+            min_req_version: 'Minimum Gerekli Sürüm',
+            update_version: 'Sürümü Güncelle',
+            saving: 'Kaydediliyor...',
+            confirm_version_title: 'SÜRÜM GÜNCELLEME ONAYI',
+            confirm_version_body: 'Minimum gerekli sürümü güncellemek üzeresiniz. Bu sürümün altındaki tüm istemciler (kullanıcılar) uygulamadan hemen engellenecektir. Devam etmek istiyor musunuz?',
+            confirm_update: 'Evet, Güncelle'
         },
         en: {
             war_control: 'WAR CONTROL & ADMINISTRATION',
@@ -87,7 +123,15 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
             confirm_reset: 'Yes, Reset',
             developer_only: 'This action is restricted to the Developer role only.',
             test_depots: 'Test Depots Simulator',
-            test_depots_desc: 'Generates or deletes 20 simulated test depots with randomized inventory levels for debugging purposes.'
+            test_depots_desc: 'Generates or deletes 20 simulated test depots with randomized inventory levels for debugging purposes.',
+            version_title: 'VERSION MANAGEMENT & ENFORCEMENT',
+            version_desc: 'Set the minimum required version to access the app. Users running older versions will be blocked and redirected to the releases page.',
+            min_req_version: 'Minimum Required Version',
+            update_version: 'Update Version',
+            saving: 'Saving...',
+            confirm_version_title: 'VERSION UPDATE CONFIRMATION',
+            confirm_version_body: 'You are about to update the minimum required app version. All clients (users) below this version will be blocked immediately from using the app. Do you want to proceed?',
+            confirm_update: 'Yes, Update'
         }
     };
 
@@ -371,6 +415,7 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                                                         value={user.role}
                                                         onChange={(val) => onUpdateUserRole(user.id, val as UserRole)}
                                                         options={[
+                                                            { value: 'recruit', label: t('role_recruit') || 'Recruit Member' },
                                                             { value: 'member', label: t('role_member') || 'Member' },
                                                             { value: 'officer', label: t('role_officer') || 'Officer' },
                                                             { value: 'logistics_lead', label: t('role_logistics_lead') || 'Logistics Lead' }
@@ -532,6 +577,51 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                         </div>
                     </div>
 
+                    {/* Card: Version Control & Forced Update (YENİLİK - Version Check) */}
+                    <div className="dev-portal-section-card" style={{ borderLeft: '3px solid var(--accent-color)', background: 'rgba(249, 115, 22, 0.01)' }}>
+                        <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.78rem', fontWeight: 700, color: 'var(--accent-color)' }}>
+                            {getLocalTranslation('version_title')}
+                        </h4>
+                        <p style={{ margin: '0 0 0.85rem 0', fontSize: '0.7rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {getLocalTranslation('version_desc')}
+                        </p>
+
+                        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.75rem', flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                <span style={{ fontSize: '0.62rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                                    {getLocalTranslation('min_req_version')}
+                                </span>
+                                <input
+                                    type="text"
+                                    value={tempMinVersion}
+                                    onChange={(e) => setTempMinVersion(e.target.value)}
+                                    placeholder="0.1.60"
+                                    style={{
+                                        background: 'rgba(0,0,0,0.2)',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: '4px',
+                                        padding: '0.35rem 0.5rem',
+                                        color: 'var(--text-primary)',
+                                        fontSize: '0.75rem',
+                                        width: '130px',
+                                        fontFamily: 'monospace'
+                                    }}
+                                />
+                            </div>
+                            <button
+                                type="button"
+                                className="btn btn-primary"
+                                onClick={handleSaveMinVersion}
+                                disabled={isSavingVersion}
+                                style={{ padding: '0.45rem 1rem', fontSize: '0.72rem', fontWeight: 700 }}
+                            >
+                                {isSavingVersion 
+                                    ? getLocalTranslation('saving')
+                                    : getLocalTranslation('update_version')}
+                            </button>
+                        </div>
+                    </div>
+
                     {/* Card: War Control Center & Leaderboard Reset (Migrated Feature) */}
                     <div className="dev-portal-section-card" style={{ borderLeft: '3px solid #ef4444', background: 'rgba(239, 68, 68, 0.01)' }}>
                         <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.78rem', fontWeight: 700, color: '#ef4444' }}>
@@ -624,6 +714,69 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                                     <Trash2 size={14} />
                                 )}
                                 {getLocalTranslation('confirm_reset')}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Sürüm Güncelleme Onay Modalı */}
+            {isVersionModalOpen && (
+                <div 
+                    style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        zIndex: 10000,
+                        background: 'rgba(0, 0, 0, 0.75)',
+                        backdropFilter: 'blur(8px)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '1.5rem'
+                    }}
+                >
+                    <div 
+                        className="panel-card anim-scale-in" 
+                        style={{
+                            maxWidth: '450px',
+                            width: '100%',
+                            padding: '1.5rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1.25rem',
+                            background: 'rgba(15, 15, 20, 0.98)',
+                            border: '1px solid var(--border-color)'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+                            <AlertTriangle size={24} style={{ color: 'var(--color-negative, #ef4444)' }} />
+                            <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
+                                {getLocalTranslation('confirm_version_title')}
+                            </h3>
+                        </div>
+
+                        <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                            {getLocalTranslation('confirm_version_body')}
+                        </p>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.25rem' }}>
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => setIsVersionModalOpen(false)}
+                                style={{ padding: '0.4rem 1rem', fontSize: '0.75rem', borderRadius: '15px' }}
+                            >
+                                {getLocalTranslation('cancel')}
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-danger"
+                                onClick={handleConfirmSaveMinVersion}
+                                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.4rem 1rem', fontSize: '0.75rem', borderRadius: '15px', fontWeight: 600, background: 'var(--accent-color)', borderColor: 'var(--accent-color)', color: '#000' }}
+                            >
+                                {getLocalTranslation('confirm_update')}
                             </button>
                         </div>
                     </div>

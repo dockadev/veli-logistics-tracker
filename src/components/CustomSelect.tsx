@@ -4,6 +4,7 @@ import { ChevronDown } from 'lucide-react';
 interface Option {
     value: string;
     label: string;
+    isStale?: boolean;
 }
 
 interface CustomSelectProps {
@@ -58,7 +59,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                 disabled={disabled}
                 style={disabled ? { opacity: 0.55, cursor: 'not-allowed', background: 'rgba(0, 0, 0, 0.1)', borderColor: 'rgba(255,255,255,0.03)', color: 'var(--text-secondary)' } : undefined}
             >
-                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', color: selectedOption?.isStale ? '#ef4444' : undefined }}>
                     {selectedOption ? selectedOption.label : placeholder}
                 </span>
                 <ChevronDown size={14} style={{ opacity: 0.7, flexShrink: 0, marginLeft: '0.5rem' }} />
@@ -78,6 +79,7 @@ export const CustomSelect: React.FC<CustomSelectProps> = ({
                                     key={opt.value}
                                     onClick={() => handleSelect(opt.value)}
                                     className={`custom-select-option ${isSelected ? 'selected' : ''}`}
+                                    style={opt.isStale ? { color: '#ef4444' } : undefined}
                                 >
                                     {opt.label}
                                 </div>

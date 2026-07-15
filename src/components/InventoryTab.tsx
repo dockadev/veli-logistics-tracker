@@ -1,10 +1,10 @@
 import React from 'react';
-import { Search, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown } from 'lucide-react';
+import { Search, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { Depot, FilterState, SortField, StockpileTemplates, RegionSettings } from '../types';
 import { getPaginationRange, getCategoryClass } from '../utils/helpers';
-import { getItemOfficialCategory } from '../utils/itemCategories';
+import { getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
 import { getDefaultTemplates, getDefaultRuleForCategory } from '../utils/defaultTemplates';
 
 const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
@@ -25,7 +25,7 @@ const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
     if (subregion) {
         const trimmed = subregion.trim();
         if (trimmed === 'Glimmerhaven') subregion = "Light's End";
-        else if (trimmed === 'Loftmire') subregion = 'Blemish';
+        else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') subregion = 'Blemish';
         else if (trimmed === 'Rising Loom') subregion = 'Therizo';
     }
 
@@ -47,10 +47,52 @@ interface InventoryTabProps {
     regionSettings?: RegionSettings;
 }
 
+const OFFICIAL_CATEGORIES: OfficialCategory[] = [
+    'small_arms',
+    'heavy_arms',
+    'heavy_ammunition',
+    'utility',
+    'medical',
+    'materials',
+    'uniforms',
+    'aircraft_parts',
+    'vehicles',
+    'shippables',
+    'vehicle_crates',
+    'shippable_crates'
+];
+
+
+
 export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, activeDepot, templates = getDefaultTemplates(), regionSettings = {} }) => {
     const { t, language } = useLanguage();
     const [expandedItem, setExpandedItem] = React.useState<string | null>(null);
+    const [disabledCategories, setDisabledCategories] = React.useState<Set<string>>(new Set());
+    const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
+
+    const toggleCategory = (cat: string) => {
+        setDisabledCategories(prev => {
+            const next = new Set(prev);
+            if (next.has(cat)) {
+                next.delete(cat);
+            } else {
+                next.add(cat);
+            }
+            return next;
+        });
+    };
+
+    const toggleAllCategories = () => {
+        setDisabledCategories(prev => {
+            if (prev.size === 0) {
+                return new Set(OFFICIAL_CATEGORIES);
+            } else {
+                return new Set();
+            }
+        });
+    };
     const canExpand = activeDepot && (activeDepot.name === 'all' || activeDepot.name.startsWith('town:'));
+    const showTargets = activeDepot && (activeDepot.name === 'all' || activeDepot.name.startsWith('town:'));
 
     React.useEffect(() => {
         setExpandedItem(null);
@@ -308,8 +350,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                 return false;
             }
 
-            // Category filter (Official 10 Foxhole categories)
-            if (filters.category !== 'all' && item.category !== filters.category) {
+            // Category filter
+            if (disabledCategories.has(item.category)) {
                 return false;
             }
 
@@ -348,7 +390,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
         }
 
         return result;
-    }, [itemsList, debouncedSearch, filters.category, filters.change, filters.sortField, filters.sortDirection]);
+    }, [itemsList, debouncedSearch, disabledCategories, filters.change, filters.sortField, filters.sortDirection]);
 
     const paginatedItems = React.useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
@@ -428,45 +470,98 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                         />
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                        <div style={{ width: '210px' }}>
+                        <div style={{ width: '160px' }}>
                             <CustomSelect
                                 options={[
                                     { value: 'all', label: t('all_items') },
-                                    { value: 'small_arms', label: t('cat_small_arms') },
-                                    { value: 'heavy_arms', label: t('cat_heavy_arms') },
-                                    { value: 'heavy_ammunition', label: t('cat_heavy_ammunition') },
-                                    { value: 'utility', label: t('cat_utility') },
-                                    { value: 'medical', label: t('cat_medical') },
-                                    { value: 'materials', label: t('cat_materials') },
-                                    { value: 'uniforms', label: t('cat_uniforms') },
-                                    { value: 'aircraft_parts', label: t('cat_aircraft_parts') },
-                                    { value: 'vehicles', label: t('cat_vehicles') },
-                                    { value: 'shippables', label: t('cat_shippables') },
-                                    { value: 'vehicle_crates', label: t('cat_vehicle_crates') },
-                                    { value: 'shippable_crates', label: t('cat_shippable_crates') }
+                                    { value: 'increased', label: t('increased_stock') },
+                                    { value: 'decreased', label: t('decreased_stock') },
+                                    { value: 'new', label: t('new_items') },
+                                    { value: 'nochange', label: t('unchanged') }
                                 ]}
-                                value={filters.category}
-                                onChange={(val) => setFilters(prev => ({ ...prev, category: val as any }))}
-                                placeholder={t('category')}
+                                value={filters.change}
+                                onChange={(val) => setFilters(prev => ({ ...prev, change: val as any }))}
+                                placeholder={t('status')}
                             />
                         </div>
-                        {filters.category !== 'all' && (
-                            <div className="anim-fade-in" style={{ width: '160px' }}>
-                                <CustomSelect
-                                    options={[
-                                        { value: 'all', label: t('all_items') },
-                                        { value: 'increased', label: t('increased_stock') },
-                                        { value: 'decreased', label: t('decreased_stock') },
-                                        { value: 'new', label: t('new_items') },
-                                        { value: 'nochange', label: t('unchanged') }
-                                    ]}
-                                    value={filters.change}
-                                    onChange={(val) => setFilters(prev => ({ ...prev, change: val as any }))}
-                                    placeholder={t('status')}
-                                />
-                            </div>
-                        )}
                     </div>
+                </div>
+
+                {/* Category Filter Pills (YENİLİK 1) */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.4rem', marginBottom: '1.25rem' }}>
+                    <button
+                        type="button"
+                        onClick={toggleAllCategories}
+                        onMouseEnter={() => setHoveredCategory('all_master')}
+                        onMouseLeave={() => setHoveredCategory(null)}
+                        style={{
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '4px',
+                            fontSize: '0.62rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            background: hoveredCategory === 'all_master' 
+                                ? 'rgba(255, 255, 255, 0.08)' 
+                                : (disabledCategories.size === OFFICIAL_CATEGORIES.length ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
+                            border: hoveredCategory === 'all_master' 
+                                ? '1px solid rgba(255, 255, 255, 0.55)' 
+                                : (disabledCategories.size === OFFICIAL_CATEGORIES.length ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
+                            color: disabledCategories.size === OFFICIAL_CATEGORIES.length ? 'var(--text-muted)' : 'var(--text-primary)',
+                            opacity: disabledCategories.size === OFFICIAL_CATEGORIES.length && hoveredCategory !== 'all_master' ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            marginRight: '0.25rem'
+                        }}
+                    >
+                        {disabledCategories.size === OFFICIAL_CATEGORIES.length ? <EyeOff size={10} /> : <Eye size={10} />}
+                        {language === 'tr' ? 'Tümü' : 'All'}
+                    </button>
+
+                    {OFFICIAL_CATEGORIES.map(cat => {
+                        const isDisabled = disabledCategories.has(cat);
+                        const isHovered = hoveredCategory === cat;
+                        return (
+                            <button
+                                key={cat}
+                                type="button"
+                                onClick={() => toggleCategory(cat)}
+                                onMouseEnter={() => setHoveredCategory(cat)}
+                                onMouseLeave={() => setHoveredCategory(null)}
+                                style={{
+                                    padding: '0.25rem 0.65rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.62rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    background: isHovered 
+                                        ? 'rgba(255, 255, 255, 0.08)' 
+                                        : (isDisabled ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
+                                    border: isHovered 
+                                        ? '1px solid rgba(255, 255, 255, 0.55)' 
+                                        : (isDisabled ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
+                                    color: isDisabled ? 'var(--text-muted)' : 'var(--text-primary)',
+                                    opacity: isDisabled && !isHovered ? 0.5 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    userSelect: 'none',
+                                    WebkitUserSelect: 'none'
+                                }}
+                            >
+                                {isDisabled ? <EyeOff size={10} /> : <Eye size={10} />}
+                                {t(`cat_${cat}` as any)}
+                            </button>
+                        );
+                    })}
                 </div>
 
                 <div className="table-wrapper">
@@ -491,18 +586,22 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                         {renderSortIcon('currVal')}
                                     </div>
                                 </th>
-                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('target')}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                        {language === 'tr' ? 'Hedef' : 'Target'}
-                                        {renderSortIcon('target')}
-                                    </div>
-                                </th>
-                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('needed')}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                        {language === 'tr' ? 'Fark / İhtiyaç' : 'Diff / Needed'}
-                                        {renderSortIcon('needed')}
-                                    </div>
-                                </th>
+                                {showTargets && (
+                                    <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('target')}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                            {language === 'tr' ? 'Hedef' : 'Target'}
+                                            {renderSortIcon('target')}
+                                        </div>
+                                    </th>
+                                )}
+                                {showTargets && (
+                                    <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('needed')}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                            {language === 'tr' ? 'Fark / İhtiyaç' : 'Diff / Needed'}
+                                            {renderSortIcon('needed')}
+                                        </div>
+                                    </th>
+                                )}
                                 <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('prevVal')}>
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
                                         {t('previous_qty')}
@@ -520,7 +619,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                         <tbody>
                             {filteredItems.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="empty-row">
+                                    <td colSpan={showTargets ? 7 : 5} className="empty-row">
                                         <p>
                                             {!activeDepot || !activeDepot.current || Object.keys(activeDepot.current).length === 0
                                                 ? (t('depot_is_empty') || 'Bu depo şu anda boş.')
@@ -587,8 +686,10 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                                     <span className={`badge ${getCategoryClass(item.category)}`}>{t(`cat_${item.category}` as TranslationKey)}</span>
                                                 </td>
                                                 <td className="text-right">{item.currVal}</td>
-                                                <td className="text-right" style={{ color: 'var(--text-secondary)' }}>{item.target}</td>
-                                                {(() => {
+                                                {showTargets && (
+                                                    <td className="text-right" style={{ color: 'var(--text-secondary)' }}>{item.target}</td>
+                                                )}
+                                                {showTargets && (() => {
                                                     const needed = item.needed;
                                                     let neededStyle: React.CSSProperties = { color: 'var(--text-secondary)', fontWeight: 600 };
                                                     let neededLabel = `0 (${language === 'tr' ? 'Tamam' : 'Optimal'})`;
@@ -608,7 +709,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                             </tr>
                                             {expandedItem === item.name && canExpandRow && (
                                                 <tr className="expanded-row-details">
-                                                    <td colSpan={7} style={{ background: 'rgba(0, 0, 0, 0.12)', padding: '0.75rem 1rem', borderBottom: '1px dashed var(--border-color)' }}>
+                                                    <td colSpan={showTargets ? 7 : 5} style={{ background: 'rgba(0, 0, 0, 0.12)', padding: '0.75rem 1rem', borderBottom: '1px dashed var(--border-color)' }}>
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
                                                             <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                                 <Package size={12} />

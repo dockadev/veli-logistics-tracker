@@ -3,6 +3,7 @@ export const en = {
     logistics_intelligence: "Logistics Intelligence",
     officer_access: "Officer Authority",
     member_access: "Normal Authority",
+    recruit_access: "Recruit Authority",
     disconnect: "Log Out",
     tactical_logistics_dashboard: "Made by docka",
 
@@ -93,6 +94,7 @@ export const en = {
     auth_required: "Logistics tracking requires authorization. Please select your role.",
     role_officer: "Officer Authority",
     role_member: "Normal Authority",
+    role_recruit: "Recruit Member",
     role_developer: "Developer",
     role_logistics_lead: "Logistics Lead",
     auth_pending_title: "APPROVAL PENDING",
@@ -408,7 +410,7 @@ export const en = {
     destination_depot: "Destination Depot (Target)",
     vehicle_type: "Vehicle Type",
     flatbed_truck: "Flatbed Truck (1 Container / 60 Crates)",
-    barge_ship: "Barge (5 Containers / 300 Crates)",
+    barge_ship: "Freighter / Ironship (5 Containers / 300 Crates)",
     train_freight: "Logistics Train (Custom Containers)",
     wagon_count_label: "Containers / Wagons",
     calculate_transfer: "Calculate Transfer",
@@ -451,7 +453,7 @@ export const en = {
 
     info_transfer_title: "Automated Dispatch Planner",
     info_transfer_bullet1: "Smart Scaling: Scales source surplus to target region demand and splits rules per subregion.",
-    info_transfer_bullet2: "Multi-Vehicle Packing: Packs cargo into containers matching capacity of Flatbeds, Barges, or Trains.",
+    info_transfer_bullet2: "Multi-Vehicle Packing: Packs cargo into containers matching capacity of Flatbeds, Freighters, or Trains.",
 
     info_status_title: "Template Item Status",
     info_status_bullet1: "Active: Item is included in critical stock alerts, health scores, and auto-transfers.",

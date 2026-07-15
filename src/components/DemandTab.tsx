@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
     Search, CheckCircle, Info,
-    Package, MapPin, ChevronDown, ChevronUp, BarChart3
+    Package, MapPin, ChevronDown, ChevronUp, BarChart3,
+    Eye, EyeOff
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
@@ -16,13 +17,135 @@ interface DemandTabProps {
     regionSettings: RegionSettings;
 }
 
+const OFFICIAL_CATEGORIES: OfficialCategory[] = [
+    'small_arms',
+    'heavy_arms',
+    'heavy_ammunition',
+    'utility',
+    'medical',
+    'materials',
+    'uniforms',
+    'aircraft_parts',
+    'vehicles',
+    'shippables',
+    'vehicle_crates',
+    'shippable_crates'
+];
+
+
+
 export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionSettings }) => {
     const { t, language } = useLanguage();
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState<'high_low' | 'low_high' | 'alpha'>('high_low');
     const [viewMode, setViewMode] = useState<'items' | 'cities'>('items');
+    const [disabledCategories, setDisabledCategories] = useState<Set<string>>(new Set());
+    const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
-    
+    const toggleCategory = (cat: string) => {
+        setDisabledCategories(prev => {
+            const next = new Set(prev);
+            if (next.has(cat)) {
+                next.delete(cat);
+            } else {
+                next.add(cat);
+            }
+            return next;
+        });
+    };
+    const toggleAllCategories = () => {
+        setDisabledCategories(prev => {
+            if (prev.size === 0) {
+                return new Set(OFFICIAL_CATEGORIES);
+            } else {
+                return new Set();
+            }
+        });
+    };
+
+    const renderCategoryFilters = () => {
+        const allDisabled = disabledCategories.size === OFFICIAL_CATEGORIES.length;
+        const isAllHovered = hoveredCategory === 'all_master';
+
+        return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.4rem', marginBottom: '1.25rem' }}>
+                <button
+                    type="button"
+                    onClick={toggleAllCategories}
+                    onMouseEnter={() => setHoveredCategory('all_master')}
+                    onMouseLeave={() => setHoveredCategory(null)}
+                    style={{
+                        padding: '0.25rem 0.65rem',
+                        borderRadius: '4px',
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.05em',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        background: isAllHovered 
+                            ? 'rgba(255, 255, 255, 0.08)' 
+                            : (allDisabled ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
+                        border: isAllHovered 
+                            ? '1px solid rgba(255, 255, 255, 0.55)' 
+                            : (allDisabled ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
+                        color: allDisabled ? 'var(--text-muted)' : 'var(--text-primary)',
+                        opacity: allDisabled && !isAllHovered ? 0.5 : 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        userSelect: 'none',
+                        WebkitUserSelect: 'none',
+                        marginRight: '0.25rem'
+                    }}
+                >
+                    {allDisabled ? <EyeOff size={10} /> : <Eye size={10} />}
+                    {language === 'tr' ? 'Tümü' : 'All'}
+                </button>
+
+                {OFFICIAL_CATEGORIES.map(cat => {
+                    const isDisabled = disabledCategories.has(cat);
+                    const isHovered = hoveredCategory === cat;
+                    return (
+                        <button
+                            key={cat}
+                            type="button"
+                            onClick={() => toggleCategory(cat)}
+                            onMouseEnter={() => setHoveredCategory(cat)}
+                            onMouseLeave={() => setHoveredCategory(null)}
+                            style={{
+                                padding: '0.25rem 0.65rem',
+                                borderRadius: '4px',
+                                fontSize: '0.62rem',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.05em',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                background: isHovered 
+                                    ? 'rgba(255, 255, 255, 0.08)' 
+                                    : (isDisabled ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
+                                border: isHovered 
+                                    ? '1px solid rgba(255, 255, 255, 0.55)' 
+                                    : (isDisabled ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
+                                color: isDisabled ? 'var(--text-muted)' : 'var(--text-primary)',
+                                opacity: isDisabled && !isHovered ? 0.5 : 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                userSelect: 'none',
+                                WebkitUserSelect: 'none'
+                            }}
+                        >
+                            {isDisabled ? <EyeOff size={10} /> : <Eye size={10} />}
+                            {t(`cat_${cat}` as any)}
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    };
+
     // Pagination states
     const [neededPage, setNeededPage] = useState(1);
     const [surplusPage, setSurplusPage] = useState(1);
@@ -32,7 +155,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
     useEffect(() => {
         setNeededPage(1);
         setSurplusPage(1);
-    }, [searchTerm, sortBy, viewMode]);
+    }, [searchTerm, sortBy, viewMode, disabledCategories]);
 
     // Collapsible states
 
@@ -72,7 +195,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         if (town) {
             const trimmed = town.trim();
             if (trimmed === 'Glimmerhaven') return "Light's End";
-            if (trimmed === 'Loftmire') return 'Blemish';
+            if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
             if (trimmed === 'Rising Loom') return 'Therizo';
             return town;
         }
@@ -223,6 +346,9 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
             Array.from(COLONIAL_NEUTRAL_ITEMS).forEach(itemName => {
                 const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
+                if (disabledCategories.has(category)) {
+                    return;
+                }
                 
 
                 const setting = regionSettings[groupName] || { 
@@ -283,7 +409,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         });
 
         return citiesList;
-    }, [townGroups, templates, regionSettings]);
+    }, [townGroups, templates, regionSettings, disabledCategories]);
 
     // Global Statistics Calculations
     const globalStats = useMemo(() => {
@@ -308,6 +434,9 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         const surplusList: typeof demandItems = [];
 
         demandItems.forEach(item => {
+            if (disabledCategories.has(item.category)) {
+                return;
+            }
             if (item.available > item.target) {
                 surplusList.push(item);
             } else if (item.needed > 0) {
@@ -344,7 +473,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         }
 
         return { needed: fNeeded, surplus: fSurplus };
-    }, [demandItems, searchTerm, sortBy]);
+    }, [demandItems, searchTerm, sortBy, disabledCategories]);
 
     const splitCities = useMemo(() => {
         const neededList: typeof demandCities = [];
@@ -614,6 +743,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                 {isNeededExpanded && (
                     <div style={{ marginTop: '1.25rem', animation: 'slideDown 0.2s ease-out' }}>
+                        {renderCategoryFilters()}
                         {viewMode === 'items' ? (
                             (() => {
                                 const totalItemsCount = splitItems.needed.length;
@@ -845,6 +975,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                 {isSurplusExpanded && (
                     <div style={{ marginTop: '1.25rem', animation: 'slideDown 0.2s ease-out' }}>
+                        {renderCategoryFilters()}
                         {viewMode === 'items' ? (
                             (() => {
                                 const totalItemsCount = splitItems.surplus.length;

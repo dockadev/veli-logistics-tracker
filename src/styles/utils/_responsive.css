@@ -102,7 +102,21 @@
         justify-content: center !important;
     }
 
-    /* Secure Gate Overrides */
-
     /* Metric cards on mobile */
+}
+
+/* ===== HIGH-DPI / 2K & 4K RESOLUTION SCALING ===== */
+
+/* 2K Screens (approx. 2560x1440 and similar widths) */
+@media (min-width: 2200px) {
+    html {
+        font-size: 17px !important;
+    }
+}
+
+/* 4K Screens (approx. 3840x2160 and similar widths) */
+@media (min-width: 3000px) {
+    html {
+        font-size: 21px !important;
+    }
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Veli Logistics Tracker",
-  "version": "0.1.55",
+  "version": "0.1.60",
   "identifier": "com.dockadev.logi-app",
   "build": {
     "frontendDist": "../dist",
@@ -14,8 +14,8 @@
       {
         "label": "main",
         "title": "Veli Logistics Tracker",
-        "width": 1400,
-        "height": 850,
+        "width": 1500,
+        "height": 880,
         "resizable": true,
         "decorations": true,
         "center": true,

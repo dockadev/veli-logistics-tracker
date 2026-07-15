@@ -28,7 +28,7 @@ export const StockpilePasscodesModal: React.FC<StockpilePasscodesModalProps> = (
             if (town) {
                 const trimmed = town.trim();
                 if (trimmed === 'Glimmerhaven' || trimmed === 'Lights End' || trimmed === "Light’s End" || trimmed === "Light's End") town = "Light's End";
-                else if (trimmed === 'Loftmire') town = 'Blemish';
+                else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') town = 'Blemish';
                 else if (trimmed === 'Rising Loom') town = 'Therizo';
             }
             

@@ -3,7 +3,7 @@
    ============================================================ */
 
 .app-container {
-    max-width: 1600px;
+    max-width: 2200px;
     width: 100%;
     margin: 0 auto;
     padding: 1.5rem 1.5rem 5.5rem 1.5rem;
@@ -125,28 +125,7 @@
     box-shadow: 0 0 12px rgba(var(--white-rgb), 0.1);
 }
 
-/* LIGHT THEME */
-[data-theme="light"] .vertical-navigation-sidebar {
-    background: rgba(var(--white-rgb), 0.85);
-    border-color: var(--border-color);
-    box-shadow: 0 8px 32px rgba(var(--black-rgb), 0.08);
-    transition: background-color 0.25s ease, width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
-}
 
-[data-theme="light"] .vertical-navigation-sidebar:hover {
-    background: rgba(var(--white-rgb), 0.98);
-}
-
-[data-theme="light"] .vertical-navigation-sidebar .vertical-nav-btn {
-    color: var(--text-secondary);
-}
-
-[data-theme="light"] .vertical-navigation-sidebar .vertical-nav-btn:hover,
-[data-theme="light"] .vertical-navigation-sidebar .vertical-nav-btn.active {
-    color: rgb(var(--white-rgb));
-    background: var(--accent-color);
-    box-shadow: 0 4px 12px rgba(var(--accent-color-rgb), 0.25);
-}
 
 /* Forced Collapsed Sidebar when Chat is open */
 .vertical-navigation-sidebar.forced-collapsed {
@@ -206,7 +185,7 @@
     flex-direction: column;
     width: 100%;
     min-width: 0;
-    max-width: 1400px;
+    max-width: 2100px;
     margin: 0 auto;
 }
 
@@ -382,19 +361,7 @@
     box-shadow: 0 0 12px rgba(239, 68, 68, 0.25) !important;
 }
 
-[data-theme="light"] .vertical-navigation-sidebar .dev-portal-nav-btn {
-    border: 1px solid rgba(220, 38, 38, 0.2) !important;
-    background: rgba(220, 38, 38, 0.05) !important;
-    color: #dc2626 !important;
-}
 
-[data-theme="light"] .vertical-navigation-sidebar .dev-portal-nav-btn:hover,
-[data-theme="light"] .vertical-navigation-sidebar .dev-portal-nav-btn.active {
-    border-color: #dc2626 !important;
-    background: rgba(220, 38, 38, 0.1) !important;
-    color: #dc2626 !important;
-    box-shadow: 0 0 10px rgba(220, 38, 38, 0.15) !important;
-}
 
 /* Optimized gradient shift animation for version indicator on login screen */
 @keyframes versionGradientShift {

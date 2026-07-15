@@ -5,6 +5,7 @@ export const de: Partial<Record<keyof typeof en, string>> = {
     logistics_intelligence: "Logistik-Informationen",
     officer_access: "Offiziersberechtigung",
     member_access: "Normale Berechtigung",
+    recruit_access: "Rekrutenberechtigung",
     disconnect: "Abmelden",
     tactical_logistics_dashboard: "Entwickelt von docka",
 
@@ -72,6 +73,7 @@ export const de: Partial<Record<keyof typeof en, string>> = {
     auth_required: "Die Logistik-Verfolgung erfordert eine Autorisierung. Bitte wählen Sie Ihre Rolle.",
     role_officer: "Offiziersberechtigung",
     role_member: "Normale Berechtigung",
+    role_recruit: "Rekrut (Mitglied)",
     role_developer: "Entwickler",
     auth_pending_title: "GENEHMIGUNG AUSSTEHEND",
     auth_pending_desc: "Ihr Konto wurde erfolgreich erstellt. Der Zugriff auf das System erfordert die Genehmigung des Logistik-Entwicklers. Bitte kontaktieren Sie einen Manager.",

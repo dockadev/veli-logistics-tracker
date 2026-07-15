@@ -5,6 +5,7 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     logistics_intelligence: "Lojistik İstihbarat",
     officer_access: "Subay Yetkisi",
     member_access: "Normal Yetki",
+    recruit_access: "Acemi Yetkisi",
     disconnect: "Çıkış Yap",
     tactical_logistics_dashboard: "Made by docka",
 
@@ -95,6 +96,7 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     auth_required: "Lojistik takibi yetkilendirme gerektirir. Lütfen rolünüzü seçin.",
     role_officer: "Subay Yetkisi",
     role_member: "Normal Yetki",
+    role_recruit: "Acemi Üye",
     role_developer: "Geliştirici",
     role_logistics_lead: "Lojistik Sorumlusu",
     auth_pending_title: "BAŞVURU ONAY BEKLENİYOR",
@@ -410,7 +412,7 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     destination_depot: "Varış Deposu (Hedef)",
     vehicle_type: "Taşıma Aracı",
     flatbed_truck: "Flatbed Kamyon (1 Konteyner / 60 Kutu)",
-    barge_ship: "Barge / Nakliye Gemisi (5 Konteyner / 300 Kutu)",
+    barge_ship: "Demir Gemi / Ironship (5 Konteyner / 300 Kutu)",
     train_freight: "Lojistik Treni (Özel Vagon Sayısı)",
     wagon_count_label: "Konteyner / Vagon Sayısı",
     calculate_transfer: "Taşıma Hesapla",
@@ -449,11 +451,11 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
 
     info_heatmap_title: "Aktivite Isı Haritası",
     info_heatmap_bullet1: "Yoğun Zamanlar: Koyu renkli hücreler sevkiyatın ve stok güncellemelerinin en fazla yapıldığı saatleri temsil eder.",
-    info_heatmap_bullet2: "Sakin Zamanlar: Açık renkli hücreler lojistik operasyonların durgun olduğu zaman dilimlerini gösterir.",
+    info_heatmap_bullet2: "Sakin Zamanlar: Açık renkli hücreler lojistik operasyonlerin durgun olduğu zaman dilimlerini gösterir.",
 
     info_transfer_title: "Otomatik Sevkiyat Planlayıcı",
     info_transfer_bullet1: "Akıllı Ölçekleme: Kaynak depodaki fazlalıkları hedef bölgenin talebine göre ölçekler ve alt kasabalara böler.",
-    info_transfer_bullet2: "Sevkiyat Araçları: Kargo hacmini Flatbed, Barge veya Lojistik Treni kapasitelerine göre konteynerlere paketler.",
+    info_transfer_bullet2: "Sevkiyat Araçları: Kargo hacmini Flatbed, Demir Gemi (Ironship) veya Lojistik Treni kapasitelerine göre konteynerlere paketler.",
 
     info_status_title: "Şablon Malzeme Durumu",
     info_status_bullet1: "Aktif: Malzeme kritik stok alarmlarına, sağlık skoruna ve otomatik taşıma hesaplamalarına dahil edilir.",

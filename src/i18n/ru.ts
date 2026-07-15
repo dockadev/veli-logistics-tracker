@@ -5,6 +5,7 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     logistics_intelligence: "Логистическая информация",
     officer_access: "Права офицера",
     member_access: "Обычные права",
+    recruit_access: "Права рекрута",
     disconnect: "Выйти",
     tactical_logistics_dashboard: "Разработчик: docka",
 
@@ -72,6 +73,7 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     auth_required: "Для отслеживания логистики требуется авторизация. Пожалуйста, выберите вашу роль.",
     role_officer: "Права офицера",
     role_member: "Обычные права",
+    role_recruit: "Рекрут (Новичок)",
     role_developer: "Разработчик",
     auth_pending_title: "ОЖИДАНИЕ ОДОБРЕНИЯ",
     auth_pending_desc: "Ваша учетная запись успешно создана. Доступ к системе требует одобрения разработчика логистики. Пожалуйста, свяжитесь с менеджером.",

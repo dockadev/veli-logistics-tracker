@@ -16,12 +16,12 @@ import {
     Trophy,
     MessageSquare,
     Sliders,
-    Moon,
-    Sun,
     Lightbulb,
     Lock,
     ArrowLeftRight,
-    ClipboardList
+    ClipboardList,
+    LogOut,
+    Download
 } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DepotSettingsModal } from './components/DepotSettingsModal';
@@ -55,7 +55,7 @@ import { useLanguage, type TranslationKey, type Language } from './context/Langu
 import { dbService } from './utils/dbService';
 import { getDefaultTemplates } from './utils/defaultTemplates';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
-import { getRelativeTimeString, getDepotDisplayName } from './utils/helpers';
+import { getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor } from './utils/helpers';
 import { generateTestDepotsSet1, generateTestDepotsSet2 } from './utils/testDataGenerator';
 
 function getDepotMatchKey(fullName: string): string {
@@ -83,7 +83,35 @@ const getTauriApis = async () => {
     }
 };
 
-const APP_VERSION = '0.1.55';
+const APP_VERSION = '0.1.60';
+
+const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
+    const parse = (v: string) => v.split('.').map(Number);
+    const c = parse(clientVer);
+    const m = parse(minVer);
+    for (let i = 0; i < Math.max(c.length, m.length); i++) {
+        const cVal = c[i] || 0;
+        const mVal = m[i] || 0;
+        if (cVal < mVal) return true;
+        if (cVal > mVal) return false;
+    }
+    return false;
+};
+
+const openExternalUrl = async (url: string) => {
+    if (IS_TAURI) {
+        try {
+            const { invoke } = await import('@tauri-apps/api/core');
+            await invoke('open_url', { url });
+        } catch (err) {
+            console.error('Failed to open URL via Tauri:', err);
+            window.open(url, '_blank');
+        }
+    } else {
+        window.open(url, '_blank');
+    }
+};
+
 const resolveRegionForDepotName = (depotName: string | null, depots: Record<string, Depot>): string | null => {
     if (!depotName || depotName === 'all') return null;
     if (depotName.startsWith('town:')) {
@@ -216,10 +244,8 @@ export const App: React.FC = () => {
         return localStorage.getItem('foxhole_active_depot');
     });
     const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
-    const [timeRange, setTimeRange] = useState<'1d' | '7d' | '30d'>(() => {
-        return (localStorage.getItem('foxhole_analytics_time_range') as '1d' | '7d' | '30d') || '7d';
-    });
     const [activeTab, setActiveTab] = useState<'inventory' | 'passcodes' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback' | 'leaderboard' | 'templates' | 'transfer-calculator' | 'demand'>('inventory');
+    const [minAppVersion, setMinAppVersion] = useState<string>('0.1.60');
     const isDataLoadedRef = useRef(false);
     const isRemoteDepotsUpdateRef = useRef(false);
     const isRemoteRequestsUpdateRef = useRef(false);
@@ -240,10 +266,8 @@ export const App: React.FC = () => {
         localStorage.removeItem('docka_glass_opacity');
     }, []);
 
-    const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-        const stored = localStorage.getItem('docka_theme');
-        return (stored === 'light' ? 'light' : 'dark') as 'dark' | 'light';
-    });
+    const theme: 'dark' | 'light' = 'dark';
+    const setTheme = (_val: 'dark' | 'light') => {};
 
     useEffect(() => {
         document.documentElement.setAttribute('data-theme', theme);
@@ -684,6 +708,21 @@ export const App: React.FC = () => {
         }
     }, [showToast]);
 
+    // Fetch minimum required version on mount
+    useEffect(() => {
+        const fetchMinVersion = async () => {
+            try {
+                const ver = await dbService.loadMinAppVersion();
+                if (ver) {
+                    setMinAppVersion(ver);
+                }
+            } catch (err) {
+                console.error('[App] Failed to load min app version:', err);
+            }
+        };
+        fetchMinVersion();
+    }, []);
+
     // Effects to decrypt when masterKey is available
     useEffect(() => {
         if (masterKey) {
@@ -759,10 +798,7 @@ export const App: React.FC = () => {
         }
     }, [activeDepotName]);
 
-    // Save analytics time range to localStorage
-    useEffect(() => {
-        localStorage.setItem('foxhole_analytics_time_range', timeRange);
-    }, [timeRange]);
+
 
     // Ensure we have an active depot selected if list is not empty
     useEffect(() => {
@@ -799,7 +835,11 @@ export const App: React.FC = () => {
         }
 
         if ('error' in parsed && parsed.error) {
-            showToast(t(parsed.error as TranslationKey) || parsed.error, 'error');
+            let errorMsg = t(parsed.error as TranslationKey) || parsed.error;
+            if ('details' in parsed && parsed.details) {
+                errorMsg += ` (${parsed.details})`;
+            }
+            showToast(errorMsg, 'error');
             return false;
         }
 
@@ -821,11 +861,16 @@ export const App: React.FC = () => {
             const prevDepot = nextDepots[targetKey];
 
             if (prevDepot) {
-                if (prevDepot.lastUpdated === timestamp) {
+                const prevTime = new Date(prevDepot.lastUpdated).getTime();
+                const currTime = new Date(timestamp).getTime();
+                const isWithinCooldown = !isNaN(prevTime) && !isNaN(currTime) && Math.abs(currTime - prevTime) < 15 * 60 * 1000;
+
+                if (prevDepot.lastUpdated === timestamp || isWithinCooldown) {
                     nextDepots[targetKey] = {
                         ...prevDepot,
                         name: location,
                         lastUpdated: timestamp,
+                        previous: prevDepot.previous || null,
                         current: items,
                         townName: townName || prevDepot.townName || null
                     };
@@ -909,6 +954,7 @@ export const App: React.FC = () => {
         if (role === 'developer') roleLabel = t('developer_access');
         else if (role === 'logistics_lead') roleLabel = t('logistics_lead_access');
         else if (role === 'officer') roleLabel = t('officer_access');
+        else if (role === 'recruit') roleLabel = t('recruit_access');
         
         showToast(t('authorized_access', { role: roleLabel }), 'success');
     }, [showToast, t]);
@@ -1203,6 +1249,44 @@ export const App: React.FC = () => {
                 console.log('[Real-time] System settings subscription status:', status);
             });
 
+        // 7. Subscribe to feedbacks changes
+        const feedbacksChannel = supabase
+            .channel('public-feedbacks')
+            .on(
+                'postgres_changes',
+                { event: '*', schema: 'public', table: 'feedbacks' },
+                (payload) => {
+                    console.log('[Real-time] Feedback table change:', payload);
+                    if (payload.eventType === 'INSERT') {
+                        const row = payload.new as any;
+                        setFeedbacks(prev => {
+                            const exists = prev.some(f => f.id === row.id);
+                            if (exists) return prev;
+                            const next = [row, ...prev];
+                            localStorage.setItem('docka_feedbacks', JSON.stringify(next));
+                            return next;
+                        });
+                    } else if (payload.eventType === 'UPDATE') {
+                        const row = payload.new as any;
+                        setFeedbacks(prev => {
+                            const next = prev.map(f => f.id === row.id ? row : f);
+                            localStorage.setItem('docka_feedbacks', JSON.stringify(next));
+                            return next;
+                        });
+                    } else if (payload.eventType === 'DELETE') {
+                        const row = payload.old as any;
+                        setFeedbacks(prev => {
+                            const next = prev.filter(f => f.id !== row.id);
+                            localStorage.setItem('docka_feedbacks', JSON.stringify(next));
+                            return next;
+                        });
+                    }
+                }
+            )
+            .subscribe((status) => {
+                console.log('[Real-time] Feedbacks subscription status:', status);
+            });
+
         return () => {
             if (supabase) {
                 supabase.removeChannel(profilesChannel);
@@ -1211,6 +1295,7 @@ export const App: React.FC = () => {
                 supabase.removeChannel(announcementsChannel);
                 supabase.removeChannel(auditLogsChannel);
                 supabase.removeChannel(systemSettingsChannel);
+                supabase.removeChannel(feedbacksChannel);
             }
         };
     }, [masterKey, handleDisconnect, showToast, t, language]);
@@ -1218,7 +1303,7 @@ export const App: React.FC = () => {
 
 
     const handleClearAllData = useCallback(() => {
-        if (userRole === 'member') {
+        if (userRole === 'member' || userRole === 'recruit') {
             showToast(t('role_officer_required_delete'), 'error');
             return;
         }
@@ -1247,7 +1332,7 @@ export const App: React.FC = () => {
     }, [userRole, showToast, t, logAction]);
 
     const handleClearAuditLogs = useCallback(() => {
-        if (userRole === 'member') {
+        if (userRole === 'member' || userRole === 'recruit') {
             showToast(t('role_officer_required_delete'), 'error');
             return;
         }
@@ -1266,7 +1351,7 @@ export const App: React.FC = () => {
     }, [userRole, showToast, t, logAction]);
 
     const handleDeleteDepotKey = useCallback((depotKey: string) => {
-        if (userRole === 'member') {
+        if (userRole === 'member' || userRole === 'recruit') {
             showToast(t('role_officer_required_delete'), 'error');
             return;
         }
@@ -1299,7 +1384,7 @@ export const App: React.FC = () => {
     }, [userRole, activeDepotName, activeSubDepotFilter, depots, showToast, t, logAction]);
 
     const handleSaveDepotSettings = useCallback((depotKey: string, accessCode: string, isCodePublic: boolean, depotType: 'frontline' | 'backline') => {
-        if (userRole === 'member') {
+        if (userRole === 'member' || userRole === 'recruit') {
             showToast(t('role_officer_required_settings'), 'error');
             return;
         }
@@ -1342,7 +1427,7 @@ export const App: React.FC = () => {
         depotName: string,
         items: RequestItem[]
     ) => {
-        if (userRole === 'member') {
+        if (userRole === 'member' || userRole === 'recruit') {
             showToast(t('role_officer_required_create_req'), 'error');
             return;
         }
@@ -1455,7 +1540,7 @@ export const App: React.FC = () => {
         if (!item) return;
 
         const isItemDone = item.quantityDelivered >= item.quantityRequired;
-        if (isItemDone && userRole === 'member') {
+        if (isItemDone && (userRole === 'member' || userRole === 'recruit')) {
             showToast(t('role_officer_required_reopen'), 'error');
             return;
         }
@@ -1524,7 +1609,7 @@ export const App: React.FC = () => {
         if (!req) return;
 
         const isNowCompleted = req.status !== 'completed';
-        if (!isNowCompleted && userRole === 'member') {
+        if (!isNowCompleted && (userRole === 'member' || userRole === 'recruit')) {
             showToast(t('role_officer_required_reopen'), 'error');
             return;
         }
@@ -1571,7 +1656,7 @@ export const App: React.FC = () => {
     }, [supplyRequests, userRole, showToast, t, logAction, isSupabaseConfigured, fetchPortalUsers, incrementLocalUserStat]);
 
     const handleDeleteRequest = useCallback((requestId: string) => {
-        if (userRole === 'member') {
+        if (userRole === 'member' || userRole === 'recruit') {
             showToast(t('role_officer_required_delete'), 'error');
             return;
         }
@@ -1606,6 +1691,22 @@ export const App: React.FC = () => {
             showToast(errMsg, 'error');
         }
     }, [userRole, fetchPortalUsers, showToast, logAction]);
+
+    const handleUpdateMinAppVersion = useCallback(async (version: string) => {
+        if (userRole !== 'developer') {
+            showToast('Only developers can update app version', 'error');
+            return;
+        }
+        try {
+            await dbService.saveMinAppVersion(version);
+            setMinAppVersion(version);
+            showToast(language === 'tr' ? `Minimum gerekli sürüm ${version} olarak güncellendi.` : `Minimum required version updated to ${version}.`, 'success');
+            logAction(`Updated minimum required app version to ${version}.`);
+        } catch (err: any) {
+            const errMsg = err?.message || 'Failed to update minimum app version';
+            showToast(errMsg, 'error');
+        }
+    }, [userRole, showToast, logAction, language]);
 
 
 
@@ -1700,7 +1801,7 @@ export const App: React.FC = () => {
     }, [userRole, showToast, logAction, currentUsername]);
 
     const handleDeleteAnnouncement = useCallback((id: string) => {
-        if (userRole === 'member') {
+        if (userRole === 'member' || userRole === 'recruit') {
             showToast('You do not have permission to delete announcements', 'error');
             return;
         }
@@ -2047,7 +2148,7 @@ export const App: React.FC = () => {
         if (town && !isDepotType(town)) {
             const trimmed = town.trim();
             if (trimmed === 'Glimmerhaven' || trimmed === 'Lights End' || trimmed === "Light’s End" || trimmed === "Light's End") return "Light's End";
-            if (trimmed === 'Loftmire') return 'Blemish';
+            if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
             if (trimmed === 'Rising Loom') return 'Therizo';
             return town;
         }
@@ -2055,7 +2156,7 @@ export const App: React.FC = () => {
         if (parts.length >= 3 && !isDepotType(parts[1])) {
             const trimmed = parts[1];
             if (trimmed === 'Glimmerhaven' || trimmed === 'Lights End' || trimmed === "Light’s End" || trimmed === "Light's End") return "Light's End";
-            if (trimmed === 'Loftmire') return 'Blemish';
+            if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
             if (trimmed === 'Rising Loom') return 'Therizo';
             return parts[1];
         }
@@ -2167,7 +2268,7 @@ export const App: React.FC = () => {
 
     const depotOptions = useMemo(() => {
         const options = [
-            { value: 'all', label: t('all_depots') || 'Tüm Depolar' }
+            { value: 'all', label: t('all_depots') || 'Tüm Depolar', isStale: false }
         ];
 
         const groups = new Set<string>();
@@ -2177,9 +2278,17 @@ export const App: React.FC = () => {
         });
 
         Array.from(groups).sort().forEach(group => {
+            const groupDepots = Object.values(depots).filter(d => getDepotGroup(d) === group);
+            const hasStaleDepot = groupDepots.some(d => {
+                return d.lastUpdated 
+                    ? (Date.now() - new Date(d.lastUpdated).getTime()) / (1000 * 60 * 60) >= 12 
+                    : false;
+            });
+
             options.push({
                 value: `town:${group}`,
-                label: group
+                label: group,
+                isStale: hasStaleDepot
             });
         });
 
@@ -2203,6 +2312,82 @@ export const App: React.FC = () => {
         : 0;
 
 
+
+    const isOutdated = isOutdatedVersion(APP_VERSION, minAppVersion);
+
+    if (isOutdated) {
+        const forceUpdateTranslations: Record<string, Record<string, string>> = {
+            tr: {
+                title: 'YENİ SÜRÜM MEVCUT',
+                desc: `VELI Logistics Tracker uygulamasının eski bir sürümünü (v${APP_VERSION}) kullanıyorsunuz. Devam edebilmek için lütfen en az v${minAppVersion} sürümüne güncelleyin.`,
+                button: 'Yeni Sürümü İndir (GitHub)'
+            },
+            en: {
+                title: 'NEW VERSION AVAILABLE',
+                desc: `You are using an outdated version of VELI Logistics Tracker (v${APP_VERSION}). Please update to at least v${minAppVersion} to continue.`,
+                button: 'Download New Version (GitHub)'
+            }
+        };
+        const langKey = language === 'tr' ? 'tr' : 'en';
+        const tVer = forceUpdateTranslations[langKey];
+
+        return (
+            <div className="react-root-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%)' }}>
+                <div style={{
+                    width: '100%',
+                    maxWidth: '480px',
+                    margin: '1.5rem',
+                    padding: '2.5rem',
+                    borderRadius: '12px',
+                    background: 'rgba(20, 21, 26, 0.65)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(239, 68, 68, 0.1)',
+                    backdropFilter: 'blur(16px)',
+                    WebkitBackdropFilter: 'blur(16px)',
+                    textAlign: 'center',
+                    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '1.5rem', color: '#ef4444' }}>
+                        <AlertTriangle size={28} />
+                    </div>
+                    
+                    <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: '0 0 0.75rem 0', letterSpacing: '0.05em', color: '#fff', textTransform: 'uppercase' }}>
+                        {tVer.title}
+                    </h2>
+                    
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.6', margin: '0 0 2rem 0' }}>
+                        {tVer.desc}
+                    </p>
+
+                    <button 
+                        type="button"
+                        onClick={() => openExternalUrl('https://github.com/dockadev/veli-logistics-tracker/releases')}
+                        className="btn btn-primary"
+                        style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            gap: '0.5rem', 
+                            width: '100%', 
+                            padding: '0.75rem', 
+                            borderRadius: '6px', 
+                            fontWeight: 700, 
+                            fontSize: '0.85rem',
+                            textDecoration: 'none',
+                            background: 'var(--accent-color)',
+                            color: '#000',
+                            border: 'none',
+                            boxShadow: '0 4px 12px rgba(249, 115, 22, 0.25)',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <Download size={16} />
+                        {tVer.button}
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     if (!userRole || !masterKey) {
         return (
@@ -2349,6 +2534,35 @@ export const App: React.FC = () => {
                                     {unreadCount}
                                 </span>
                             )}
+                        </button>
+                        <button
+                            onClick={handleDisconnect}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '0.4rem',
+                                padding: '0.35rem 0.75rem', 
+                                background: 'rgba(239, 68, 68, 0.08)',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                borderRadius: '4px',
+                                color: '#ef4444',
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease'
+                            }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.08)';
+                                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.25)';
+                            }}
+                            title={language === 'tr' ? 'Çıkış Yap' : 'Log Out'}
+                        >
+                            <LogOut size={13} />
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+                                {language === 'tr' ? 'Çıkış Yap' : 'Log Out'}
+                            </span>
                         </button>
                     </div>
                 </div>
@@ -2520,68 +2734,7 @@ export const App: React.FC = () => {
                                                     );
                                                 })()
                                             )}
-                                            {activeTab === 'analytics' && (
-                                                <div style={{ 
-                                                    display: 'flex', 
-                                                    background: theme === 'light' ? 'var(--bg-surface)' : 'rgba(0, 0, 0, 0.25)', 
-                                                    padding: '3px', 
-                                                    borderRadius: '8px', 
-                                                    border: '1px solid var(--border-color)',
-                                                    alignItems: 'center'
-                                                }}>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTimeRange('1d')}
-                                                        style={{
-                                                            padding: '0.35rem 0.65rem',
-                                                            background: timeRange === '1d' ? 'var(--accent-color)' : 'transparent',
-                                                            color: timeRange === '1d' ? '#06060c' : 'var(--text-secondary)',
-                                                            border: 'none',
-                                                            borderRadius: '5px',
-                                                            fontSize: '0.72rem',
-                                                            fontWeight: 700,
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.15s'
-                                                        }}
-                                                    >
-                                                        {language === 'tr' ? '1 Gün' : '1 Day'}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTimeRange('7d')}
-                                                        style={{
-                                                            padding: '0.35rem 0.65rem',
-                                                            background: timeRange === '7d' ? 'var(--accent-color)' : 'transparent',
-                                                            color: timeRange === '7d' ? '#06060c' : 'var(--text-secondary)',
-                                                            border: 'none',
-                                                            borderRadius: '5px',
-                                                            fontSize: '0.72rem',
-                                                            fontWeight: 700,
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.15s'
-                                                        }}
-                                                    >
-                                                        {language === 'tr' ? '7 Gün' : '7 Days'}
-                                                    </button>
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setTimeRange('30d')}
-                                                        style={{
-                                                            padding: '0.35rem 0.65rem',
-                                                            background: timeRange === '30d' ? 'var(--accent-color)' : 'transparent',
-                                                            color: timeRange === '30d' ? '#06060c' : 'var(--text-secondary)',
-                                                            border: 'none',
-                                                            borderRadius: '5px',
-                                                            fontSize: '0.72rem',
-                                                            fontWeight: 700,
-                                                            cursor: 'pointer',
-                                                            transition: 'all 0.15s'
-                                                        }}
-                                                    >
-                                                        {language === 'tr' ? '1 Ay' : '1 Month'}
-                                                    </button>
-                                                </div>
-                                            )}
+                                            
                                         </div>
 
                                         {/* Toggle Chips for Sub-depots of the Town */}
@@ -2634,6 +2787,10 @@ export const App: React.FC = () => {
                                                 </button>
                                                 {currentTownDepotsList.map(item => {
                                                     const isSelected = activeSubDepotFilter === item.key;
+                                                    const depObj = depots[item.key];
+                                                    const isStale = depObj?.lastUpdated 
+                                                        ? (Date.now() - new Date(depObj.lastUpdated).getTime()) / (1000 * 60 * 60) >= 12 
+                                                        : false;
                                                     return (
                                                         <button
                                                             key={item.key}
@@ -2646,11 +2803,11 @@ export const App: React.FC = () => {
                                                                 fontWeight: 700,
                                                                 cursor: 'pointer',
                                                                 transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                                border: '1px solid ' + (isSelected ? 'var(--accent-color)' : 'rgba(255, 255, 255, 0.05)'),
+                                                                border: '1px solid ' + (isSelected ? 'var(--accent-color)' : (isStale ? '#ef4444' : 'rgba(255, 255, 255, 0.05)')),
                                                                 background: isSelected 
                                                                     ? 'rgba(249, 115, 22, 0.15)' 
-                                                                    : 'rgba(255, 255, 255, 0.03)',
-                                                                color: isSelected ? 'var(--accent-color)' : 'var(--text-secondary)'
+                                                                    : (isStale ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.03)'),
+                                                                color: isSelected ? 'var(--accent-color)' : (isStale ? '#ef4444' : 'var(--text-secondary)')
                                                             }}
                                                         >
                                                             {item.label}
@@ -2670,18 +2827,45 @@ export const App: React.FC = () => {
                                                                 ? `${activeDepot.customName} (${language === 'tr' ? 'Birleşik Lojistik Deposu' : 'Combined Logistics Depot'})` 
                                                                 : getDepotDisplayName(activeDepot)}`}
                                                     </span>
-                                                    {activeDepotName !== 'all' && (
-                                                        <>
-                                                            <span style={{ color: 'var(--text-muted)' }}>|</span>
-                                                            <span style={{ 
-                                                                fontWeight: 700, 
-                                                                fontSize: '0.85rem', 
-                                                                color: 'var(--accent-color)'
-                                                            }}>
-                                                                {t('last_updated')}: <span title={activeDepot.lastUpdated}>{getRelativeTimeString(activeDepot.lastUpdated, language)}</span>
-                                                            </span>
-                                                        </>
-                                                    )}
+                                                    {activeDepotName !== 'all' && (() => {
+                                                        const lastUpdated = activeDepot.lastUpdated;
+                                                        const isStale = lastUpdated ? (Date.now() - new Date(lastUpdated).getTime()) / (1000 * 60 * 60) >= 12 : false;
+                                                        return (
+                                                            <>
+                                                                <span style={{ color: 'var(--text-muted)' }}>|</span>
+                                                                <span style={{ 
+                                                                    fontWeight: 700, 
+                                                                    fontSize: '0.85rem', 
+                                                                    color: 'var(--text-secondary)',
+                                                                    display: 'inline-flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.35rem',
+                                                                    flexWrap: 'wrap'
+                                                                }}>
+                                                                    {t('last_updated')}: <span title={lastUpdated} style={{ color: getRelativeTimeColor(lastUpdated), fontWeight: 800 }}>{getRelativeTimeString(lastUpdated, language)}</span>
+                                                                    {isStale && (
+                                                                        <span style={{ 
+                                                                            marginLeft: '0.5rem', 
+                                                                            backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                                                                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                                                                            color: '#ef4444', 
+                                                                            fontWeight: 700,
+                                                                            fontSize: '0.74rem',
+                                                                            padding: '0.2rem 0.5rem',
+                                                                            borderRadius: '4px',
+                                                                            display: 'inline-flex',
+                                                                            alignItems: 'center',
+                                                                            gap: '0.3rem',
+                                                                            boxShadow: '0 1px 2px rgba(239, 68, 68, 0.05)'
+                                                                        }}>
+                                                                            <AlertTriangle size={12} style={{ flexShrink: 0 }} />
+                                                                            {language === 'tr' ? 'Lütfen bu depoyu güncelleyin!' : 'Please update this depot!'}
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                            </>
+                                                        );
+                                                    })()}
                                                 </p>
                                             </>
                                         )}
@@ -2779,7 +2963,7 @@ export const App: React.FC = () => {
                                     />
                                 </ErrorBoundary>
                             )}
-                            {activeTab === 'passcodes' && (
+                            {activeTab === 'passcodes' && userRole !== 'recruit' && (
                                 <ErrorBoundary>
                                     <StockpilePasscodesTab
                                         depots={depots}
@@ -2866,7 +3050,7 @@ export const App: React.FC = () => {
                                                auditLogs={auditLogs} 
                                                activeDepotName={activeDepotName} 
                                                activeSubDepotFilter={activeSubDepotFilter}
-                                               timeRange={timeRange} 
+                                                
                                                templates={templates}
                                                regionSettings={regionSettings}
                                            />
@@ -2941,6 +3125,8 @@ export const App: React.FC = () => {
                                           onDeleteTestDepots={handleClearTestDepots}
                                           onRefreshUsers={fetchPortalUsers}
                                           onResetLeaderboard={handleResetLeaderboard}
+                                          minAppVersion={minAppVersion}
+                                          onUpdateMinAppVersion={handleUpdateMinAppVersion}
                                       />
                                   </ErrorBoundary>
                               )}
@@ -3031,14 +3217,16 @@ export const App: React.FC = () => {
                     </button>
 
                     {/* 3. Passcodes */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'passcodes' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('passcodes')}
-                        data-tooltip={t('tab_passcodes')}
-                    >
-                        <Lock size={18} />
-                        <span>{t('tab_passcodes')}</span>
-                    </button>
+                    {userRole !== 'recruit' && (
+                        <button
+                            className={`vertical-nav-btn ${activeTab === 'passcodes' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('passcodes')}
+                            data-tooltip={t('tab_passcodes')}
+                        >
+                            <Lock size={18} />
+                            <span>{t('tab_passcodes')}</span>
+                        </button>
+                    )}
 
                     {/* 2. Inventory */}
                     <button
@@ -3186,13 +3374,12 @@ export const App: React.FC = () => {
                     <span>{language === 'tr' ? 'Kişiselleştir' : 'Personalize'}</span>
                 </button>
 
-                <a
-                    href="https://discord.gg/F63C7cqNdF"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                <button
+                    type="button"
+                    onClick={() => openExternalUrl('https://discord.gg/F63C7cqNdF')}
                     className="vertical-nav-btn discord-nav-btn"
                     data-tooltip="VELI"
-                    style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+                    style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.65rem' }}
                 >
                     <svg
                         xmlns="http://www.w3.org/2000/svg"
@@ -3205,7 +3392,7 @@ export const App: React.FC = () => {
                         <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.4-5c.87-.64,1.72-1.31,2.53-2a75.76,75.76,0,0,0,72.71,0c.81.7,1.66,1.37,2.53,2a68.43,68.43,0,0,1-10.4,5,77.7,77.7,0,0,0,6.63,10.85,105.73,105.73,0,0,0,31-18.83C129,54.65,122.64,31.58,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z" />
                     </svg>
                     <span>VELI</span>
-                </a>
+                </button>
             </div>
 
             {/* Coalition Chat Widget (Bottom-right float) */}
@@ -3355,62 +3542,6 @@ export const App: React.FC = () => {
                                 />
                             </div>
 
-                            {/* Theme Settings */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                    {language === 'tr' ? 'Tema' : 'Theme'}
-                                </span>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '1rem',
-                                    background: 'var(--btn-secondary-bg)',
-                                    padding: '0.65rem 1rem',
-                                    borderRadius: 'var(--radius-sm)',
-                                    border: '1px solid var(--border-color)',
-                                    alignSelf: 'stretch'
-                                }}>
-                                    <Sun size={16} style={{ color: theme === 'light' ? 'var(--accent-color)' : 'var(--text-muted)', transition: 'color 0.2s' }} />
-                                    
-                                    <label style={{
-                                        position: 'relative',
-                                        display: 'inline-block',
-                                        width: '46px',
-                                        height: '24px',
-                                        cursor: 'pointer'
-                                    }}>
-                                        <input 
-                                            type="checkbox" 
-                                            checked={theme === 'dark'}
-                                            onChange={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                                            style={{ opacity: 0, width: 0, height: 0 }}
-                                        />
-                                        <div style={{
-                                            position: 'absolute',
-                                            top: 0, left: 0, right: 0, bottom: 0,
-                                            backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                                            borderRadius: '24px',
-                                            border: '1px solid var(--border-color)',
-                                            transition: 'background-color 0.2s'
-                                        }}>
-                                            <div style={{
-                                                position: 'absolute',
-                                                height: '16px',
-                                                width: '16px',
-                                                left: theme === 'dark' ? '24px' : '4px',
-                                                bottom: '3px',
-                                                backgroundColor: theme === 'dark' ? '#fff' : 'var(--accent-color)',
-                                                borderRadius: '50%',
-                                                transition: 'left 0.2s, background-color 0.2s',
-                                                boxShadow: '0 1px 4px rgba(0,0,0,0.4)'
-                                            }} />
-                                        </div>
-                                    </label>
-                                    
-                                    <Moon size={16} style={{ color: theme === 'dark' ? 'var(--accent-color)' : 'var(--text-muted)', transition: 'color 0.2s' }} />
-                                </div>
-                            </div>
 
                             {/* Regiment/Clan Tag Settings */}
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>

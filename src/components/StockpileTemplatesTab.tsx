@@ -83,7 +83,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         if (town) {
             const trimmed = town.trim();
             if (trimmed === 'Glimmerhaven') return "Light's End";
-            if (trimmed === 'Loftmire') return 'Blemish';
+            if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
             if (trimmed === 'Rising Loom') return 'Therizo';
             return town;
         }

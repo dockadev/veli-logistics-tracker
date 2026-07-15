@@ -567,5 +567,45 @@ export const dbService = {
                 console.error('[DB Service] Supabase saveRegionSettings failed:', err);
             }
         }
+    },
+
+    async loadMinAppVersion(): Promise<string> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('system_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'min_app_version')
+                    .single();
+                if (!error && data && data.setting_value) {
+                    const val = typeof data.setting_value === 'string'
+                        ? data.setting_value
+                        : JSON.stringify(data.setting_value);
+                    return val.replace(/^"|"$/g, '').trim();
+                }
+            } catch (err) {
+                console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
+            }
+        }
+        return '0.1.60';
+    },
+
+    async saveMinAppVersion(version: string): Promise<void> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { error } = await supabase
+                    .from('system_settings')
+                    .upsert({
+                        setting_key: 'min_app_version',
+                        setting_value: version,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'setting_key' });
+                if (error) {
+                    console.error('[DB Service] Error saving min app version to Supabase system_settings:', error);
+                }
+            } catch (err) {
+                console.error('[DB Service] Supabase saveMinAppVersion failed:', err);
+            }
+        }
     }
 };

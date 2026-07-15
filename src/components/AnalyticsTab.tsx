@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-    TrendingUp, TrendingDown, Layers, 
-    Package, Truck, Warehouse, Calendar, Info,
-    BarChart3
+    TrendingUp, TrendingDown, 
+    Package, Truck, Warehouse, Info,
+    BarChart3, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
@@ -17,7 +17,6 @@ interface AnalyticsTabProps {
     theme?: 'dark' | 'light';
     supplyRequests?: SupplyRequest[];
     auditLogs?: AuditLogEntry[];
-    timeRange?: '1d' | '7d' | '30d';
     templates?: StockpileTemplates;
     regionSettings?: RegionSettings;
 }
@@ -26,8 +25,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
     depots = {}, 
     activeDepotName,
     activeSubDepotFilter = 'all',
-    auditLogs = [],
-    timeRange = '7d',
+    auditLogs = [] as AuditLogEntry[],
     templates = {},
     regionSettings = {}
 }) => {
@@ -149,7 +147,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 if (townNameVal && !isDepotType(townNameVal)) {
                     const trimmed = townNameVal.trim();
                     if (trimmed === 'Glimmerhaven') return "Light's End";
-                    if (trimmed === 'Loftmire') return 'Blemish';
+                    if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
                     if (trimmed === 'Rising Loom') return 'Therizo';
                     return townNameVal;
                 }
@@ -157,7 +155,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 if (parts.length >= 3 && !isDepotType(parts[1])) {
                     const trimmed = parts[1];
                     if (trimmed === 'Glimmerhaven') return "Light's End";
-                    if (trimmed === 'Loftmire') return 'Blemish';
+                    if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
                     if (trimmed === 'Rising Loom') return 'Therizo';
                     return parts[1];
                 }
@@ -210,17 +208,6 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         return depots[selectedDepotName] || depotList[0];
     }, [selectedDepotName, depots, depotList, language]);
 
-    // Check if the update falls within the selected time range
-    const lastUpdatedDate = new Date(targetDepot.lastUpdated);
-    const now = new Date();
-    const timeDiffMs = now.getTime() - lastUpdatedDate.getTime();
-
-    let rangeLimitMs = 7 * 24 * 60 * 60 * 1000; // default 7 days
-    if (timeRange === '1d') rangeLimitMs = 24 * 60 * 60 * 1000;
-    else if (timeRange === '30d') rangeLimitMs = 30 * 24 * 60 * 60 * 1000;
-
-    const isWithinRange = timeDiffMs <= rangeLimitMs;
-
     // Calculate changes
     const increasedItems: { name: string; diff: number; category: string }[] = [];
     const decreasedItems: { name: string; diff: number; category: string }[] = [];
@@ -230,7 +217,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
 
     const hasPreviousData = !!targetDepot.previous;
 
-    if (targetDepot && hasPreviousData && isWithinRange) {
+    if (targetDepot && hasPreviousData) {
         const currentItems = targetDepot.current || {};
         const previousItems = targetDepot.previous || {};
         const allKeys = new Set([...Object.keys(currentItems), ...Object.keys(previousItems)]);
@@ -254,11 +241,13 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
     increasedItems.sort((a, b) => b.diff - a.diff);
     decreasedItems.sort((a, b) => b.diff - a.diff);
 
-    const topIncreased = increasedItems.slice(0, 5);
-    const topDecreased = decreasedItems.slice(0, 5);
+    const topIncreased = increasedItems.slice(0, 15);
+    const topDecreased = decreasedItems.slice(0, 15);
 
     const maxInc = topIncreased.length > 0 ? topIncreased[0].diff : 1;
     const maxDec = topDecreased.length > 0 ? topDecreased[0].diff : 1;
+
+
 
     // Selected Depot Overview details
     let selectedDepotTotalItems = 0;
@@ -285,7 +274,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         }, 0);
     }, [targetDepot]);
 
-    const grandTotal = Object.values(selectedDepotCategoryCounts).reduce((acc, c) => acc + c, 0) || 1;
+
 
     // Helper functions for region/town parsing matching main app logic
     const getDepotRegion = (depName: string): string => {
@@ -308,7 +297,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         if (town) {
             const trimmed = town.trim();
             if (trimmed === 'Glimmerhaven') return "Light's End";
-            if (trimmed === 'Loftmire') return 'Blemish';
+            if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
             if (trimmed === 'Rising Loom') return 'Therizo';
             return town;
         }
@@ -329,6 +318,89 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         });
         return groups;
     }, [depots]);
+
+    // Top Surplus and Shortage items for the selected targetDepot (YENİLİK 4)
+    const { topSurplus, topShortage } = useMemo(() => {
+        const surplusList: { name: string; amount: number; category: string }[] = [];
+        const shortageList: { name: string; amount: number; category: string }[] = [];
+
+        // Determine which subregions to sum targets for
+        const subregionsToSum: string[] = [];
+        if (selectedDepotName === 'all') {
+            subregionsToSum.push(...Object.keys(townGroups));
+        } else if (selectedDepotName.startsWith('town:')) {
+            const townName = selectedDepotName.substring(5);
+            subregionsToSum.push(townName);
+        } else {
+            const dep = depots[selectedDepotName];
+            if (dep) {
+                const region = dep.name.split(' - ')[0].trim();
+                let town = dep.townName || null;
+                if (!town) {
+                    const parts = dep.name.split(' - ').map(s => s.trim()).filter(Boolean);
+                    const isDepotType = (str: string) => {
+                        const l = str.toLowerCase();
+                        return l.includes('seaport') || l.includes('depot') || l.includes('port');
+                    };
+                    if (parts.length >= 3 && !isDepotType(parts[1])) {
+                        town = parts[1];
+                    }
+                }
+                if (town) {
+                    const trimmed = town.trim();
+                    if (trimmed === 'Glimmerhaven') town = "Light's End";
+                    else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') town = 'Blemish';
+                    else if (trimmed === 'Rising Loom') town = 'Therizo';
+                }
+                const townVal = town || 'General';
+                subregionsToSum.push(`${region} - ${townVal}`);
+            }
+        }
+
+        Array.from(COLONIAL_NEUTRAL_ITEMS).forEach(itemName => {
+            const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
+
+            let targetMax = 0;
+
+            subregionsToSum.forEach(subregionName => {
+                const setting = regionSettings[subregionName] || { 
+                    regionName: subregionName, 
+                    templateType: 'backline', 
+                    demandPercentage: 100 
+                };
+                const template = templates[setting.templateType] || {};
+                let rule = template[itemName];
+                if (!rule) {
+                    rule = getDefaultRuleForCategory(category, setting.templateType);
+                }
+
+                targetMax += Math.round(rule.max * (setting.demandPercentage / 100));
+            });
+
+            const available = targetDepot.current?.[itemName]?.count || 0;
+
+            const shortageVal = Math.max(0, targetMax - available);
+            const surplusVal = Math.max(0, available - targetMax);
+
+            if (shortageVal > 0) {
+                shortageList.push({ name: itemName, amount: shortageVal, category });
+            }
+            if (surplusVal > 0) {
+                surplusList.push({ name: itemName, amount: surplusVal, category });
+            }
+        });
+
+        surplusList.sort((a, b) => b.amount - a.amount);
+        shortageList.sort((a, b) => b.amount - a.amount);
+
+        return {
+            topSurplus: surplusList.slice(0, 15),
+            topShortage: shortageList.slice(0, 15)
+        };
+    }, [selectedDepotName, depots, townGroups, regionSettings, templates, targetDepot]);
+
+    const maxSurplus = topSurplus.length > 0 ? topSurplus[0].amount : 1;
+    const maxShortage = topShortage.length > 0 ? topShortage[0].amount : 1;
 
     // List of calculated health entries for each demanded item in each subregion (town group)
     const itemSubregionHealths = useMemo(() => {
@@ -560,33 +632,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         return { grid, maxCount };
     }, [auditLogs]);
 
-    const getCategoryColor = (cat: string) => {
-        switch (cat) {
-            case 'vehicle': return '#3b82f6';
-            case 'structure': return '#94a3b8';
-            case 'crate': return '#f59e0b';
-            default: return '#10b981';
-        }
-    };
 
-    const getCategoryLabel = (cat: string) => {
-        const key = cat.toLowerCase();
-        if (key === 'crate') return language === 'tr' ? 'Kutular' : 'Crates';
-        if (key === 'vehicle' || key === 'vehicles') return language === 'tr' ? 'Araçlar' : 'Vehicles';
-        if (key === 'structure' || key === 'structures') return language === 'tr' ? 'Yapılar' : 'Structures';
-        if (key === 'small_arms') return language === 'tr' ? 'Hafif Silahlar' : 'Small Arms';
-        if (key === 'heavy_arms') return language === 'tr' ? 'Ağır Silahlar' : 'Heavy Arms';
-        if (key === 'heavy_ammunition') return language === 'tr' ? 'Ağır Mühimmat' : 'Heavy Ammunition';
-        if (key === 'utility') return language === 'tr' ? 'Araç-Gereç' : 'Utility';
-        if (key === 'medical') return language === 'tr' ? 'Tıbbi Malzeme' : 'Medical';
-        if (key === 'materials') return language === 'tr' ? 'Malzemeler' : 'Materials';
-        if (key === 'uniforms') return language === 'tr' ? 'Üniformalar' : 'Uniforms';
-        if (key === 'shippables') return language === 'tr' ? 'Taşınabilir Eşyalar' : 'Shippables';
-        if (key === 'aircraft_parts') return language === 'tr' ? 'Hava Parçaları' : 'Aircraft Parts';
-
-        const label = t(cat);
-        return label ? label.charAt(0).toUpperCase() + label.slice(1) : cat;
-    };
 
     return (
         <div className="anim-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.5rem' }}>
@@ -661,7 +707,19 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             </div>
 
             {/* Main Graphs Panel */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
+            <style>{`
+                .analytics-graphs-grid {
+                    display: grid;
+                    grid-template-columns: repeat(2, 1fr);
+                    gap: 1.25rem;
+                }
+                @media (max-width: 1200px) {
+                    .analytics-graphs-grid {
+                        grid-template-columns: 1fr;
+                    }
+                }
+            `}</style>
+            <div className="analytics-graphs-grid">
                 
                 {/* Top Increased Items */}
                 <div className="panel-card" style={{ padding: '1.25rem' }}>
@@ -727,19 +785,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {language === 'tr' ? 'Karşılaştırılacak önceki tarama verisi bulunamadı.' : 'No previous scan data found to compare changes.'}
                         </div>
-                    ) : !isWithinRange ? (
-                        <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            <Calendar size={18} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block', margin: '0 auto' }} />
-                            {language === 'tr' 
-                                ? `Son güncelleme (${new Date(targetDepot.lastUpdated).toLocaleDateString()}) seçilen zaman aralığının dışında.` 
-                                : `Last update (${new Date(targetDepot.lastUpdated).toLocaleDateString()}) is outside the selected range.`}
-                        </div>
                     ) : topIncreased.length === 0 ? (
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {language === 'tr' ? 'Bu zaman aralığında artış gösteren malzeme bulunmamaktadır.' : 'No items increased within this range.'}
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
                             {topIncreased.map(item => {
                                 const pct = Math.round((item.diff / maxInc) * 100);
                                 return (
@@ -824,19 +875,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {language === 'tr' ? 'Karşılaştırılacak önceki tarama verisi bulunamadı.' : 'No previous scan data found to compare changes.'}
                         </div>
-                    ) : !isWithinRange ? (
-                        <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                            <Calendar size={18} style={{ color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'block', margin: '0 auto' }} />
-                            {language === 'tr' 
-                                ? `Son güncelleme (${new Date(targetDepot.lastUpdated).toLocaleDateString()}) seçilen zaman aralığının dışında.` 
-                                : `Last update (${new Date(targetDepot.lastUpdated).toLocaleDateString()}) is outside the selected range.`}
-                        </div>
                     ) : topDecreased.length === 0 ? (
                         <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
                             {language === 'tr' ? 'Bu zaman aralığında azalış gösteren malzeme bulunmamaktadır.' : 'No items decreased within this range.'}
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
                             {topDecreased.map(item => {
                                 const pct = Math.round((item.diff / maxDec) * 100);
                                 return (
@@ -857,31 +901,74 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                     )}
                 </div>
 
-                {/* Category Inventory Breakdown for Selected Depot */}
+                {/* Top Shortage Items (YENİLİK 4) */}
                 <div className="panel-card" style={{ padding: '1.25rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.5rem' }}>
-                        <Layers size={16} style={{ color: 'var(--accent-color)' }} />
+                        <AlertTriangle size={16} style={{ color: '#ef4444' }} />
                         <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
-                            {language === 'tr' ? 'KATEGORİ DAĞILIMI' : 'CATEGORY DISTRIBUTION'}
+                            {language === 'tr' ? 'EN ÇOK İHTİYAÇ DUYULANLAR' : 'TOP SHORTAGE ITEMS'}
                         </h3>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-                        {Object.entries(selectedDepotCategoryCounts).map(([cat, val]) => {
-                            const pct = Math.round((val / grandTotal) * 100);
-                            const color = getCategoryColor(cat);
-                            return (
-                                <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{getCategoryLabel(cat)}</span>
-                                        <span style={{ color: 'var(--text-secondary)' }}>{pct}% ({val.toLocaleString()})</span>
+                    
+                    {topShortage.length === 0 ? (
+                        <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {language === 'tr' ? 'İhtiyaç duyulan malzeme bulunmamaktadır.' : 'No shortage items.'}
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                            {topShortage.map(item => {
+                                const pct = Math.round((item.amount / maxShortage) * 100);
+                                return (
+                                    <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={item.name}>
+                                                {item.name}
+                                            </span>
+                                            <span style={{ color: '#ef4444', fontWeight: 700 }}>{item.amount.toLocaleString()}</span>
+                                        </div>
+                                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #ef4444, #dc2626)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                                        </div>
                                     </div>
-                                    <div style={{ width: '100%', height: '6px', background: 'rgba(255,255,255,0.03)', borderRadius: '3px', overflow: 'hidden' }}>
-                                        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '3px', transition: 'width 0.5s ease' }} />
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Top Surplus Items (YENİLİK 4) */}
+                <div className="panel-card" style={{ padding: '1.25rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.5rem' }}>
+                        <CheckCircle size={16} style={{ color: '#10b981' }} />
+                        <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '0.85rem', letterSpacing: '0.05em' }}>
+                            {language === 'tr' ? 'EN ÇOK FAZLASI OLANLAR' : 'TOP SURPLUS ITEMS'}
+                        </h3>
                     </div>
+                    
+                    {topSurplus.length === 0 ? (
+                        <div style={{ padding: '2rem 1rem', textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            {language === 'tr' ? 'Fazla malzeme bulunmamaktadır.' : 'No surplus items.'}
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                            {topSurplus.map(item => {
+                                const pct = Math.round((item.amount / maxSurplus) * 100);
+                                return (
+                                    <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={item.name}>
+                                                {item.name}
+                                            </span>
+                                            <span style={{ color: '#10b981', fontWeight: 700 }}>+{item.amount.toLocaleString()}</span>
+                                        </div>
+                                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
+                                            <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
             </div>

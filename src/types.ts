@@ -48,7 +48,7 @@ export interface DepotSummary {
     nw: number;
 }
 
-export type UserRole = 'developer' | 'officer' | 'member' | 'logistics_lead';
+export type UserRole = 'developer' | 'officer' | 'member' | 'logistics_lead' | 'recruit';
 
 export interface RequestItem {
     itemName: string;

@@ -5,6 +5,7 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     logistics_intelligence: "Inteligência Logística",
     officer_access: "Autoridade de Oficial",
     member_access: "Autoridade Normal",
+    recruit_access: "Autoridade de Recruta",
     disconnect: "Sair",
     tactical_logistics_dashboard: "Feito por docka",
 
@@ -72,6 +73,7 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     auth_required: "O rastreamento logístico requer autorização. Por favor, selecione sua função.",
     role_officer: "Autoridade de Oficial",
     role_member: "Autoridade Normal",
+    role_recruit: "Membro Recruta",
     role_developer: "Desenvolvedor",
     auth_pending_title: "APROVAÇÃO PENDENTE",
     auth_pending_desc: "Sua conta foi criada com sucesso. O acesso ao sistema requer aprovação do Desenvolvedor de Logística. Por favor, entre em contato com um gerente.",

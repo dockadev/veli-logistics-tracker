@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, UserPlus, LogIn, Clock, CheckCircle2, XCircle, Sun, Moon } from 'lucide-react';
+import { AlertTriangle, UserPlus, LogIn, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { UserRole, PortalUser } from '../types';
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
@@ -11,7 +11,7 @@ interface SecureGateOverlayProps {
     version?: string;
 }
 
-export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, theme, setTheme, version = '0.1.55' }) => {
+export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, theme: _theme, setTheme: _setTheme, version = '0.1.60' }) => {
     const { language, setLanguage, t } = useLanguage();
 
     const [loginError, setLoginError] = useState('');
@@ -342,28 +342,6 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
                         <span>DE</span>
                     </button>
                 </div>
-
-                {/* Theme Toggle */}
-                <button
-                    type="button"
-                    onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                    style={{
-                        background: 'rgba(255,255,255,0.03)',
-                        border: '1px solid var(--border-color)',
-                        borderRadius: '50%',
-                        width: '32px',
-                        height: '32px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: 'var(--text-primary)',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                    }}
-                    title={language === 'tr' ? 'Temayı Değiştir' : 'Change Theme'}
-                >
-                    {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-                </button>
             </div>
             {showResetConfirm && (
                 <div style={{

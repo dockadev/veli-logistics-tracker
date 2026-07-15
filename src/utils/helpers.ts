@@ -158,7 +158,7 @@ export const getDepotDisplayName = (dep: DepotMinimal): string => {
         let tName = dep.townName;
         const trimmed = tName.trim();
         if (trimmed === 'Glimmerhaven' || trimmed === 'Lights End' || trimmed === "Light’s End" || trimmed === "Light's End") tName = "Light's End";
-        else if (trimmed === 'Loftmire') tName = 'Blemish';
+        else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') tName = 'Blemish';
         else if (trimmed === 'Rising Loom') tName = 'Therizo';
 
         const parts = dep.name.split(' - ');
@@ -167,4 +167,33 @@ export const getDepotDisplayName = (dep: DepotMinimal): string => {
         }
     }
     return dep.name;
+};
+
+export const getRelativeTimeColor = (timestamp: string): string => {
+    if (!timestamp) return 'var(--text-muted)';
+    try {
+        let date = new Date(timestamp);
+        if (isNaN(date.getTime())) {
+            const iso = timestamp.trim().replace(' ', 'T');
+            date = new Date(iso);
+        }
+        if (isNaN(date.getTime())) {
+            const saf = timestamp.replace(/-/g, '/');
+            date = new Date(saf);
+        }
+        if (isNaN(date.getTime())) {
+            return 'var(--text-muted)';
+        }
+        
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffHr = diffMs / (1000 * 60 * 60);
+        
+        if (diffHr < 6) return '#10B981'; // Green
+        if (diffHr < 12) return '#F59E0B'; // Yellow
+        if (diffHr < 24) return '#F97316'; // Orange
+        return '#EF4444'; // Red
+    } catch {
+        return 'var(--text-muted)';
+    }
 };

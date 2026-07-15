@@ -30,7 +30,7 @@ const getDepotTown = (dep: Depot): string | null => {
     if (town) {
         const trimmed = town.trim();
         if (trimmed === 'Glimmerhaven') return "Light's End";
-        if (trimmed === 'Loftmire') return 'Blemish';
+        if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
         if (trimmed === 'Rising Loom') return 'Therizo';
         return town;
     }
@@ -750,7 +750,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
                                                         {language === 'tr' ? 'Stok: ' : 'Stock: '}<strong>{rec.currentQty}</strong>
                                                     </span>
                                                     <span style={{ color: 'var(--accent-color)', fontWeight: 600 }}>
-                                                        {language === 'tr' ? `Önerilen: +${rec.suggestedQty}` : `Recommended: +${rec.suggestedQty}`}
+                                                        {language === 'tr' ? `Toplam İhtiyaç: +${rec.suggestedQty}` : `Total Need: +${rec.suggestedQty}`}
                                                     </span>
                                                 </div>
                                             </div>

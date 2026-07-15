@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { X, Map, FolderOpen, ArrowRight, Search } from 'lucide-react';
 import type { Depot } from '../types';
-import { FOXHOLE_REGIONS, getRelativeTimeString, getDepotDisplayName } from '../utils/helpers';
+import { FOXHOLE_REGIONS, getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor } from '../utils/helpers';
 import { useLanguage, type Language } from '../context/LanguageContext';
 
 interface DepotSelectionModalProps {
@@ -84,7 +84,7 @@ const DepotItem: React.FC<DepotItemProps> = React.memo(({
                         {depot.name.split(' - ')[0]}
                     </span>
                 ) : (
-                    <span title={depot.lastUpdated}>
+                    <span title={depot.lastUpdated} style={{ color: getRelativeTimeColor(depot.lastUpdated), fontWeight: 700 }}>
                         {language === 'tr' ? 'Tarama Zamanı' : 'Scan Time'}: {getRelativeTimeString(depot.lastUpdated, language)}
                     </span>
                 )}

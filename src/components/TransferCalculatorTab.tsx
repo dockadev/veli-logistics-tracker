@@ -46,7 +46,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
         if (town) {
             const trimmed = town.trim();
             if (trimmed === 'Glimmerhaven') return "Light's End";
-            if (trimmed === 'Loftmire') return 'Blemish';
+            if (trimmed === 'Loftmire' || trimmed === 'The Blemish') return 'Blemish';
             if (trimmed === 'Rising Loom') return 'Therizo';
             return town;
         }
@@ -843,7 +843,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                 }}
                             >
                                 <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.82rem', fontWeight: 800, color: vehicleType === 'barge' ? 'var(--accent-color)' : 'var(--text-primary)' }}>
-                                    Barge
+                                    {language === 'tr' ? 'Demir Gemi / Ironship' : 'Freighter / Ironship'}
                                 </span>
                                 <span style={{ fontSize: '0.68rem', opacity: 0.8 }}>
                                     {language === 'tr' ? '5 Konteyner (300 Kutu)' : '5 Containers (300 Crates)'}
