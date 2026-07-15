@@ -7,7 +7,6 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
-import { getDefaultRuleForCategory } from '../utils/defaultTemplates';
 import type { Depot, SupplyRequest, AuditLogEntry, RegionSettings, StockpileTemplates, ItemInfo } from '../types';
 
 interface AnalyticsTabProps {
@@ -139,7 +138,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
 
             const isDepotType = (str: string): boolean => {
                 const lower = str.toLowerCase();
-                return lower.includes('seaport') || lower.includes('storage depot') || lower.includes('depot');
+                return (
+                    lower.includes('seaport') || lower.includes('storage depot') || lower.includes('depot') ||
+                    lower.includes('seehafen') || lower.includes('lagerdepot') || lower.includes('porto') ||
+                    lower.includes('depósito') || lower.includes('порт') || lower.includes('склад') ||
+                    lower.includes('dépôt')
+                );
             };
 
             const getDepotTown = (dep: Depot) => {
@@ -288,7 +292,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             const parts = depName.split(' - ').map(s => s.trim()).filter(Boolean);
             const isDepotType = (str: string) => {
                 const l = str.toLowerCase();
-                return l.includes('seaport') || l.includes('depot') || l.includes('port');
+                return (
+                    l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+                    l.includes('seehafen') || l.includes('lagerdepot') || l.includes('porto') ||
+                    l.includes('depósito') || l.includes('порт') || l.includes('склад') ||
+                    l.includes('dépôt')
+                );
             };
             if (parts.length >= 3 && !isDepotType(parts[1])) {
                 town = parts[1];
@@ -340,7 +349,12 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                     const parts = dep.name.split(' - ').map(s => s.trim()).filter(Boolean);
                     const isDepotType = (str: string) => {
                         const l = str.toLowerCase();
-                        return l.includes('seaport') || l.includes('depot') || l.includes('port');
+                        return (
+                            l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+                            l.includes('seehafen') || l.includes('lagerdepot') || l.includes('porto') ||
+                            l.includes('depósito') || l.includes('порт') || l.includes('склад') ||
+                            l.includes('dépôt')
+                        );
                     };
                     if (parts.length >= 3 && !isDepotType(parts[1])) {
                         town = parts[1];
@@ -371,7 +385,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 const template = templates[setting.templateType] || {};
                 let rule = template[itemName];
                 if (!rule) {
-                    rule = getDefaultRuleForCategory(category, setting.templateType);
+                    return;
                 }
 
                 targetMax += Math.round(rule.max * (setting.demandPercentage / 100));
@@ -430,7 +444,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
 
                 let rule = template[itemName];
                 if (!rule) {
-                    rule = getDefaultRuleForCategory(category, setting.templateType);
+                    return;
                 }
 
                 // Exclude items whose min and max are both 0 in the template rule (ignored)

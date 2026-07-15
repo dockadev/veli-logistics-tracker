@@ -5,12 +5,21 @@ import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { Depot, FilterState, SortField, StockpileTemplates, RegionSettings } from '../types';
 import { getPaginationRange, getCategoryClass } from '../utils/helpers';
 import { getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
-import { getDefaultTemplates, getDefaultRuleForCategory } from '../utils/defaultTemplates';
+import { getDefaultTemplates } from '../utils/defaultTemplates';
 
 const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
     const parts = fullName.split(' - ')
         .map(s => s.trim())
-        .filter(s => !s.toLowerCase().includes('seaport') && !s.toLowerCase().includes('storage depot'));
+        .filter(s => {
+            const l = s.toLowerCase();
+            return !(
+                l.includes('seaport') || l.includes('storage depot') ||
+                l.includes('seehafen') || l.includes('lagerdepot') ||
+                l.includes('porto') || l.includes('depósito') ||
+                l.includes('порт') || l.includes('склад') ||
+                l.includes('dépôt')
+            );
+        });
     
     const code = parts[parts.length - 1] || fullName;
     const region = parts[0] || '';
@@ -183,7 +192,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
             const template = templates[setting.templateType] || {};
             let rule = template[itemName];
             if (!rule) {
-                rule = getDefaultRuleForCategory(category, setting.templateType);
+                return;
             }
             // Skip vehicles and shippables (non-crates) as they are not template categories
             if (category === 'vehicles' || category === 'shippables') {

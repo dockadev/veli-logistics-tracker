@@ -61,12 +61,48 @@ import { generateTestDepotsSet1, generateTestDepotsSet2 } from './utils/testData
 function getDepotMatchKey(fullName: string): string {
     const parts = fullName.split(/\s+-\s+/).map(p => p.trim());
     const region = parts[0] || '';
-    const type = parts.find(p => {
+    
+    const typePart = parts.find(p => {
         const l = p.toLowerCase();
-        return l.includes('seaport') || l.includes('depot') || l.includes('port');
+        return (
+            l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+            l.includes('seehafen') || l.includes('porto') || l.includes('порт') ||
+            l.includes('склад') || l.includes('lager') || l.includes('depósito')
+        );
     }) || '';
+    
+    let type = typePart.toLowerCase();
+    if (
+        type.includes('seaport') || type.includes('seehafen') || 
+        type.includes('porto') || type.includes('порт') || type.includes('port')
+    ) {
+        type = 'seaport';
+    } else if (
+        type.includes('depot') || type.includes('depósito') || 
+        type.includes('склад') || type.includes('lager')
+    ) {
+        type = 'storage depot';
+    }
+    
+    let normalizedRegion = region.toLowerCase();
+    if (
+        normalizedRegion === 'seaport' || normalizedRegion === 'seehafen' || 
+        normalizedRegion === 'porto' || normalizedRegion === 'porto marítimo' || 
+        normalizedRegion === 'port maritime' || normalizedRegion === 'морской порт' ||
+        normalizedRegion === 'port'
+    ) {
+        normalizedRegion = 'seaport';
+    } else if (
+        normalizedRegion === 'storage depot' || normalizedRegion === 'lagerdepot' || 
+        normalizedRegion === 'depósito de suprimentos' || normalizedRegion === 'depósito de armazenamento' || 
+        normalizedRegion === 'dépôt de stockage' || normalizedRegion === 'dépôt' ||
+        normalizedRegion === 'складское помещение' || normalizedRegion === 'склад'
+    ) {
+        normalizedRegion = 'storage depot';
+    }
+
     const name = parts[parts.length - 1] || '';
-    return `${region.toLowerCase()}_${type.toLowerCase()}_${name.toLowerCase()}`;
+    return `${normalizedRegion}_${type}_${name.toLowerCase()}`;
 }
 
 const IS_TAURI = typeof window !== 'undefined' && !!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
@@ -83,7 +119,7 @@ const getTauriApis = async () => {
     }
 };
 
-const APP_VERSION = '0.1.60';
+const APP_VERSION = '0.1.61';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);
@@ -2140,7 +2176,12 @@ export const App: React.FC = () => {
 
     const isDepotType = (str: string): boolean => {
         const lower = str.toLowerCase();
-        return lower.includes('seaport') || lower.includes('storage depot') || lower.includes('depot');
+        return (
+            lower.includes('seaport') || lower.includes('storage depot') || lower.includes('depot') ||
+            lower.includes('seehafen') || lower.includes('lagerdepot') || lower.includes('porto') ||
+            lower.includes('depósito') || lower.includes('порт') || lower.includes('склад') ||
+            lower.includes('dépôt')
+        );
     };
 
     const getDepotTown = (dep: Depot) => {
@@ -2361,7 +2402,7 @@ export const App: React.FC = () => {
 
                     <button 
                         type="button"
-                        onClick={() => openExternalUrl('https://github.com/dockadev/veli-logistics-tracker/releases')}
+                        onClick={() => openExternalUrl(minAppVersion ? `https://github.com/dockadev/veli-logistics-tracker/releases/tag/v${minAppVersion}` : 'https://github.com/dockadev/veli-logistics-tracker/releases')}
                         className="btn btn-primary"
                         style={{ 
                             display: 'inline-flex', 

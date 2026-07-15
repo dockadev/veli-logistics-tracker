@@ -7,7 +7,6 @@ import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import { STANDARD_ITEMS } from '../utils/standardItems';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
-import { getDefaultRuleForCategory } from '../utils/defaultTemplates';
 
 
 
@@ -177,8 +176,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
             COLONIAL_NEUTRAL_ITEMS.forEach((itemName) => {
                 let rule = roleTemplate[itemName];
                 if (!rule) {
-                    const officialCategory = getItemOfficialCategory(itemName);
-                    rule = getDefaultRuleForCategory(officialCategory, regionSetting.templateType);
+                    return;
                 }
                 const scaledMin = Math.round(rule.min * (regionSetting.demandPercentage / 100));
                 const scaledMax = Math.round(rule.max * (regionSetting.demandPercentage / 100));

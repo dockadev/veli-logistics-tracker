@@ -82,8 +82,29 @@ export function parseCSV(text: string): { location: string; timestamp: string; i
                 if (trimmed === 'Rising Loom') return 'Therizo';
                 
                 const lower = trimmed.toLowerCase();
-                if (lower === 'seehafen' || lower === 'porto' || lower === 'морской порт') return 'Seaport';
-                if (lower === 'lagerdepot' || lower === 'depósito de suprimentos' || lower === 'склад') return 'Storage Depot';
+                if (
+                    lower === 'seaport' || 
+                    lower === 'seehafen' || 
+                    lower === 'porto' || 
+                    lower === 'porto marítimo' || 
+                    lower === 'port maritime' || 
+                    lower === 'морской порт' ||
+                    lower === 'port'
+                ) {
+                    return 'Seaport';
+                }
+                if (
+                    lower === 'storage depot' || 
+                    lower === 'lagerdepot' || 
+                    lower === 'depósito de suprimentos' || 
+                    lower === 'depósito de armazenamento' || 
+                    lower === 'dépôt de stockage' ||
+                    lower === 'dépôt' ||
+                    lower === 'складское помещение' ||
+                    lower === 'склад'
+                ) {
+                    return 'Storage Depot';
+                }
                 
                 return part;
             });

@@ -595,7 +595,7 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                                     type="text"
                                     value={tempMinVersion}
                                     onChange={(e) => setTempMinVersion(e.target.value)}
-                                    placeholder="0.1.60"
+                                    placeholder="0.1.61"
                                     style={{
                                         background: 'rgba(0,0,0,0.2)',
                                         border: '1px solid var(--border-color)',

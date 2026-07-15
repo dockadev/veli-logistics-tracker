@@ -7,7 +7,6 @@ import {
 import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
-import { getDefaultRuleForCategory } from '../utils/defaultTemplates';
 import { CustomSelect } from './CustomSelect';
 import type { Depot, StockpileTemplates, RegionSettings } from '../types';
 
@@ -247,7 +246,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                 const template = templates[setting.templateType] || {};
                 let rule = template[itemName];
                 if (!rule) {
-                    rule = getDefaultRuleForCategory(category, setting.templateType);
+                    return;
                 }
                 // Skip if rule has min=0 & max=0
                 if (rule.min === 0 && rule.max === 0) {
@@ -275,7 +274,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                 
                 let rule = template[itemName];
                 if (!rule) {
-                    rule = getDefaultRuleForCategory(category, setting.templateType);
+                    return;
                 }
 
                 const minVal = (rule.min === 0 && rule.max === 0) 
@@ -360,7 +359,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                 
                 let rule = template[itemName];
                 if (!rule) {
-                    rule = getDefaultRuleForCategory(category, setting.templateType);
+                    return;
                 }
 
                 const maxVal = (rule.min === 0 && rule.max === 0) 

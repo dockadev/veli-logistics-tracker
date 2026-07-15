@@ -3,7 +3,7 @@ import { Truck, Copy, Package, ArrowRight, CheckCircle2, Info, Trash2, RotateCcw
 import { useLanguage } from '../context/LanguageContext';
 import type { Depot, StockpileTemplates, VehicleType, PackedContainer, PackedContainerItem, TransferPlan, RegionSettings, UserRole } from '../types';
 import { getDepotDisplayName } from '../utils/helpers';
-import { getDefaultTemplates, getDefaultRuleForCategory } from '../utils/defaultTemplates';
+import { getDefaultTemplates } from '../utils/defaultTemplates';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory } from '../utils/itemCategories';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { CustomSelect } from './CustomSelect';
@@ -250,14 +250,13 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
     const logiItemsWithMetrics = useMemo(() => {
         return Array.from(COLONIAL_NEUTRAL_ITEMS).map(itemName => {
-            const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
             
             // Source Metrics
             const sourceSetting = regionSettings[sourceRegion] || { regionName: sourceRegion, templateType: 'backline', demandPercentage: 100 };
             const sourceTemplate = templates[sourceSetting.templateType] || {};
             let sourceRule = sourceTemplate[itemName];
             if (!sourceRule) {
-                sourceRule = getDefaultRuleForCategory(category, sourceSetting.templateType);
+                sourceRule = { min: 0, max: 0 };
             }
             const sourceAvail = sourceContributingDepots.reduce((acc, d) => acc + (d.current?.[itemName]?.count || 0), 0);
             const sourceTarget = Math.round(sourceRule.min * (sourceSetting.demandPercentage / 100));
@@ -268,7 +267,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
             const targetTemplate = templates[targetSetting.templateType] || {};
             let targetRule = targetTemplate[itemName];
             if (!targetRule) {
-                targetRule = getDefaultRuleForCategory(category, targetSetting.templateType);
+                targetRule = { min: 0, max: 0 };
             }
             const targetAvail = targetContributingDepots.reduce((acc, d) => acc + (d.current?.[itemName]?.count || 0), 0);
             const targetTarget = Math.round(targetRule.min * (targetSetting.demandPercentage / 100));
@@ -401,12 +400,12 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
             let sourceBaseRule = sourceTemplate[itemName];
             if (!sourceBaseRule) {
-                sourceBaseRule = getDefaultRuleForCategory(category, sourceSetting.templateType);
+                sourceBaseRule = { min: 0, max: 0 };
             }
 
             let targetBaseRule = targetTemplate[itemName];
             if (!targetBaseRule) {
-                targetBaseRule = getDefaultRuleForCategory(category, targetSetting.templateType);
+                targetBaseRule = { min: 0, max: 0 };
             }
 
             // Scale min/max by the region demand percentages and town group count
