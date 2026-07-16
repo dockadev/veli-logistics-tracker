@@ -119,7 +119,7 @@ const getTauriApis = async () => {
     }
 };
 
-const APP_VERSION = '0.1.62';
+const APP_VERSION = '0.1.63';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);
@@ -925,6 +925,9 @@ export const App: React.FC = () => {
                 if (matchedKey && matchedKey !== location) {
                     nextDepots[location] = nextDepots[matchedKey];
                     delete nextDepots[matchedKey];
+                    if (isSupabaseConfigured) {
+                        dbService.deleteDepot(matchedKey);
+                    }
                 }
             } else {
                 nextDepots[location] = {

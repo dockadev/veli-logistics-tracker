@@ -31,6 +31,45 @@ function migrateRequest(req: SupplyRequest): SupplyRequest {
     return req;
 }
 
+function normalizeDepotName(name: string): string {
+    let clean = name.replace(/[\u2013\u2014]/g, '-');
+    const parts = clean.split(/\s+-\s+/).map(p => p.trim());
+    if (parts.length > 0) {
+        const mappedParts = parts.map((part, index) => {
+            if (index === 1) return part;
+            const trimmed = part.trim();
+            const lower = trimmed.toLowerCase();
+            if (
+                lower === 'seaport' || 
+                lower === 'seehafen' || 
+                lower === 'porto' || 
+                lower === 'porto marítimo' || 
+                lower === 'port maritime' || 
+                lower === 'морской порт' ||
+                lower === 'port'
+            ) {
+                return 'Seaport';
+            }
+            if (
+                lower === 'storage depot' || 
+                lower === 'lagerdepot' || 
+                lower === 'depósito de suprimentos' || 
+                lower === 'depósito de armazenamento' || 
+                lower === 'dépôt de stockage' ||
+                lower === 'dépôt' ||
+                lower === 'скladское помещение' ||
+                lower === 'складское помещение' ||
+                lower === 'склад'
+            ) {
+                return 'Storage Depot';
+            }
+            return part;
+        });
+        return mappedParts.join(' - ');
+    }
+    return clean;
+}
+
 export const dbService = {
     // Depots Management
     async loadDepots(_masterKey: string): Promise<Record<string, Depot>> {
@@ -51,7 +90,7 @@ export const dbService = {
                                     ? JSON.parse(row.data)
                                     : row.data;
                                 const migrated = migrateDepot(parsed);
-                                const cleanName = row.name.replace(/[\u2013\u2014]/g, '-');
+                                const cleanName = normalizeDepotName(row.name);
                                 migrated.name = cleanName;
                                 record[cleanName] = migrated;
                             } catch (e) {
@@ -73,7 +112,7 @@ export const dbService = {
             const parsed = JSON.parse(localDepotsStr);
             const cleanRecord: Record<string, Depot> = {};
             Object.keys(parsed).forEach(key => {
-                const cleanKey = key.replace(/[\u2013\u2014]/g, '-');
+                const cleanKey = normalizeDepotName(key);
                 const migrated = migrateDepot(parsed[key]);
                 migrated.name = cleanKey;
                 cleanRecord[cleanKey] = migrated;
@@ -86,10 +125,26 @@ export const dbService = {
     },
 
     async saveDepots(depots: Record<string, Depot>, _masterKey: string, skipSupabase = false): Promise<void> {
-        if (!skipSupabase && isSupabaseConfigured && supabase) {
+        const client = supabase;
+        if (!skipSupabase && isSupabaseConfigured && client) {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
+                const { data: { session } } = await client.auth.getSession();
                 if (session) {
+                    // Synchronize Supabase table by deleting any depots that are not in memory record
+                    const { data: existing } = await client.from('depots').select('name');
+                    if (existing) {
+                        const nextNames = new Set(Object.keys(depots));
+                        const namesToDelete = existing
+                            .map((r: { name: string }) => r.name)
+                            .filter((name: string) => !nextNames.has(name));
+                        
+                        if (namesToDelete.length > 0) {
+                            await Promise.all(namesToDelete.map(async (name) => {
+                                await client.from('depots').delete().eq('name', name);
+                            }));
+                        }
+                    }
+
                     // Save to Supabase (bulk upsert all depots at once)
                     const rows = Object.entries(depots).map(([name, depot]) => ({
                         name,
@@ -98,7 +153,7 @@ export const dbService = {
                         updated_at: new Date().toISOString()
                     }));
                     if (rows.length > 0) {
-                        const { error } = await supabase
+                        const { error } = await client
                             .from('depots')
                             .upsert(rows, { onConflict: 'name' });
                         if (error) {
@@ -120,7 +175,7 @@ export const dbService = {
                             if (newestDepotName && (new Date().getTime() - newestTime < 60000)) {
                                 const newestDepot = depots[newestDepotName];
                                 // Check if this history entry was already logged to prevent double-logging
-                                const { data: existing } = await supabase
+                                const { data: existing } = await client
                                     .from('depots_history')
                                     .select('id')
                                     .eq('depot_name', newestDepotName)
@@ -128,7 +183,7 @@ export const dbService = {
                                     .limit(1);
 
                                 if (!existing || existing.length === 0) {
-                                    await supabase.from('depots_history').insert({
+                                    await client.from('depots_history').insert({
                                         depot_name: newestDepotName,
                                         items: newestDepot.current,
                                         imported_by: session.user.id,
@@ -138,7 +193,7 @@ export const dbService = {
                                     // Clean up history older than 7 days
                                     const sevenDaysAgo = new Date();
                                     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                                    await supabase
+                                    await client
                                         .from('depots_history')
                                         .delete()
                                         .lt('imported_at', sevenDaysAgo.toISOString());
@@ -158,9 +213,10 @@ export const dbService = {
     },
 
     async deleteDepot(name: string): Promise<void> {
-        if (isSupabaseConfigured && supabase) {
+        const client = supabase;
+        if (isSupabaseConfigured && client) {
             try {
-                const { error } = await supabase
+                const { error } = await client
                     .from('depots')
                     .delete()
                     .eq('name', name);
@@ -594,7 +650,7 @@ export const dbService = {
                 console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
             }
         }
-        return '0.1.62';
+        return '0.1.63';
     },
 
     async saveMinAppVersion(version: string): Promise<void> {
