@@ -13,8 +13,8 @@ const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
         .filter(s => {
             const l = s.toLowerCase();
             return !(
-                l.includes('seaport') || l.includes('storage depot') ||
-                l.includes('seehafen') || l.includes('lagerdepot') ||
+                l.includes('seaport') || l.includes('storage depot') || l.includes('aircraft depot') ||
+                l.includes('seehafen') || l.includes('lagerdepot') || l.includes('flugzeugdepot') ||
                 l.includes('porto') || l.includes('depósito') ||
                 l.includes('порт') || l.includes('склад') ||
                 l.includes('dépôt')

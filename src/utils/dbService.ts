@@ -32,7 +32,7 @@ function migrateRequest(req: SupplyRequest): SupplyRequest {
 }
 
 function normalizeDepotName(name: string): string {
-    let clean = name.replace(/[\u2013\u2014]/g, '-');
+    let clean = name.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
     const parts = clean.split(/\s+-\s+/).map(p => p.trim());
     if (parts.length > 0) {
         const mappedParts = parts.map((part, index) => {
@@ -63,6 +63,15 @@ function normalizeDepotName(name: string): string {
             ) {
                 return 'Storage Depot';
             }
+            if (
+                lower === 'aircraft depot' ||
+                lower === 'flugzeugdepot' ||
+                lower === 'depósito de aeronaves' ||
+                lower === 'dépôt d\'avions' ||
+                lower === 'авиационный склад'
+            ) {
+                return 'Aircraft Depot';
+            }
             return part;
         });
         return mappedParts.join(' - ');
@@ -70,7 +79,48 @@ function normalizeDepotName(name: string): string {
     return clean;
 }
 
+function getMatchKey(rawFullName: string): string {
+    const fullName = rawFullName.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
+    const parts = fullName.split(/\s+-\s+/).map(p => p.trim());
+    const region = parts[0] || '';
+    
+    const typePart = parts.find(p => {
+        const l = p.toLowerCase();
+        return (
+            l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+            l.includes('seehafen') || l.includes('porto') || l.includes('порт') ||
+            l.includes('скlad') || l.includes('скladское') || l.includes('склад') || l.includes('lager') || l.includes('depósito')
+        );
+    }) || '';
+    
+    let type = typePart.toLowerCase();
+    if (
+        type.includes('seaport') || type.includes('seehafen') || 
+        type.includes('porto') || type.includes('порт') || type.includes('port')
+    ) {
+        type = 'seaport';
+    } else if (
+        type.includes('aircraft') || type.includes('flugzeug') ||
+        type.includes('aeronaves') || type.includes('авиационный')
+    ) {
+        type = 'aircraft depot';
+    } else if (
+        type.includes('depot') || type.includes('depósito') || 
+        type.includes('склад') || type.includes('lager')
+    ) {
+        type = 'storage depot';
+    }
+    
+    let normalizedRegion = region.toLowerCase();
+    const name = parts[parts.length - 1] || '';
+    return `${normalizedRegion}_${type}_${name.toLowerCase()}`;
+}
+
 export const dbService = {
+    normalizeDepotName(name: string): string {
+        return normalizeDepotName(name);
+    },
+
     // Depots Management
     async loadDepots(_masterKey: string): Promise<Record<string, Depot>> {
         if (isSupabaseConfigured && supabase) {
@@ -84,6 +134,8 @@ export const dbService = {
                         console.error('[DB Service] Error loading depots from Supabase:', error);
                     } else if (data) {
                         const record: Record<string, Depot> = {};
+                        const matchKeyGroups: Record<string, { key: string; depot: Depot; rawName: string }[]> = {};
+                        
                         data.forEach((row: { name: string; data: string | Depot }) => {
                             try {
                                 const parsed = typeof row.data === 'string' && (row.data.startsWith('{') || row.data.startsWith('['))
@@ -92,11 +144,58 @@ export const dbService = {
                                 const migrated = migrateDepot(parsed);
                                 const cleanName = normalizeDepotName(row.name);
                                 migrated.name = cleanName;
-                                record[cleanName] = migrated;
+                                
+                                const mKey = getMatchKey(cleanName);
+                                if (!matchKeyGroups[mKey]) {
+                                    matchKeyGroups[mKey] = [];
+                                }
+                                matchKeyGroups[mKey].push({ key: cleanName, depot: migrated, rawName: row.name });
                             } catch (e) {
                                 console.error(`[DB Service] Failed to parse depot ${row.name}:`, e);
                             }
                         });
+
+                        const keysToDeleteFromDb: string[] = [];
+                        Object.keys(matchKeyGroups).forEach(mKey => {
+                            const group = matchKeyGroups[mKey];
+                            if (group.length === 1) {
+                                record[group[0].key] = group[0].depot;
+                            } else {
+                                group.sort((a, b) => {
+                                    const timeA = new Date(a.depot.lastUpdated).getTime();
+                                    const timeB = new Date(b.depot.lastUpdated).getTime();
+                                    const isTimeValidA = !isNaN(timeA);
+                                    const isTimeValidB = !isNaN(timeB);
+                                    
+                                    if (isTimeValidA && isTimeValidB) {
+                                        if (timeB !== timeA) return timeB - timeA;
+                                    } else if (isTimeValidA) {
+                                        return -1;
+                                    } else if (isTimeValidB) {
+                                        return 1;
+                                    }
+                                    return b.key.length - a.key.length;
+                                });
+                                
+                                const winner = group[0];
+                                record[winner.key] = winner.depot;
+                                
+                                for (let i = 1; i < group.length; i++) {
+                                    keysToDeleteFromDb.push(group[i].rawName);
+                                    if (group[i].key !== winner.key) {
+                                        keysToDeleteFromDb.push(group[i].key);
+                                    }
+                                }
+                            }
+                        });
+
+                        if (keysToDeleteFromDb.length > 0) {
+                            console.log('[DB Service] Deleting obsolete merged duplicate rows:', keysToDeleteFromDb);
+                            supabase.from('depots').delete().in('name', keysToDeleteFromDb).then(({ error }) => {
+                                if (error) console.error('[DB Service] Failed to delete obsolete depots:', error);
+                            });
+                        }
+                        
                         return record;
                     }
                 }
@@ -111,11 +210,43 @@ export const dbService = {
         try {
             const parsed = JSON.parse(localDepotsStr);
             const cleanRecord: Record<string, Depot> = {};
+            const matchKeyGroups: Record<string, { key: string; depot: Depot }[]> = {};
+            
             Object.keys(parsed).forEach(key => {
                 const cleanKey = normalizeDepotName(key);
                 const migrated = migrateDepot(parsed[key]);
                 migrated.name = cleanKey;
-                cleanRecord[cleanKey] = migrated;
+                
+                const mKey = getMatchKey(cleanKey);
+                if (!matchKeyGroups[mKey]) {
+                    matchKeyGroups[mKey] = [];
+                }
+                matchKeyGroups[mKey].push({ key: cleanKey, depot: migrated });
+            });
+            
+            Object.keys(matchKeyGroups).forEach(mKey => {
+                const group = matchKeyGroups[mKey];
+                if (group.length === 1) {
+                    cleanRecord[group[0].key] = group[0].depot;
+                } else {
+                    group.sort((a, b) => {
+                        const timeA = new Date(a.depot.lastUpdated).getTime();
+                        const timeB = new Date(b.depot.lastUpdated).getTime();
+                        const isTimeValidA = !isNaN(timeA);
+                        const isTimeValidB = !isNaN(timeB);
+                        
+                        if (isTimeValidA && isTimeValidB) {
+                            if (timeB !== timeA) return timeB - timeA;
+                        } else if (isTimeValidA) {
+                            return -1;
+                        } else if (isTimeValidB) {
+                            return 1;
+                        }
+                        return b.key.length - a.key.length;
+                    });
+                    const winner = group[0];
+                    cleanRecord[winner.key] = winner.depot;
+                }
             });
             return cleanRecord;
         } catch (e) {

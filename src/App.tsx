@@ -58,7 +58,8 @@ import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import { getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor } from './utils/helpers';
 import { generateTestDepotsSet1, generateTestDepotsSet2 } from './utils/testDataGenerator';
 
-function getDepotMatchKey(fullName: string): string {
+function getDepotMatchKey(rawFullName: string): string {
+    const fullName = rawFullName.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
     const parts = fullName.split(/\s+-\s+/).map(p => p.trim());
     const region = parts[0] || '';
     
@@ -272,6 +273,9 @@ export const App: React.FC = () => {
 
     // Native window controls utilized instead of custom app-titlebar
     const [depots, setDepots] = useState<Record<string, Depot>>({});
+    useEffect(() => {
+        (window as any).debugDepots = depots;
+    }, [depots]);
     const [templates, setTemplates] = useState<StockpileTemplates>(getDefaultTemplates());
     const [regionSettings, setRegionSettings] = useState<RegionSettings>({});
     const [activeSubDepotFilter, setActiveSubDepotFilter] = useState<string>('all');
@@ -1151,20 +1155,27 @@ export const App: React.FC = () => {
                         const parsedData = typeof row.data === 'string' && (row.data.startsWith('{') || row.data.startsWith('['))
                             ? JSON.parse(row.data)
                             : row.data;
+                        const cleanName = dbService.normalizeDepotName(row.name);
+                        
                         setDepots(prev => {
-                            const existing = prev[row.name];
+                            const existing = prev[cleanName];
                             if (existing && JSON.stringify(existing) === JSON.stringify(parsedData)) {
                                 return prev;
                             }
                             isRemoteDepotsUpdateRef.current = true;
-                            return {
-                               ...prev,
-                                [row.name]: parsedData
+                            const next = { ...prev };
+                            if (row.name !== cleanName) {
+                                delete next[row.name];
+                            }
+                            next[cleanName] = {
+                                ...parsedData,
+                                name: cleanName
                             };
+                            return next;
                         });
                     } else if (payload.eventType === 'DELETE') {
                         if (payload.old?.name) {
-                            const oldName = payload.old.name;
+                            const oldName = dbService.normalizeDepotName(payload.old.name);
                             setDepots(prev => {
                                 if (!prev[oldName]) return prev;
                                 isRemoteDepotsUpdateRef.current = true;

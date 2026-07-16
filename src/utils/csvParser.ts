@@ -41,7 +41,7 @@ function remapSubregion(name: string): string {
 }
 
 export function parseCSV(rawText: string): { location: string; timestamp: string; items: Record<string, ItemInfo>; townName?: string | null } | { error: string; details?: string } | null {
-    const text = rawText.replace(/[\u2013\u2014]/g, '-');
+    const text = rawText.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     if (lines.length === 0) return null;
 
@@ -105,6 +105,15 @@ export function parseCSV(rawText: string): { location: string; timestamp: string
                     lower === 'склад'
                 ) {
                     return 'Storage Depot';
+                }
+                if (
+                    lower === 'aircraft depot' ||
+                    lower === 'flugzeugdepot' ||
+                    lower === 'depósito de aeronaves' ||
+                    lower === 'dépôt d\'avions' ||
+                    lower === 'авиационный склад'
+                ) {
+                    return 'Aircraft Depot';
                 }
                 
                 return part;
