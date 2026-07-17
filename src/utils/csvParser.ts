@@ -195,7 +195,7 @@ export function parseCSV(rawText: string): { location: string; timestamp: string
 
             const normalizedName = name.replace(/[“”]/g, '"');
             let finalName = normalizedName;
-            const lookupKey = normalizedName.toLowerCase();
+            const lookupKey = normalizedName.toLowerCase().replace(/\s+/g, ' ').trim();
             if (ITEM_TRANSLATIONS[lookupKey]) {
                 finalName = ITEM_TRANSLATIONS[lookupKey];
             }
