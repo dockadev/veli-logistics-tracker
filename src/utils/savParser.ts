@@ -75,50 +75,78 @@ class BinaryReader {
 
 // Maps Unreal Hex Names to standard English region names in the app
 const MAP_HEX_TO_REGION: Record<string, string> = {
+  "AcrithiaHex": "Acrithia",
+  "AllodsBightHex": "Allod's Bight",
   "AshFieldsHex": "Ash Fields",
   "BasinSionnachHex": "Basin Sionnach",
   "BastardTongueHex": "Bastard's Tongue",
   "BroadPatchesHex": "Broad Patches",
   "CallahansPassageHex": "Callahan's Passage",
+  "CallumsCapeHex": "Callum's Cape",
   "ClansheadValleyHex": "Clanshead Valley",
+  "ColonialHomeRegionHex": "Colonial Home Region",
   "DeadlandsHex": "Deadlands",
-  "DrownedValeHex": "Drowned Vale",
+  "DrownedValeHex": "The Drowned Vale",
   "EndlessShoreHex": "Endless Shore",
   "FarranacCoastHex": "Farranac Coast",
+  "FishermansRowHex": "Fisherman's Row",
   "GodcroftsHex": "Godcrofts",
   "GreatMarchHex": "Great March",
-  "HeartlandsHex": "Heartlands",
+  "HeartlandsHex": "The Heartlands",
   "HowlCountyHex": "Howl County",
   "KalokaiHex": "Kalokai",
-  "LinnOfMercyHex": "Linn of Mercy",
+  "KingsCageHex": "King's Cage",
+  "KuuraStrandHex": "Kuura Strand",
+  "LinnOfMercyHex": "The Linn of Mercy",
   "LochMorHex": "Loch Mór",
+  "LykosIsleHex": "Lykos Isle",
   "MarbanHollowHex": "Marban Hollow",
   "MorgensCrossingHex": "Morgen's Crossing",
+  "NevishLineHex": "Nevish Line",
   "OathsHex": "The Oaths",
+  "OlavisWakeHex": "Olavi's Wake",
+  "OnyxHex": "Ónyx",
   "OriginHex": "Origin",
-  "RedRiverHex": "Red River",
+  "PalantineBermHex": "Palantine Berm",
+  "PariPeakHex": "Pari Peak",
+  "PipersEnclaveHex": "Piper's Enclave",
   "ReachingTrailHex": "Reaching Trail",
+  "ReaversPassHex": "Reaver's Pass",
+  "RedRiverHex": "Red River",
   "SableportHex": "Sableport",
   "ShackledChasmHex": "Shackled Chasm",
   "SpeakingWoodsHex": "Speaking Woods",
+  "StemaLandingHex": "Stema Landing",
   "SteneumHex": "Steneum",
+  "StlicanShelfHex": "Stlican Shelf",
   "StonecradleHex": "Stonecradle",
   "StygianSwampHex": "Stygian Swamp",
   "TempesthavenHex": "Tempest Island",
   "TerminusHex": "Terminus",
+  "TheClahstraHex": "The Clahstra",
+  "TheDrownedValeHex": "The Drowned Vale",
   "TheFingersHex": "The Fingers",
+  "TheGutterHex": "The Gutter",
+  "TheHeartlandsHex": "The Heartlands",
+  "TheLinnOfMercyHex": "The Linn of Mercy",
+  "TheMoorsHex": "The Moors",
+  "TheOarbreakerIslesHex": "The Oarbreaker Isles",
+  "TyrantFoothillsHex": "Tyrant Foothills",
   "UmbralWildwoodHex": "Umbral Wildwood",
   "ViperPitHex": "Viper Pit",
+  "WardenHomeRegionHex": "Warden Home Region",
   "WeatheredExpanseHex": "Weathered Expanse",
   "WestgateHex": "Westgate",
-  "AllodsBightHex": "Allods Bight"
+  "WrestaHex": "Wresta"
 };
 
 function cleanHexMapName(hexName: string): string {
   // EWorldConquestMapId::AshFieldsHex -> AshFieldsHex
   const parts = hexName.split('::');
   const base = parts[parts.length - 1];
-  return MAP_HEX_TO_REGION[base] || base;
+  if (MAP_HEX_TO_REGION[base]) return MAP_HEX_TO_REGION[base];
+  const cleaned = base.replace(/Hex$/, '').replace(/([A-Z])/g, ' $1').trim();
+  return cleaned;
 }
 
 function parseStructProperties(r: BinaryReader): Record<string, any> {

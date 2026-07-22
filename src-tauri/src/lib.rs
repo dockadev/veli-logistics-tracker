@@ -70,7 +70,7 @@ fn auto_detect_sav_file() -> Result<String, String> {
       let path = entry.path();
       if path.is_file() {
           if let Some(filename) = path.file_name().and_then(|f| f.to_str()) {
-              if filename.ends_with("_MapData.sav") {
+              if filename.ends_with(".sav") {
                   if let Ok(metadata) = path.metadata() {
                       if let Ok(modified) = metadata.modified() {
                           if modified > latest_mtime {
@@ -84,7 +84,7 @@ fn auto_detect_sav_file() -> Result<String, String> {
       }
   }
   
-  latest_file.ok_or_else(|| "No _MapData.sav file found".to_string())
+  latest_file.ok_or_else(|| "No .sav file found in SaveGames".to_string())
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

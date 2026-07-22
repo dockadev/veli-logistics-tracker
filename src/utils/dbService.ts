@@ -875,7 +875,7 @@ export const dbService = {
                 console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
             }
         }
-        return '0.1.64';
+        return '0.1.65';
     },
 
     async saveMinAppVersion(version: string): Promise<void> {
