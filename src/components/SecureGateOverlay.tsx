@@ -11,7 +11,7 @@ interface SecureGateOverlayProps {
     version?: string;
 }
 
-export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, theme: _theme, setTheme: _setTheme, version = '0.1.63' }) => {
+export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, theme: _theme, setTheme: _setTheme, version = '0.1.64' }) => {
     const { language, setLanguage, t } = useLanguage();
 
     const [loginError, setLoginError] = useState('');
@@ -118,7 +118,26 @@ export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({
     // Supabase Auth Handler (Username-to-Email Bypass)
     const handleSupabaseAuth = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!supabase) return;
+        
+        if (!isSupabaseConfigured || !supabase) {
+            // Local Offline Bypass Mode
+            setLoginError('');
+            setAuthLoading(true);
+            const trimmedUsername = username.trim() || 'OfflineDeveloper';
+            
+            setTimeout(() => {
+                sessionStorage.setItem('docka_session_username', trimmedUsername);
+                localStorage.setItem('remembered_username', trimmedUsername);
+                if (rememberMe) {
+                    localStorage.setItem('docka_session_username', trimmedUsername);
+                }
+                
+                // Automatically log in as developer for full local access
+                onLoginSuccess('developer', 'offline-dev-id', rememberMe);
+                setAuthLoading(false);
+            }, 500);
+            return;
+        }
 
         setLoginError('');
         setAuthLoading(true);

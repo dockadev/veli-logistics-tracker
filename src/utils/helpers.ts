@@ -1,4 +1,37 @@
 import type { Language } from './localization';
+import type { RegionSettings, RegionSetting } from '../types';
+
+export function resolveTemplateSetting(
+  regionName?: string | null,
+  townName?: string | null,
+  subregionName?: string | null,
+  regionSettings: RegionSettings = {}
+): RegionSetting {
+  const reg = regionName ? regionName.trim() : '';
+  const town = townName ? townName.trim() : '';
+  const sub = subregionName ? subregionName.trim() : '';
+
+  if (reg && sub) {
+    const fullSubKey = `${reg} - ${sub}`;
+    if (regionSettings[fullSubKey]) return regionSettings[fullSubKey];
+  }
+  if (reg && town) {
+    const fullTownKey = `${reg} - ${town}`;
+    if (regionSettings[fullTownKey]) return regionSettings[fullTownKey];
+  }
+
+  if (sub && regionSettings[sub]) return regionSettings[sub];
+  if (town && regionSettings[town]) return regionSettings[town];
+
+  if (reg && regionSettings[reg]) return regionSettings[reg];
+
+  if (reg) {
+    const matchingKey = Object.keys(regionSettings).find(k => k.startsWith(`${reg} - `) || k === reg);
+    if (matchingKey && regionSettings[matchingKey]) return regionSettings[matchingKey];
+  }
+
+  return { regionName: reg || 'Unknown', templateType: 'unassigned', demandPercentage: 100 };
+}
 
 export const FOXHOLE_REGIONS = [
     "Deadlands",
@@ -195,5 +228,44 @@ export const getRelativeTimeColor = (timestamp: string): string => {
         return '#EF4444'; // Red
     } catch {
         return 'var(--text-muted)';
+    }
+};
+
+export const playChimeSound = (): void => {
+    try {
+        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioContextClass) return;
+        
+        const ctx = new AudioContextClass();
+        
+        // Tone 1: C5 (523.25 Hz)
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.frequency.value = 523.25;
+        osc1.type = 'sine';
+        gain1.gain.setValueAtTime(0, ctx.currentTime);
+        gain1.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+        gain1.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+        
+        // Tone 2: E5 (659.25 Hz) starting slightly later
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.frequency.value = 659.25;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0, ctx.currentTime + 0.1);
+        gain2.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.15);
+        gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+        
+        osc1.start(ctx.currentTime);
+        osc1.stop(ctx.currentTime + 0.3);
+        
+        osc2.start(ctx.currentTime + 0.1);
+        osc2.stop(ctx.currentTime + 0.4);
+    } catch (e) {
+        console.error('Failed to play chime sound:', e);
     }
 };

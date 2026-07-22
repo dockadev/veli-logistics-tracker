@@ -6,6 +6,7 @@ import { getDepotDisplayName } from '../utils/helpers';
 import { getDefaultTemplates } from '../utils/defaultTemplates';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory } from '../utils/itemCategories';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
+import { getItemIconUrl } from '../utils/itemIcons';
 import { CustomSelect } from './CustomSelect';
 
 interface TransferCalculatorTabProps {
@@ -58,11 +59,11 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
         const groups: Record<string, { region: string; town: string; depots: Depot[] }> = {};
         Object.values(depots).forEach(dep => {
             const region = getDepotRegion(dep.name);
-            const town = getDepotTown(dep.name, dep.townName) || 'General';
-            const groupKey = `${region} - ${town}`;
+            const town = getDepotTown(dep.name, dep.subregion || dep.townName);
+            const groupKey = town ? `${region} - ${town}` : region;
             
             if (!groups[groupKey]) {
-                groups[groupKey] = { region, town, depots: [] };
+                groups[groupKey] = { region, town: town || '', depots: [] };
             }
             groups[groupKey].depots.push(dep);
         });
@@ -248,8 +249,14 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
         return townGroups[targetRegion]?.depots || [];
     }, [townGroups, targetRegion]);
 
+    const getDepotItemQuantity = (d: Depot, itemName: string): number => {
+        if (!d.current) return 0;
+        const crateKey = itemName.endsWith(' (Crate)') ? itemName : `${itemName} (Crate)`;
+        return d.current[crateKey]?.count || d.current[itemName]?.count || 0;
+    };
+
     const logiItemsWithMetrics = useMemo(() => {
-        return Array.from(COLONIAL_NEUTRAL_ITEMS).map(itemName => {
+        return Array.from(COLONIAL_NEUTRAL_ITEMS).filter(name => !name.endsWith(' (Crate)')).map(itemName => {
             
             // Source Metrics
             const sourceSetting = regionSettings[sourceRegion] || { regionName: sourceRegion, templateType: 'backline', demandPercentage: 100 };
@@ -258,7 +265,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
             if (!sourceRule) {
                 sourceRule = { min: 0, max: 0 };
             }
-            const sourceAvail = sourceContributingDepots.reduce((acc, d) => acc + (d.current?.[itemName]?.count || 0), 0);
+            const sourceAvail = sourceContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
             const sourceTarget = Math.round(sourceRule.min * (sourceSetting.demandPercentage / 100));
             const sourceDiff = sourceAvail - sourceTarget;
 
@@ -269,7 +276,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
             if (!targetRule) {
                 targetRule = { min: 0, max: 0 };
             }
-            const targetAvail = targetContributingDepots.reduce((acc, d) => acc + (d.current?.[itemName]?.count || 0), 0);
+            const targetAvail = targetContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
             const targetTarget = Math.round(targetRule.min * (targetSetting.demandPercentage / 100));
             const targetDiff = targetAvail - targetTarget;
 
@@ -389,14 +396,14 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
         const candidates: TransferCandidate[] = [];
 
-        // Iterate all Colonial / Neutral items
-        const allItemsList = Array.from(COLONIAL_NEUTRAL_ITEMS);
+        // Iterate all Colonial / Neutral items (excluding duplicate Crate item names)
+        const allItemsList = Array.from(COLONIAL_NEUTRAL_ITEMS).filter(name => !name.endsWith(' (Crate)'));
 
         allItemsList.forEach(itemName => {
             const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
 
             // Sum sourceQty across contributing depots
-            const sourceQty = sourceContributingDepots.reduce((acc, d) => acc + (d.current[itemName]?.count || 0), 0);
+            const sourceQty = sourceContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
 
             let sourceBaseRule = sourceTemplate[itemName];
             if (!sourceBaseRule) {
@@ -418,7 +425,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
             if (availableSurplus <= 0) return;
 
             // Sum targetQty across contributing depots
-            const targetQty = targetContributingDepots.reduce((acc, d) => acc + (d.current[itemName]?.count || 0), 0);
+            const targetQty = targetContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
 
             // Needed in target region up to target max
             const targetDeficit = targetMax > targetQty ? targetMax - targetQty : 0;
@@ -1077,6 +1084,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                                 marginBottom: '4px'
                                             }}>
                                                 {Array.from(COLONIAL_NEUTRAL_ITEMS)
+                                                    .filter(itemName => !itemName.endsWith(' (Crate)'))
                                                     .filter(itemName => {
                                                         const query = (searchQuery[container.containerIndex] || '').toLowerCase();
                                                         const matchesQuery = itemName.toLowerCase().includes(query);
@@ -1288,7 +1296,17 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
                                                 return (
                                                     <tr key={item.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                                                        <td style={{ padding: '0.35rem 0.25rem', color: 'var(--text-primary)', fontWeight: 600 }}>{item.name}</td>
+                                                        <td style={{ padding: '0.35rem 0.25rem', color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                            {getItemIconUrl(item.name) && (
+                                                                <img
+                                                                    src={getItemIconUrl(item.name)!}
+                                                                    alt=""
+                                                                    style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }}
+                                                                    onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                                                />
+                                                            )}
+                                                            <span>{item.name}</span>
+                                                        </td>
                                                         <td style={{ padding: '0.35rem 0.25rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{item.sourceAvail}</td>
                                                         <td style={{ padding: '0.35rem 0.25rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{item.sourceTarget}</td>
                                                         <td style={{ padding: '0.35rem 0.25rem', textAlign: 'right', ...neededStyle }}>{neededLabel}</td>
@@ -1381,7 +1399,17 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
                                                 return (
                                                     <tr key={item.name} style={{ borderBottom: '1px solid rgba(255,255,255,0.02)' }}>
-                                                        <td style={{ padding: '0.35rem 0.25rem', color: 'var(--text-primary)', fontWeight: 600 }}>{item.name}</td>
+                                                        <td style={{ padding: '0.35rem 0.25rem', color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                            {getItemIconUrl(item.name) && (
+                                                                <img
+                                                                    src={getItemIconUrl(item.name)!}
+                                                                    alt=""
+                                                                    style={{ width: '15px', height: '15px', objectFit: 'contain', flexShrink: 0 }}
+                                                                    onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                                                                />
+                                                            )}
+                                                            <span>{item.name}</span>
+                                                        </td>
                                                         <td style={{ padding: '0.35rem 0.25rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{item.targetAvail}</td>
                                                         <td style={{ padding: '0.35rem 0.25rem', textAlign: 'right', color: 'var(--text-secondary)' }}>{item.targetTarget}</td>
                                                         <td style={{ padding: '0.35rem 0.25rem', textAlign: 'right', ...neededStyle }}>{neededLabel}</td>

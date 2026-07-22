@@ -1,15 +1,12 @@
 import { en } from './en';
 
 export const ptBR: Partial<Record<keyof typeof en, string>> = {
-    // App / Header
     logistics_intelligence: "Inteligência Logística",
     officer_access: "Autoridade de Oficial",
     member_access: "Autoridade Normal",
     recruit_access: "Autoridade de Recruta",
     disconnect: "Sair",
     tactical_logistics_dashboard: "Feito por docka",
-
-    // CSV Input Panel
     csv_input: "Entrada CSV",
     csv_input_desc_officer: "Cole a cópia do inventário CSV do Porto ou Depósito de Armazenamento.",
     csv_input_desc_member: "Função de colar restrita a Oficiais de Logística.",
@@ -17,8 +14,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     csv_input_placeholder_member: "Credenciais de Oficial de Logística são necessárias para colar e importar dados de escaneamento.",
     import_stock: "Importar Estoque",
     load_sample: "Carregar Amostra",
-
-    // Depot Database Panel
     depot_database: "BANCO DE DADOS DE DEPÓSITOS",
     depot_database_desc: "Acesse e navegue pelos depósitos e portos regionais registrados no banco de dados tático.",
     browse_depots: "Navegar Depósitos",
@@ -26,8 +21,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     clear_all_data: "Limpar Todos os Dados",
     select_active_depot: "Seletor de Depósito Ativo",
     no_depots_imported: "Nenhum depósito importado ainda.",
-
-    // Main Display
     no_active_depot: "Nenhum depósito ativo. Por favor, importe um CSV para começar.",
     location: "Localização",
     last_updated: "Última Atualização",
@@ -35,7 +28,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     delete_depot: "Excluir Depósito",
     supply_request_board: "PAINEL DE ORDENS DE PRODUÇÃO",
     supply_request_board_desc: "Coordene e rastreie ordens de produção entre as instalações regionais ativas.",
-
     tab_inventory: "Inventário",
     tab_cross_search: "Busca Cruzada",
     tab_supply_requests: "Ordens de Produção",
@@ -55,20 +47,14 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     no_passcodes_found: "Nenhum código de acesso corresponde à sua pesquisa.",
     search_passcodes_placeholder: "Pesquisar por região, sub-região ou nome do depósito...",
     items_per_page: "Itens por página",
-
-    // Confirm Modal
     confirm_title: "CONFIRMAR AÇÃO",
     confirm_cancel: "Cancelar",
     confirm_yes: "Sim, Confirmar",
-
-    // Depot Settings Modal
     depot_settings: "CONFIGURAÇÕES DO DEPÓSITO",
     depot_settings_desc: "Personalize o nome de identificação do depósito.",
     custom_identifier_name: "Nome do Identificador Personalizado",
     save_changes: "Salvar Alterações",
     close: "Fechar",
-
-    // Discord Gate
     tactical_intel_gateway: "Sistema de Rastreamento Logístico",
     auth_required: "O rastreamento logístico requer autorização. Por favor, selecione sua função.",
     role_officer: "Autoridade de Oficial",
@@ -84,8 +70,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     auth_btn_go_back: "Sair / Voltar",
     auth_btn_enter_system: "Entrar no Sistema",
     secure_access: "Acesso Seguro",
-
-    // Inventory Tab
     filter_stock_category: "FILTRAR CATEGORIA DE ESTOQUE",
     all_items: "Todos os Itens",
     crates_only: "Apenas Caixas",
@@ -117,8 +101,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     previous: "Anterior",
     next: "Próximo",
     search_logs_placeholder: "Buscar logs...",
-
-    // Cross Search Tab
     global_search: "BUSCA GLOBAL",
     global_search_desc: "Busque por um material em todos os depósitos registrados.",
     search_item_name: "Buscar nome do item...",
@@ -136,8 +118,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     click_to_reveal: "Clique para revelar o código de acesso",
     validation_6_digits: "O código de acesso deve ter exatamente 6 dígitos.",
     remove_code_help: "Deixe em branco para remover a senha",
-
-    // Supply Requests Tab
     active_requests: "Solicitações Ativas",
     completed: "Concluído",
     request_item: "Item Solicitado",
@@ -148,8 +128,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     undo_completion: "Desfazer Conclusão",
     no_active_supply_requests: "Nenhuma ordem de produção ativa.",
     open_request: "Criar Ordem",
-
-    // Create Request Modal
     open_supply_request: "CRIAR ORDEM DE PRODUÇÃO",
     target_depot_port: "Depósito / Porto Alvo",
     add_items_request: "Adicionar Itens à Ordem",
@@ -176,8 +154,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     cat_vehicles: "Vehicles",
     cat_shippables: "Shippables & Structures",
     enter_target_depot_name: "Digite o nome do depósito alvo...",
-
-    // Toast Messages & Dialog confirmation
     role_officer_required_csv: "Função de Oficial de Logística necessária para importar escaneamentos de inventário.",
     paste_csv_first: "Por favor, cole os dados do CSV primeiro.",
     invalid_csv_format: "Erro: Formato de CSV inválido.",
@@ -220,8 +196,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     item_already_added: "Este item já foi adicionado à ordem.",
     qty_must_greater_zero: "A quantidade deve ser maior que zero.",
     no_items_positive_qty: "Erro: Nenhum item com quantidade positiva encontrado. Depósito não importado.",
-
-    // Analytics Modal
     tactical_stock_analysis: "ANÁLISE TÁTICA DE ESTOQUE",
     analytics_desc: "Mudanças de inventário agregadas do banco de dados e métricas de inteligência logística.",
     analytics_maintenance_title: "TRABALHO EM PROGRESSO",
@@ -252,8 +226,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     no_data_for_item: "Nenhum dado de esgotamento ou estoque encontrado para \"{item}\" no escopo ativo.",
     depletion_logs_desc: "Lista cronológica de diminuições de estoque, destacando o volume de itens consumidos/retirados.",
     regional_breakdown_desc: "Status do inventário agregado categorizado por região geográfica e classes de itens.",
-
-    // Supply Requests Tab additional
     percent_full: "{percent}% Cheio",
     created_at: "Criado: {time}",
     request_order_num: "Ordem de Produção #{id}",
@@ -267,8 +239,6 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     all_depots: "Todos os Depósitos",
     active_depot_only: "Apenas Depósito Ativo",
     no_matching_requests: "Nenhuma ordem de produção activa encontrada correspondente aos seus filtros.",
-
-    // Crypto & Login
     enter_password: "Digite a Senha de Acesso",
     login_btn: "Entrar",
     invalid_password: "Falha na Autenticação: Falha na descriptografia. Senha incorreta.",
@@ -376,47 +346,134 @@ export const ptBR: Partial<Record<keyof typeof en, string>> = {
     reset_to_defaults: "Redefinir para Padrões",
     reset_confirm_title: "Redefinir Modelos?",
     reset_confirm_message: "Tem certeza de que deseja redefinir todos os modelos de estoque para os padrões? Isso descartará suas alterações não salvas.",
-
-    // Standardized Info Box Popovers
     info_health_title: "Fórmula de Saúde do Depósito",
     info_health_bullet1: "Cota do Item: A pontuação de 100% é dividida igualmente entre os itens ativos (100% / Itens Ativos).",
     info_health_bullet2: "Penalidade: Itens abaixo do Mínimo ou acima do Máximo recebem penalidades proporcionais.",
-
     info_alerts_title: "Visão Geral de Alertas Críticos",
     info_alerts_bullet1: "Limite Crítico: O alerta dispara automaticamente quando o estoque cai abaixo do Mínimo.",
     info_alerts_bullet2: "Prioridade: Itens urgentes e de alto consumo são destacados no topo.",
-
     info_increased_title: "Itens com Maior Aumento",
     info_increased_bullet1: "Lista os itens com maior aumento de estoque no período selecionado.",
     info_increased_bullet2: "Representa suprimentos recém-entregues, produzidos ou transferidos.",
-
     info_decreased_title: "Itens com Maior Redução",
     info_decreased_bullet1: "Lista os itens com maior redução de estoque no período selecionado.",
     info_decreased_bullet2: "Representa suprimentos enviados para a linha de frente ou consumidos.",
-
     info_velocity_title: "Análise de Velocidade de Consumo",
     info_velocity_bullet1: "Calcula a taxa diária e horária de redução comparando varreduras anteriores.",
     info_velocity_bullet2: "Reflete o ritmo de uso em combate ativo e consumo de suprimentos.",
-
     info_runway_title: "Previsão de Autonomia de Estoque",
     info_runway_bullet1: "Estima os dias restantes dividindo a quantidade atual pela velocidade de consumo.",
     info_runway_bullet2: "Destaca itens críticos próximos do esgotamento com alertas coloridos.",
-
     info_heatmap_title: "Mapa de Calor de Atividade",
     info_heatmap_bullet1: "Horários de Pico: Células escuras representam horários com maior volume de envios.",
     info_heatmap_bullet2: "Horários Calmos: Células claras indicam períodos de baixa atividade.",
-
     info_transfer_title: "Planejador Automático de Envios",
     info_transfer_bullet1: "Empacotamento: Empacota itens em contêineres por prioridade e capacidade.",
     info_transfer_bullet2: "Cópia rápida: Copie planos formatados para canais do Discord com um clique.",
-
     info_status_title: "Status do Item no Modelo",
     info_status_bullet1: "Ativo: O item é incluído em alertas críticos, pontuações de saúde e transferências.",
     info_status_bullet2: "Inativo: O item é excluído de todas as análises e cálculos automáticos.",
-
     analytics_title: "RELATÓRIO OPERACIONAL E TÁCTICO",
     bottlenecks: "ALERTAS TÁCTICOS DE GARGALOS",
     no_bottlenecks: "Nenhum gargalo logístico ativo detectado. Excelente trabalho!",
     stock_level: "Nível de Estoque",
-    critical_limit: "Limite Crítico"
+    critical_limit: "Limite Crítico",
+    tab_demand: "Demanda",
+    demand_low_high: "Demanda: Baixa ➔ Alta",
+    demand_target: "Alvo",
+    demand_available: "Disponível",
+    demand_overview: "Visão geral da demanda",
+    demand_needed: "Necessário",
+    demand_cities_view: "Cidades",
+    demand_alphabetical: "Alfabético",
+    demand_high_low: "Demanda: Alta ➔ Baixa",
+    search_items: "Pesquisar itens...",
+    needed_in_cities: "Necessário nas cidades:",
+    demand_fulfilled: "cumprido",
+    health_by_category: "Saúde por categoria",
+    needed_items: "Itens necessários:",
+    demand_items_view: "Unid",
+    cat_shippable_crates: "Shippable Crates",
+    quantity_fulfilled: "quantidade cumprida",
+    promote_to_logistics_lead: "Promover para Líder de Logística",
+    demote_to_officer: "Rebaixar para oficial",
+    logistics_lead_access: "Acesso ao lead de logística ativado",
+    per_item: "Por item",
+    needed_cities_title: "Cidades necessárias",
+    cat_vehicle_crates: "Vehicle Crates",
+    items_fulfilled: "itens cumpridos",
+    per_quantity: "Por quantidade",
+    depot_is_empty: "Este depósito está vazio no momento.",
+    surplus_stocks: "Estoques Excedentes",
+    surplus_cities: "Cidades Excedentes",
+    role_logistics_lead: "Líder de Logística",
+    needed_demands: "Demandas Necessárias",
+    manifest_copied: "Plano de envio copiado para a área de transferência!",
+    copy_manifest: "Copiar plano de envio",
+    transfer_calculator_title: "Calculadora de transferência",
+    calculate_transfer: "Calcular transferência",
+    destination_depot: "Depósito de Destino (Alvo)",
+    barge_ship: "Cargueiro / Ferrovia (5 Contêineres / 300 Caixas)",
+    container_header: "Recipiente",
+    flatbed_truck: "Caminhão Plataforma (1 Contêiner / 60 Caixas)",
+    wagon_count_label: "Contêineres / Vagões",
+    transfer_manifest_title: "Plano de envio embalado",
+    transfer_calculator_desc: "Calcule manifestos de contêineres de transporte desde depósitos excedentes até instalações deficitárias ou famintas.",
+    vehicle_type: "Tipo de veículo",
+    source_depot: "Depósito de Origem (Origem)",
+    train_freight: "Trem Logístico (Contêineres Personalizados)",
+    priority_critical_tag: "NECESSIDADE CRÍTICA",
+    info_prio_health_bullet1: "Rastreia a pontuação geral de integridade dos itens marcados como prioritários (isPriority) nos modelos.",
+    info_prio_health_title: "Saúde dos itens prioritários",
+    info_prio_health_bullet2: "Representa a porcentagem média de atendimento dos principais suprimentos necessários para as operações.",
+    info_frontline_health_bullet1: "Combina e calcula a média da pontuação de saúde de todas as sub-regiões marcadas como Linha de Frente.",
+    no_transfer_needed: "O depósito de destino atingiu níveis ideais de estoque para itens excedentes.",
+    info_frontline_health_title: "Saúde das Regiões da Linha de Frente",
+    info_frontline_health_bullet2: "Ajuda a avaliar os níveis de prontidão e abastecimento dos setores de combate ativo.",
+    no_surplus_available: "Nenhum item excedente disponível no depósito de origem que corresponda aos limites do modelo.",
+    info_backline_health_bullet1: "Calcula a média da pontuação de integridade de todos os centros logísticos e depósitos de armazenamento marcados como Backline.",
+    info_detail_health_bullet1: "Por categoria: avalia a porcentagem média de saúde de grupos de itens (por exemplo, armas pequenas, munições pesadas) globalmente.",
+    info_detail_health_bullet2: "Por região/cidade: avalia a pontuação média de cumprimento da meta do modelo para cada grupo de cidades.",
+    info_backline_health_bullet2: "Representa as reservas e estoques totais nas zonas de abastecimento traseiro.",
+    info_detail_health_title: "Análise detalhada de saúde",
+    info_comparison_title: "Matriz de comparação de ações",
+    info_backline_health_title: "Saúde das regiões de backline",
+    info_passcodes_title: "Visão geral de segurança e integrações",
+    info_production_board_title: "Diretoria de Produção Logística",
+    info_region_settings_title: "Configuração de configurações regionais",
+    info_minmax_templates_title: "Regras de modelo mínimo/máximo",
+    info_demand_overview_title: "Estoques Necessários vs Excedentes",
+    info_minmax_templates_bullet2: "Ignorar regra: definir Mín e Máx como 0 exclui o item de análises e transferências.",
+    info_demand_overview_bullet1: "Demandas Necessárias: Quantidades necessárias para atingir o limite mínimo da meta em todas as sub-regiões.",
+    info_region_settings_bullet2: "Dimensionamento de demanda: ajuste o multiplicador de porcentagem de demanda para dimensionar metas mínimas e máximas.",
+    info_region_settings_bullet1: "Atribuição de modelo: Defina se uma região se comporta como linha de frente ou retaguarda.",
+    info_minmax_templates_bullet1: "Definição de metas: Defina níveis de estoque ideais (mín./máx.) para funções de linha de frente e backline.",
+    info_passcodes_bullet1: "Controle de acesso: defina senhas para restringir importações, edição de modelos ou exclusão de dados.",
+    info_comparison_bullet2: "Ajuda a visualizar déficits de estoque e itens excedentes em tempo real.",
+    info_demand_overview_bullet2: "Estoques Excedentes: Quantidades que excedem o teto máximo, disponíveis para transporte.",
+    info_passcodes_bullet2: "Discord Webhooks: Envie notificações instantâneas de atualizações de estoque para canais logi do Discord.",
+    info_comparison_bullet1: "Visualização lado a lado comparando os níveis de estoque do depósito de origem com os níveis do depósito de destino.",
+    browse_sav_file: "Navegar",
+    leaderboard_title: "LIDERANÇA DE CONTRIBUIÇÃO",
+    start_capturing: "Comece a capturar",
+    watching_active: "ASSISTINDO ATIVO",
+    auto_detect: "Detecção automática",
+    deliverers: "Principais entregadores",
+    sav_file_path: "Caminho do arquivo para salvar Foxhole MapData:",
+    importers: "Principais importadores de CSV",
+    stop_capturing: "Pare de capturar",
+    creators: "Principais criadores de solicitações",
+    scan_interval: "Intervalo de varredura:",
+    info_production_board_bullet2: "Integrações de preenchimento automático: rastreie itens de destino diretamente de modelos de região.",
+    info_production_board_bullet1: "Rastreamento de pedidos: crie e monitore filas para produção de armas, munições ou veículos.",
+    no_rankings: "Nenhum membro com pontos de contribuição nesta categoria ainda.",
+    leaderboard_subtitle: "Classificações dos membros mais ativos durante a guerra atual",
+    idle: "PARADO",
+    direct_sync_desc: "Observa e analisa automaticamente o arquivo salvo local do Foxhole MapData em tempo real.",
+    scan_error: "ERRO DE VERIFICAÇÃO",
+    test_scan_log: "Log de verificação de teste",
+    template_management: "Gerenciamento de modelos",
+    officer_menu: "Menu Oficial +",
+    direct_sync: "Sincronização direta",
+    stockpile_management: "Gestão de Estoques"
 };

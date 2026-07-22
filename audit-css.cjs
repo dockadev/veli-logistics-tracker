@@ -32,16 +32,11 @@ const sourceFiles = [
 ].filter(f => fs.existsSync(f));
 
 const usedTokens = new Set();
+const securityAlerts = []; // { file, line, type, message, severity }
+const codeCleanlinessAlerts = []; // { file, line, type, message, severity }
+const performanceAlerts = []; // { file, line, type, message, severity }
 
-sourceFiles.forEach(file => {
-    const content = fs.readFileSync(file, 'utf8');
-    const words = content.match(/[a-zA-Z0-9_\-]+/g);
-    if (words) {
-        words.forEach(w => usedTokens.add(w));
-    }
-});
-
-// Add standard elements and utility prefixes that might be dynamically generated
+// Standard HTML tags and state words safelist
 const standardSafelist = new Set([
     'html', 'body', 'root', 'div', 'span', 'p', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'button', 'input', 'textarea', 'select', 'option', 'form', 'label', 'svg', 'path',
@@ -49,14 +44,76 @@ const standardSafelist = new Set([
 ]);
 standardSafelist.forEach(t => usedTokens.add(t));
 
-// 2. Scan all CSS files
+// 2. Scan TypeScript/JavaScript Source Files for Code & Security Audit
+sourceFiles.forEach(file => {
+    const relativePath = path.relative(projectDir, file);
+    const content = fs.readFileSync(file, 'utf8');
+    const lines = content.split(/\r?\n/);
+
+    // Collect tokens for CSS unused check
+    const words = content.match(/[a-zA-Z0-9_\-]+/g);
+    if (words) {
+        words.forEach(w => usedTokens.add(w));
+    }
+
+    lines.forEach((line, index) => {
+        const lineNumber = index + 1;
+        const trimmed = line.trim();
+
+        if (!trimmed) return;
+
+        // Security Checks in JS/TS
+        if (trimmed.includes('dangerouslySetInnerHTML')) {
+            securityAlerts.push({
+                file: relativePath,
+                line: lineNumber,
+                type: 'XSS_RISK_DANGEROUSLY_SET_INNER_HTML',
+                message: 'Use of dangerouslySetInnerHTML detected. Potential XSS vector.',
+                severity: 'HIGH'
+            });
+        }
+
+        if (/\beval\s*\(/.test(trimmed) || /new\s+Function\s*\(/.test(trimmed)) {
+            securityAlerts.push({
+                file: relativePath,
+                line: lineNumber,
+                type: 'DYNAMIC_CODE_EXECUTION',
+                message: 'eval() or new Function() execution detected. Severe security risk.',
+                severity: 'HIGH'
+            });
+        }
+
+        const secretRegex = /(secret|passwd|api_key|apikey|private_key)\s*[:=]\s*['"][a-zA-Z0-9_\-]{16,}['"]/i;
+        if (secretRegex.test(trimmed)) {
+            securityAlerts.push({
+                file: relativePath,
+                line: lineNumber,
+                type: 'HARDCODED_SECRET',
+                message: 'Potential hardcoded secret or API key credential found in source code.',
+                severity: 'HIGH'
+            });
+        }
+
+        // Code Cleanliness & Quality Checks
+        if (trimmed.startsWith('console.log(') || trimmed.startsWith('console.debug(')) {
+            codeCleanlinessAlerts.push({
+                file: relativePath,
+                line: lineNumber,
+                type: 'DEBUG_CONSOLE_LOG',
+                message: 'console.log leak in production code.',
+                severity: 'LOW'
+            });
+        }
+    });
+});
+
+// 3. Scan CSS Files
 const cssFiles = walkDir(stylesDir, ['.css']).filter(f => !f.endsWith('main.css'));
 
 const allSelectors = {}; // selector -> [{ file, line }]
-const hardcodedColorsCount = { total: 0 };
-const securityAlerts = []; // { file, line, type, message, severity }
-const performanceAlerts = []; // { file, line, type, message, severity }
+const hardcodedColorsCount = { total: 0, list: [] };
 const unusedSelectors = []; // { file, line, selector }
+let importantCount = 0;
 
 cssFiles.forEach(file => {
     const relativePath = path.relative(stylesDir, file);
@@ -68,12 +125,17 @@ cssFiles.forEach(file => {
     let currentSelector = null;
     let selectorLine = 0;
     let insideRules = false;
+    let insideKeyframes = false;
 
     lines.forEach((line, index) => {
         const lineNumber = index + 1;
         const trimmed = line.trim();
 
         if (!trimmed) return;
+
+        if (trimmed.includes('!important')) {
+            importantCount++;
+        }
 
         // Skip comments, check for leaks
         if (trimmed.startsWith('/*') || trimmed.includes('//')) {
@@ -112,6 +174,12 @@ cssFiles.forEach(file => {
             });
         }
 
+        // Check keyframe blocks
+        if (trimmed.startsWith('@keyframes')) {
+            insideKeyframes = true;
+            return;
+        }
+
         // Open block detection
         if (trimmed.includes('{')) {
             const selectorPart = trimmed.split('{')[0].trim();
@@ -120,6 +188,11 @@ cssFiles.forEach(file => {
                 selectorLine = lineNumber;
             }
             insideRules = true;
+
+            // Skip checking keyframe step selectors (0%, 50%, 100%, from, to)
+            if (insideKeyframes || /^(from|to|\d+%)$/i.test(currentSelector)) {
+                return;
+            }
 
             if (currentSelector) {
                 const selectors = currentSelector.split(',').map(s => s.trim()).filter(Boolean);
@@ -167,6 +240,9 @@ cssFiles.forEach(file => {
         if (trimmed.includes('}')) {
             insideRules = false;
             currentSelector = null;
+            if (insideKeyframes && trimmed === '}') {
+                insideKeyframes = false;
+            }
             return;
         }
 
@@ -216,33 +292,54 @@ cssFiles.forEach(file => {
             const hasRgb = /\b(rgba?|hsla?)\(/.test(val) && !val.includes('var(');
             if (hasHex || hasRgb) {
                 hardcodedColorsCount.total++;
-                if (!hardcodedColorsCount.list) hardcodedColorsCount.list = [];
                 hardcodedColorsCount.list.push({ file: relativePath, line: lineNumber, selector: currentSelector, property: prop, value: val });
             }
         }
     });
 });
 
-// Output Results
-console.log('=== CSS AUDIT RESULTS ===');
+// Output Comprehensive Results
+console.log('====================================================');
+console.log('   VELI LOGISTICS TRACKER - COMPREHENSIVE AUDIT REPORT');
+console.log('====================================================');
+console.log(`Total Source Files Scanned (TS/TSX/HTML): ${sourceFiles.length}`);
 console.log(`Total CSS Files Audited: ${cssFiles.length}`);
-console.log(`Total Source Files Scanned: ${sourceFiles.length}\n`);
+console.log(`Total !important Rules Found in CSS: ${importantCount}\n`);
 
-console.log('--- SECURITY ALERTS ---');
+console.log('--- 1. SECURITY & VULNERABILITY AUDIT ---');
 console.log(`Total security alerts found: ${securityAlerts.length}`);
-securityAlerts.forEach(alert => {
-    console.log(`[${alert.severity}] File: ${alert.file}, Line: ${alert.line} | Type: ${alert.type} | Message: ${alert.message}`);
-});
+if (securityAlerts.length === 0) {
+    console.log('✔ No security vulnerabilities detected.');
+} else {
+    securityAlerts.forEach(alert => {
+        console.log(`[${alert.severity}] File: ${alert.file}, Line: ${alert.line} | Type: ${alert.type} | ${alert.message}`);
+    });
+}
 console.log('');
 
-console.log('--- PERFORMANCE & LAYOUT ALERTS ---');
+console.log('--- 2. CODE CLEANLINESS & QUALITY ---');
+console.log(`Total code cleanliness alerts found: ${codeCleanlinessAlerts.length}`);
+if (codeCleanlinessAlerts.length === 0) {
+    console.log('✔ Code cleanliness is clean.');
+} else {
+    codeCleanlinessAlerts.forEach(alert => {
+        console.log(`[${alert.severity}] File: ${alert.file}, Line: ${alert.line} | Type: ${alert.type} | ${alert.message}`);
+    });
+}
+console.log('');
+
+console.log('--- 3. PERFORMANCE & REPAINT ALERTS ---');
 console.log(`Total performance alerts found: ${performanceAlerts.length}`);
-performanceAlerts.forEach(perf => {
-    console.log(`[${perf.severity}] File: ${perf.file}, Line: ${perf.line} | Type: ${perf.type} | Message: ${perf.message}`);
-});
+if (performanceAlerts.length === 0) {
+    console.log('✔ No performance thrashing issues found.');
+} else {
+    performanceAlerts.forEach(perf => {
+        console.log(`[${perf.severity}] File: ${perf.file}, Line: ${perf.line} | Type: ${perf.type} | ${perf.message}`);
+    });
+}
 console.log('');
 
-console.log('--- DUPLICATE SELECTORS ---');
+console.log('--- 4. DUPLICATE SELECTORS ---');
 let duplicateCount = 0;
 Object.entries(allSelectors).forEach(([selector, occurrences]) => {
     if (occurrences.length > 1) {
@@ -253,19 +350,24 @@ Object.entries(allSelectors).forEach(([selector, occurrences]) => {
         duplicateCount++;
     }
 });
-console.log(`Total duplicate selectors: ${duplicateCount}\n`);
-
-console.log('--- UNUSED SELECTORS (Code Bloat) ---');
-console.log(`Total unused selectors: ${unusedSelectors.length}`);
-unusedSelectors.forEach(item => {
-    console.log(`File: ${item.file}, Line: ${item.line} | Selector: "${item.selector}"`);
-});
+if (duplicateCount === 0) {
+    console.log('✔ No duplicate CSS selectors found.');
+} else {
+    console.log(`Total duplicate selectors: ${duplicateCount}`);
+}
 console.log('');
 
-console.log('--- HARDCODED COLORS ---');
-console.log(`Total hardcoded colors found: ${hardcodedColorsCount.total}`);
-if (hardcodedColorsCount.list) {
-    hardcodedColorsCount.list.forEach(c => {
-        console.log(`File: ${c.file}, Line: ${c.line} | Selector: "${c.selector}" | Property: ${c.property} -> Value: "${c.value}"`);
+console.log('--- 5. UNUSED CSS SELECTORS ---');
+console.log(`Total unused selectors: ${unusedSelectors.length}`);
+if (unusedSelectors.length === 0) {
+    console.log('✔ No unused CSS selectors found.');
+} else {
+    unusedSelectors.forEach(item => {
+        console.log(`File: ${item.file}, Line: ${item.line} | Selector: "${item.selector}"`);
     });
 }
+console.log('');
+
+console.log('====================================================');
+console.log('                AUDIT COMPLETE');
+console.log('====================================================');

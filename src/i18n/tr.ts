@@ -1,15 +1,12 @@
 import { en } from './en';
 
 export const tr: Partial<Record<keyof typeof en, string>> = {
-    // App / Header
     logistics_intelligence: "Lojistik İstihbarat",
     officer_access: "Subay Yetkisi",
     member_access: "Normal Yetki",
     recruit_access: "Acemi Yetkisi",
     disconnect: "Çıkış Yap",
     tactical_logistics_dashboard: "Made by docka",
-
-    // CSV Input Panel
     csv_input: "CSV Veri Girişi",
     csv_input_desc_officer: "Liman veya Depolama Deposunun kopyalanmış CSV envanter verisini yapıştırın.",
     csv_input_desc_member: "Yapıştırma fonksiyonu Lojistik Subayları ile sınırlandırılmıştır.",
@@ -17,8 +14,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     csv_input_placeholder_member: "Envanter verisi aktarmak için Lojistik Subayı kimlik doğrulaması gereklidir.",
     import_stock: "Stok Aktar",
     load_sample: "Örnek Yükle",
-
-    // Depot Database Panel
     depot_database: "DEPO VERİTABANI",
     depot_database_desc: "Taktik veritabanında kayıtlı olan bölgesel depoları ve limanları listeleyin.",
     browse_depots: "Depoları Listele",
@@ -26,8 +21,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     clear_all_data: "Tüm Verileri Temizle",
     select_active_depot: "Aktif Depo Seçimi",
     no_depots_imported: "Henüz veri aktarılmış depo yok.",
-
-    // Main Display
     no_active_depot: "Aktif depo seçilmedi. Başlamak için lütfen CSV verisi aktarın.",
     location: "Konum",
     last_updated: "Son Güncelleme",
@@ -35,7 +28,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     delete_depot: "Depoyu Sil",
     supply_request_board: "Üretim Sipariş Panosu",
     supply_request_board_desc: "Aktif tesisler ve bölgeler arasındaki üretim siparişlerini koordine edin.",
-
     tab_inventory: "Envanter",
     tab_cross_search: "Çapraz Arama",
     tab_supply_requests: "Siparişler",
@@ -78,20 +70,14 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     no_passcodes_found: "Aramanıza uygun aktif bir depo şifresi bulunamadı.",
     search_passcodes_placeholder: "Bölge, alt bölge veya depo adı ara...",
     items_per_page: "Sayfa başına öge",
-
-    // Confirm Modal
     confirm_title: "İŞLEMİ ONAYLA",
     confirm_cancel: "İptal",
     confirm_yes: "Evet, Onayla",
-
-    // Depot Settings Modal
     depot_settings: "DEPO AYARLARI",
     depot_settings_desc: "Depo tanımlama adını özelleştirin.",
     custom_identifier_name: "Özel Tanımlayıcı Adı",
     save_changes: "Değişiklikleri Kaydet",
     close: "Kapat",
-
-    // Discord Gate
     tactical_intel_gateway: "Lojistik Takip Sistemi",
     auth_required: "Lojistik takibi yetkilendirme gerektirir. Lütfen rolünüzü seçin.",
     role_officer: "Subay Yetkisi",
@@ -108,8 +94,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     auth_btn_go_back: "Çıkış Yap / Geri Dön",
     auth_btn_enter_system: "Sisteme Giriş Yap",
     secure_access: "Güvenli Erişim",
-
-    // Inventory Tab
     filter_stock_category: "STOK KATEGORİSİNİ FİLTRELE",
     all_items: "Tüm Malzemeler",
     crates_only: "Kutulu",
@@ -141,8 +125,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     previous: "Önceki",
     next: "Sonraki",
     search_logs_placeholder: "Log kaydı ara...",
-
-    // Cross Search Tab
     global_search: "KÜRESEL ARAMA",
     global_search_desc: "Tüm kayıtlı depolarda bir malzemeyi arayın.",
     search_item_name: "Malzeme adını yazın...",
@@ -160,8 +142,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     click_to_reveal: "Erişim kodunu görmek için tıklayın",
     validation_6_digits: "Erişim şifresi tam olarak 6 haneli olmalıdır.",
     remove_code_help: "Şifreyi kaldırmak için boş bırakın",
-
-    // Supply Requests Tab
     active_requests: "Aktif Talepler",
     completed: "Tamamlandı",
     request_item: "Talep Edilen Malzeme",
@@ -172,8 +152,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     undo_completion: "Geri Al",
     no_active_supply_requests: "Aktif üretim siparişi bulunmamaktadır.",
     open_request: "Sipariş Oluştur",
-
-    // Create Request Modal
     open_supply_request: "ÜRETİM SİPARİŞİ AÇ",
     target_depot_port: "Hedef Depo / Liman",
     add_items_request: "Siparişe Malzeme Ekle",
@@ -202,8 +180,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     cat_vehicle_crates: "Vehicle Crates",
     cat_shippable_crates: "Shippable Crates",
     enter_target_depot_name: "Hedef depo adını girin...",
-
-    // Toast Messages & Dialog confirmation
     role_officer_required_csv: "Envanter verisi aktarmak için Lojistik Subayı rolü gereklidir.",
     paste_csv_first: "Lütfen önce CSV verisini yapıştırın.",
     invalid_csv_format: "Hata: Geçersiz CSV formatı.",
@@ -248,8 +224,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     qty_must_greater_zero: "Miktar sıfırdan büyük olmalıdır.",
     no_items_positive_qty: "Hata: Pozitif miktarlı malzeme bulunamadı. Depo aktarılmadı.",
     depot_is_empty: "Bu depo şu anda boş.",
-
-    // Analytics Modal
     tactical_stock_analysis: "TAKTİK STOK ANALİZİ",
     analytics_desc: "Bütünleşik veritabanı envanter değişimleri ve lojistik istihbarat metrikleri.",
     analytics_maintenance_title: "ÜZERİNDE ÇALIŞILIYOR",
@@ -280,8 +254,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     no_data_for_item: "Aktif kapsamda \"{item}\" için tüketim veya stok verisi bulunamadı.",
     depletion_logs_desc: "Depolardan eksilen malzemelerin listesidir; hangi eşyanın ne kadar tüketildiğini/çekildiğini gösterir.",
     regional_breakdown_desc: "Coğrafi bölgelere göre gruplandırılmış toplam stok miktarlarını ve malzeme kategorilerini gösterir.",
-
-    // Supply Requests Tab additional
     percent_full: "%{percent} Dolu",
     created_at: "Oluşturulma: {time}",
     request_order_num: "Üretim Siparişi #{id}",
@@ -295,8 +267,6 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     all_depots: "Tüm Depolar",
     active_depot_only: "Sadece Aktif Depo",
     no_matching_requests: "Filtrelerinize uygun aktif üretim siparişi bulunamadı.",
-    
-    // Crypto & Login
     enter_password: "Erişim Parolasını Girin",
     login_btn: "Giriş Yap",
     invalid_password: "Kimlik Doğrulama Başarısız: Şifre çözülemedi. Geçersiz parola.",
@@ -423,94 +393,87 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     priority_critical_tag: "KRİTİK İHTİYAÇ",
     no_surplus_available: "Başlangıç deposunda şablon tavanını (Max) aşan taşınabilir fazlalık malzeme bulunamadı.",
     no_transfer_needed: "Varış deposu taşınabilir malzemelerde hedef stok seviyelerine ulaşmış durumda.",
-
-    // Standardized Info Box Popovers
     info_health_title: "Depo Sağlığı Hesaplama Formülü",
     info_health_bullet1: "Malzeme Başı Pay: Toplam %100 puan, aktif malzeme sayısına bölünür (%100 / Aktif Malzeme Sayısı).",
     info_health_bullet2: "Stok Cezası: Asgari (Min) eşiğin altında kalan veya azami (Max) tavanı aşan her malzeme, sapma oranına göre kendi payı kadar ceza alır.",
-
     info_alerts_title: "Kritik Stok Alarmları İncelemesi",
     info_alerts_bullet1: "Kritik Eşik: Mevcut stok şablondaki asgari (Min) seviyenin altına düştüğünde otomatik alarm tetiklenir.",
     info_alerts_bullet2: "Öncelik Sıralaması: Tüketim hızı yüksek ve stoku tükenmek üzere olan acil malzemeler listenin en üstünde vurgulanır.",
-
     info_increased_title: "En Çok Artan Malzemeler",
     info_increased_bullet1: "Seçilen zaman periyodunda stok miktarı en fazla artış gösteren malzemeleri listeler.",
     info_increased_bullet2: "Depoya yeni teslim edilen, üretilerek eklenen veya aktarılan ikmalleri temsil eder.",
-
     info_decreased_title: "En Çok Azalan Malzemeler",
     info_decreased_bullet1: "Seçilen zaman periyodunda stok miktarı en fazla azalış gösteren malzemeleri listeler.",
     info_decreased_bullet2: "Cepheye sevk edilen, tüketilen veya depodan çekilen malzemeleri temsil eder.",
-
     info_velocity_title: "Tüketim Hızı Analizi",
     info_velocity_bullet1: "Önceki tarama verileri karşılaştırılarak malzemelerin saatlik ve günlük ortalama azalma hızı hesaplanır.",
     info_velocity_bullet2: "Cephedeki aktif çatışma ve lojistik harcama temposunu gösterir.",
-
     info_runway_title: "Stok Dayanma Süresi Tahmini",
     info_runway_bullet1: "Mevcut stok miktarının hesaplanan tüketim hızına bölünmesiyle stokun kaç gün yeteceği tahmin edilir.",
     info_runway_bullet2: "Tükenme riski yüksek kritik malzemeler renkli uyarılarla öne çıkarılır.",
-
     info_heatmap_title: "Aktivite Isı Haritası",
     info_heatmap_bullet1: "Yoğun Zamanlar: Koyu renkli hücreler sevkiyatın ve stok güncellemelerinin en fazla yapıldığı saatleri temsil eder.",
     info_heatmap_bullet2: "Sakin Zamanlar: Açık renkli hücreler lojistik operasyonlerin durgun olduğu zaman dilimlerini gösterir.",
-
     info_transfer_title: "Otomatik Sevkiyat Planlayıcı",
     info_transfer_bullet1: "Akıllı Ölçekleme: Kaynak depodaki fazlalıkları hedef bölgenin talebine göre ölçekler ve alt kasabalara böler.",
     info_transfer_bullet2: "Sevkiyat Araçları: Kargo hacmini Flatbed, Demir Gemi (Ironship) veya Lojistik Treni kapasitelerine göre konteynerlere paketler.",
-
     info_status_title: "Şablon Malzeme Durumu",
     info_status_bullet1: "Aktif: Malzeme kritik stok alarmlarına, sağlık skoruna ve otomatik taşıma hesaplamalarına dahil edilir.",
     info_status_bullet2: "Pasif: Malzeme tüm analitik ve otomatik sevkiyat hesaplamalarından muaf tutulur.",
-
     info_prio_health_title: "Öncelikli Malzeme Sağlığı",
     info_prio_health_bullet1: "Şablonda öncelikli (isPriority) olarak işaretlenmiş en kritik malzemelerin genel doluluk oranını gösterir.",
     info_prio_health_bullet2: "Operasyonlar için kritik öneme sahip temel ikmal malzemelerinin ortalama durumunu temsil eder.",
-
     info_frontline_health_title: "Cephe Hattı Sağlığı",
     info_frontline_health_bullet1: "Ön Cephe (Frontline) olarak işaretlenmiş tüm alt bölgelerin sağlık puanlarının ortalamasını gösterir.",
     info_frontline_health_bullet2: "Aktif çatışma bölgelerinin hazırlık ve ikmal durumunu değerlendirmeye yardımcı olur.",
-
     info_backline_health_title: "Geri Hat Sağlığı",
     info_backline_health_bullet1: "Geri Cephe (Backline) lojistik merkezlerinin ve depoların sağlık puanlarının ortalamasını gösterir.",
     info_backline_health_bullet2: "Arka hat ikmal bölgelerindeki genel rezerv ve stok durumunu temsil eder.",
-
     info_detail_health_title: "Detaylı Sağlık Analizi",
     info_detail_health_bullet1: "Kategori Bazlı: Hafif silahlar, mühimmat gibi malzeme gruplarının küresel ortalama doluluk oranını değerlendirir.",
     info_detail_health_bullet2: "Bölge / Kasaba Bazlı: Her bir kasaba grubunun şablondaki hedefi karşılama puanını gösterir.",
-
     info_comparison_title: "Stok Karşılaştırma Matrisi",
     info_comparison_bullet1: "Kaynak depo stok seviyeleri ile hedef depo stok seviyelerini yan yana karşılaştırmanızı sağlar.",
     info_comparison_bullet2: "Envanterdeki eksiklikleri ve fazla stoktaki malzemeleri gerçek zamanlı görselleştirmeye yardımcı olur.",
-
     info_region_settings_title: "Bölgesel Şablon Ayarları",
     info_region_settings_bullet1: "Şablon Atama: Bir bölgenin cephe (frontline) veya geri cephe (backline) olarak davranacağını belirler.",
     info_region_settings_bullet2: "Talep Ölçekleme: Asgari ve azami hedefleri çarpmak için talep yüzdesi çarpanını ayarlar.",
-
     info_minmax_templates_title: "Min/Max Şablon Kuralları",
     info_minmax_templates_bullet1: "Hedef Tanımları: Cephe ve geri cephe rolleri için optimal stok seviyelerini (Min/Max) belirler.",
     info_minmax_templates_bullet2: "Muafiyet Kuralı: Hem Min hem Max değerini 0 yapmak, malzemeyi analitik ve taşımalardan muaf tutar.",
-
     info_passcodes_title: "Güvenlik ve Entegrasyonlar",
     info_passcodes_bullet1: "Erişim Kontrolü: İçe aktarımları, şablon düzenlemeyi veya depo silmeyi kısıtlamak için şifre belirleyin.",
     info_passcodes_bullet2: "Discord Webhook: Stok güncellemelerinin anında Discord lojistik kanallarına bildirim olarak gitmesini sağlar.",
-
     info_demand_overview_title: "Gereksinimler ve Fazla Stoklar",
     info_demand_overview_bullet1: "Talep Edilenler: Tüm alt bölgelerde asgari (Min) hedef eşiğine ulaşmak için gereken eksik miktarlar.",
     info_demand_overview_bullet2: "Fazla Stoklar: Belirlenen azami (Max) limiti aşan ve sevkiyata uygun olan fazla miktarlar.",
-
     info_production_board_title: "Lojistik Üretim Panosu",
     info_production_board_bullet1: "Sipariş Takibi: Silah, mühimmat veya araç üretimi için kuyruklar oluşturun ve bunları izleyin.",
     info_production_board_bullet2: "Otomatik Doldurma: Şablonlardaki hedef malzemeleri doğrudan üretim kuyruğuna aktarabilirsiniz.",
-
     analytics_title: "LOJİSTİK ANALİTİK VE TAKTİK RAPORU",
     bottlenecks: "Kritik Stok Uyarıları",
     no_bottlenecks: "Aktif bir lojistik kritik stok uyarısı tespit edilmedi. Harika iş!",
     stock_level: "Mevcut Stok",
     critical_limit: "Kritik Eşik",
-
     leaderboard_title: "KATKI LİDERLİK TABLOSU",
     leaderboard_subtitle: "Mevcut savaş boyunca en aktif üyelerin sıralamaları",
     importers: "En Çok CSV Aktaranlar",
     creators: "En Çok Talep Açanlar",
     deliverers: "En Çok Teslimat Yapanlar",
-    no_rankings: "Henüz bu kategoride katkı puanı olan üye bulunmuyor."
+    no_rankings: "Henüz bu kategoride katkı puanı olan üye bulunmuyor.",
+    browse_sav_file: "Gözat",
+    auto_detect: "Otomatik Bul",
+    sav_file_path: "Foxhole MapData Save Dosya Yolu:",
+    start_capturing: "Yakalama Başlat",
+    stop_capturing: "Yakalamayı Durdur",
+    scan_interval: "Tarama Aralığı:",
+    watching_active: "CANLI TAKİP BÖLGESİ",
+    scan_error: "TARAMA HATASI",
+    idle: "BOŞTA",
+    test_scan_log: "Test Logu Oluştur",
+    direct_sync_desc: "Yerel Foxhole MapData save dosyasını gerçek zamanlı olarak izler ve depoları günceller.",
+    stockpile_management: "Depo Yönetimi",
+    template_management: "Şablon Yönetimi",
+    officer_menu: "Yönetici Menüsü",
+    direct_sync: "Direkt SAV Senkronizasyonu"
 };

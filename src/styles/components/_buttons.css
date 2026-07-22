@@ -111,7 +111,6 @@
     background: var(--color-negative-bg);
     border-color: var(--color-negative-border);
     color: var(--color-negative);
-    width: 100%;
 }
 
 .btn-danger:hover {

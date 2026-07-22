@@ -33,3 +33,6 @@ dist-ssr
 
 # SQL Migrations
 *.sql
+
+# Backups
+src_backup/

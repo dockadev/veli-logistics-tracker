@@ -22,13 +22,14 @@ export const StockpilePasscodesModal: React.FC<StockpilePasscodesModalProps> = (
 
         Object.entries(depots).forEach(([depotKey, depot]) => {
             const parts = depot.name.split(' - ').map(s => s.trim());
-            const region = parts[0] || 'Unknown Region';
+            const rawRegion = parts[0] || 'Unknown Region';
+            const region = (rawRegion === 'The Blemish' || rawRegion === 'The Blemsh') ? 'Blemish' : rawRegion;
             let town = depot.townName || (parts.length > 2 ? parts[1] : 'Other Stockpiles');
             
             if (town) {
                 const trimmed = town.trim();
                 if (trimmed === 'Glimmerhaven' || trimmed === 'Lights End' || trimmed === "Light’s End" || trimmed === "Light's End") town = "Light's End";
-                else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') town = 'Blemish';
+                else if (trimmed === 'Loftmire' || trimmed === 'The Blemish' || trimmed === 'The Blemsh') town = 'Blemish';
                 else if (trimmed === 'Rising Loom') town = 'Therizo';
             }
             

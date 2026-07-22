@@ -5,7 +5,10 @@ import type { StockpileTemplates, CategoryFilterType, UserRole, Depot, RegionSet
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory } from '../utils/itemCategories';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { CustomSelect } from './CustomSelect';
-import { getDefaultRuleForCategory } from '../utils/defaultTemplates';
+import { getDefaultRuleForCategory, DEFAULT_TEMPLATE_COLORS, PRESET_COLORS } from '../utils/defaultTemplates';
+import { getItemIconUrl } from '../utils/itemIcons';
+import { dbService } from '../utils/dbService';
+import { ConfirmModal } from './ConfirmModal';
 
 interface StockpileTemplatesTabProps {
     templates: StockpileTemplates;
@@ -36,7 +39,25 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     
     // Custom templates states
     const [newTemplateName, setNewTemplateName] = useState('');
-    const [copySourceKey, setCopySourceKey] = useState('frontline');
+    const [selectedNewColor, setSelectedNewColor] = useState<string>('#10b981');
+    const [templateToDelete, setTemplateToDelete] = useState<string | null>(null);
+    const [createErrorMsg, setCreateErrorMsg] = useState<string | null>(null);
+
+    const [templateColors, setTemplateColors] = useState<Record<string, string>>(() => {
+        const saved = localStorage.getItem('foxhole_template_colors');
+        if (saved) {
+            try { return JSON.parse(saved); } catch (e) {}
+        }
+        return DEFAULT_TEMPLATE_COLORS;
+    });
+
+    useEffect(() => {
+        dbService.loadTemplateColors().then(colors => {
+            if (colors && Object.keys(colors).length > 0) {
+                setTemplateColors(colors);
+            }
+        });
+    }, []);
 
     const [localRegionSettings, setLocalRegionSettings] = useState<RegionSettings>(regionSettings);
     const [isSavingRegions, setIsSavingRegions] = useState(false);
@@ -95,8 +116,8 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         Object.values(depots).forEach(d => {
             if (d.name) {
                 const region = getDepotRegion(d.name);
-                const town = getDepotTown(d.name, d.townName) || 'General';
-                const subregionKey = `${region} - ${town}`;
+                const town = getDepotTown(d.name, d.townName);
+                const subregionKey = town ? `${region} - ${town}` : region;
                 if (!groups[region]) {
                     groups[region] = [];
                 }
@@ -115,7 +136,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
 
     const handleRegionSettingChange = (region: string, field: 'templateType' | 'demandPercentage', val: any) => {
         setLocalRegionSettings(prev => {
-            const current = prev[region] || { regionName: region, templateType: 'backline', demandPercentage: 100 };
+            const current = prev[region] || { regionName: region, templateType: 'unassigned', demandPercentage: 100 };
             return {
                 ...prev,
                 [region]: {
@@ -172,6 +193,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            await dbService.saveTemplateColors(templateColors);
             await onSaveTemplates(localTemplates);
             setSavedSuccess(true);
             setTimeout(() => setSavedSuccess(false), 3000);
@@ -187,13 +209,15 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         COLONIAL_NEUTRAL_ITEMS.forEach(rawName => {
             const cat = ITEM_CATEGORY_MAP[rawName] || getItemOfficialCategory(rawName);
             
-            itemsMap.set(rawName, cat);
-
-            // Add crate counterparts for vehicles/shippables
-            if (cat === 'vehicles') {
-                itemsMap.set(`${rawName} (Crate)`, 'vehicle_crates');
-            } else if (cat === 'shippables') {
-                itemsMap.set(`${rawName} (Crate)`, 'shippable_crates');
+            if (cat === 'vehicles' || cat === 'shippables' || cat === 'aircraft_parts') {
+                // Vehicles, Shippables, Aircraft/Planes can be single units AND Crates
+                itemsMap.set(rawName, cat);
+                const crateCat = cat === 'vehicles' ? 'vehicle_crates' : cat === 'shippables' ? 'shippable_crates' : 'aircraft_parts';
+                itemsMap.set(`${rawName} (Crate)`, crateCat);
+            } else {
+                // All regular items in stockpiles exist ONLY as Crates
+                const crateName = rawName.endsWith('(Crate)') ? rawName : `${rawName} (Crate)`;
+                itemsMap.set(crateName, cat);
             }
         });
         return Array.from(itemsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
@@ -350,7 +374,9 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                                 {region}
                                             </div>
                                             {subregions.map(subregion => {
-                                                const setting = localRegionSettings[subregion] || { regionName: subregion, templateType: 'backline', demandPercentage: 100 };
+                                                const setting = localRegionSettings[subregion] || { regionName: subregion, templateType: 'unassigned', demandPercentage: 100 };
+                                                const isUnassigned = !setting.templateType || setting.templateType === 'unassigned';
+
                                                 return (
                                                     <div
                                                         key={subregion}
@@ -361,15 +387,22 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                                             flexWrap: 'wrap',
                                                             gap: '0.75rem',
                                                             padding: '0.45rem 0.65rem',
-                                                            background: 'rgba(0, 0, 0, 0.25)',
-                                                            border: '1px solid var(--border-color)',
+                                                            background: isUnassigned ? 'rgba(239, 68, 68, 0.05)' : 'rgba(0, 0, 0, 0.25)',
+                                                            border: isUnassigned ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-color)',
                                                             borderRadius: '6px',
                                                             transition: 'all 0.15s ease'
                                                         }}
                                                     >
-                                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)', minWidth: '150px' }}>
-                                                            {subregion.includes(' - ') ? subregion.split(' - ')[1] : subregion}
-                                                        </span>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '160px' }}>
+                                                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                                                {subregion.includes(' - ') ? subregion.split(' - ')[1] : subregion}
+                                                            </span>
+                                                            {isUnassigned && (
+                                                                <span style={{ fontSize: '0.6rem', fontWeight: 800, padding: '0.1rem 0.35rem', borderRadius: '4px', background: 'rgba(239,68,68,0.2)', color: '#ef4444', border: '1px solid #ef4444' }}>
+                                                                    {language === 'tr' ? 'ATANMADI' : 'UNASSIGNED'}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
                                                             {/* Template Selector */}
@@ -377,13 +410,16 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                                                 <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
                                                                     {language === 'tr' ? 'Şablon:' : 'Template:'}
                                                                 </span>
-                                                                <div style={{ width: '135px' }}>
+                                                                <div style={{ width: '185px' }}>
                                                                     <CustomSelect
-                                                                        options={Object.keys(localTemplates).map(tKey => ({
-                                                                            value: tKey,
-                                                                            label: tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey
-                                                                        }))}
-                                                                        value={setting.templateType}
+                                                                        options={[
+                                                                            { value: 'unassigned', label: language === 'tr' ? 'Şablon Seçin...' : 'Select Template...' },
+                                                                            ...Object.keys(localTemplates).map(tKey => ({
+                                                                                value: tKey,
+                                                                                label: tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey === 'aircraft' ? 'Aircraft' : tKey
+                                                                            }))
+                                                                        ]}
+                                                                        value={setting.templateType || 'unassigned'}
                                                                         onChange={(val) => handleRegionSettingChange(subregion, 'templateType', val)}
                                                                     />
                                                                 </div>
@@ -515,79 +551,107 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                     </div>
                 </div>
 
-                {/* Role Switcher Tabs */}
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                    {Object.keys(localTemplates).map(tKey => {
-                        const isActive = activeRole === tKey;
-                        const isSystem = tKey === 'frontline' || tKey === 'backline';
-                        
-                        let activeBorder = '1px solid var(--accent-color)';
-                        let activeBg = 'rgba(var(--accent-color-rgb), 0.15)';
-                        let activeColor = 'var(--accent-color)';
-                        
-                        if (tKey === 'frontline') {
-                            activeBorder = '1px solid #ef4444';
-                            activeBg = 'rgba(239, 68, 68, 0.15)';
-                            activeColor = '#ef4444';
-                        }
-                        
-                        return (
-                            <div key={tKey} style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
-                                <button
-                                    type="button"
-                                    onClick={() => setActiveRole(tKey)}
-                                    style={{
-                                        padding: '0.55rem 1.25rem',
-                                        borderRadius: 'var(--radius-sm)',
-                                        border: isActive ? activeBorder : '1px solid transparent',
-                                        background: isActive ? activeBg : 'transparent',
-                                        color: isActive ? activeColor : 'var(--text-secondary)',
-                                        fontWeight: 800,
-                                        fontSize: '0.8rem',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s ease',
-                                        fontFamily: 'var(--font-heading)',
-                                        textTransform: 'uppercase'
-                                    }}
-                                >
-                                    {tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey}
-                                </button>
-                                
-                                {/* Delete button for custom templates */}
-                                {!isSystem && (
+                {/* Role Switcher Tabs & Active Template Color Picker */}
+                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.65rem', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {Object.keys(localTemplates).map(tKey => {
+                            const isActive = activeRole === tKey;
+                            const isSystem = tKey === 'frontline' || tKey === 'backline' || tKey === 'aircraft';
+                            
+                            const assignedColor = templateColors[tKey] || (tKey === 'frontline' ? '#ef4444' : tKey === 'backline' ? '#ffffff' : tKey === 'aircraft' ? '#06b6d4' : '#10b981');
+                            
+                            return (
+                                <div key={tKey} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                     <button
                                         type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            if (confirm(language === 'tr' ? `"${tKey}" şablonunu silmek istediğinize emin misiniz?` : `Are you sure you want to delete template "${tKey}"?`)) {
-                                                setLocalTemplates(prev => {
-                                                    const next = { ...prev };
-                                                    delete next[tKey];
-                                                    return next;
-                                                });
-                                                setActiveRole('frontline');
-                                            }
-                                        }}
+                                        onClick={() => setActiveRole(tKey)}
                                         style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            color: '#ef4444',
+                                            padding: '0.45rem 1.25rem',
+                                            borderRadius: '6px',
+                                            border: isActive ? `2px solid ${assignedColor}` : `1px solid ${assignedColor}60`,
+                                            background: isActive ? `${assignedColor}25` : `${assignedColor}08`,
+                                            color: assignedColor,
+                                            boxShadow: isActive ? `0 0 10px ${assignedColor}35` : 'none',
+                                            fontWeight: 800,
+                                            fontSize: '0.8rem',
                                             cursor: 'pointer',
-                                            fontSize: '1rem',
-                                            padding: '0.2rem',
-                                            display: 'flex',
+                                            transition: 'all 0.15s ease',
+                                            fontFamily: 'var(--font-heading)',
+                                            textTransform: 'uppercase',
+                                            display: 'inline-flex',
                                             alignItems: 'center',
                                             justifyContent: 'center',
-                                            opacity: 0.7
+                                            textAlign: 'center',
+                                            lineHeight: 1,
+                                            minHeight: '34px'
                                         }}
-                                        title={language === 'tr' ? 'Şablonu Sil' : 'Delete Template'}
                                     >
-                                        &times;
+                                        {tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey === 'aircraft' ? 'Aircraft' : tKey}
                                     </button>
-                                )}
-                            </div>
-                        );
-                    })}
+                                    
+                                    {/* Delete button for custom templates */}
+                                    {!isSystem && (
+                                        <button
+                                            type="button"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                setTemplateToDelete(tKey);
+                                            }}
+                                            style={{
+                                                background: 'transparent',
+                                                border: 'none',
+                                                color: '#ef4444',
+                                                cursor: 'pointer',
+                                                fontSize: '1rem',
+                                                padding: '0.2rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                opacity: 0.7
+                                            }}
+                                            title={language === 'tr' ? 'Şablonu Sil' : 'Delete Template'}
+                                        >
+                                            &times;
+                                        </button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    {/* Active Template Color Switcher Bar */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.25)', padding: '0.35rem 0.65rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 800, color: templateColors[activeRole] || '#ef4444', fontFamily: 'var(--font-heading)', textTransform: 'uppercase' }}>
+                            {activeRole} {language === 'tr' ? 'Rengi:' : 'Color:'}
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                            {PRESET_COLORS.map(c => {
+                                const activeColorVal = templateColors[activeRole] || (activeRole === 'frontline' ? '#ef4444' : activeRole === 'backline' ? '#ffffff' : activeRole === 'aircraft' ? '#06b6d4' : '#10b981');
+                                const isSelected = activeColorVal === c;
+                                return (
+                                    <button
+                                        key={c}
+                                        type="button"
+                                        onClick={() => {
+                                            const updated = { ...templateColors, [activeRole]: c };
+                                            setTemplateColors(updated);
+                                            localStorage.setItem('foxhole_template_colors', JSON.stringify(updated));
+                                        }}
+                                        style={{
+                                            width: '16px',
+                                            height: '16px',
+                                            borderRadius: '4px',
+                                            background: c,
+                                            border: isSelected ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.25)',
+                                            cursor: 'pointer',
+                                            boxShadow: isSelected ? `0 0 8px ${c}` : 'none'
+                                        }}
+                                        title={c}
+                                    />
+                                );
+                            })}
+                        </div>
+                    </div>
                 </div>
 
                 {/* Create Custom Template Area */}
@@ -623,37 +687,47 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                         }}
                     />
                     <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                        {language === 'tr' ? 'Şuradan kopyala:' : 'Copy from:'}
+                        {language === 'tr' ? 'Renk:' : 'Color:'}
                     </span>
-                    <div style={{ width: '150px' }}>
-                        <CustomSelect
-                            options={Object.keys(localTemplates).map(tKey => ({
-                                value: tKey,
-                                label: tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey
-                            }))}
-                            value={copySourceKey}
-                            onChange={(val) => setCopySourceKey(val)}
-                        />
+                    <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                        {PRESET_COLORS.map(c => (
+                            <button
+                                key={c}
+                                type="button"
+                                onClick={() => setSelectedNewColor(c)}
+                                style={{
+                                    width: '18px',
+                                    height: '18px',
+                                    borderRadius: '50%',
+                                    background: c,
+                                    border: selectedNewColor === c ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.2)',
+                                    cursor: 'pointer',
+                                    boxShadow: selectedNewColor === c ? `0 0 8px ${c}` : 'none'
+                                }}
+                            />
+                        ))}
                     </div>
                     <button
                         type="button"
                         onClick={() => {
                             const trimmed = newTemplateName.trim();
                             if (!trimmed) {
-                                alert(language === 'tr' ? 'Lütfen bir şablon adı girin.' : 'Please enter a template name.');
+                                setCreateErrorMsg(language === 'tr' ? 'Lütfen bir şablon adı girin.' : 'Please enter a template name.');
                                 return;
                             }
                             if (localTemplates[trimmed]) {
-                                alert(language === 'tr' ? 'Bu isimde bir şablon zaten mevcut.' : 'A template with this name already exists.');
+                                setCreateErrorMsg(language === 'tr' ? 'Bu isimde bir şablon zaten mevcut.' : 'A template with this name already exists.');
                                 return;
                             }
-                            setLocalTemplates(prev => {
-                                const sourceCopy = JSON.parse(JSON.stringify(prev[copySourceKey] || {}));
-                                return {
-                                    ...prev,
-                                    [trimmed]: sourceCopy
-                                };
-                            });
+                            setCreateErrorMsg(null);
+                            setLocalTemplates(prev => ({
+                                ...prev,
+                                [trimmed]: {}
+                            }));
+                            setTemplateColors(prev => ({
+                                ...prev,
+                                [trimmed]: selectedNewColor
+                            }));
                             setActiveRole(trimmed);
                             setNewTemplateName('');
                         }}
@@ -672,6 +746,11 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                         {language === 'tr' ? 'Oluştur' : 'Create'}
                     </button>
                 </div>
+                {createErrorMsg && (
+                    <div style={{ fontSize: '0.75rem', color: '#ef4444', fontWeight: 700, marginTop: '0.4rem', paddingLeft: '0.2rem' }}>
+                        {createErrorMsg}
+                    </div>
+                )}
             </div>
 
             {/* Filter & Item List Container */}
@@ -771,6 +850,14 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                             transition: 'color 0.15s ease'
                                         }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                                                {getItemIconUrl(itemName) && (
+                                                    <img 
+                                                        src={getItemIconUrl(itemName)!} 
+                                                        alt={itemName} 
+                                                        style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} 
+                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                    />
+                                                )}
                                                 <span>{itemName}</span>
                                                 {rule.isPriority && (
                                                     <span style={{
@@ -867,6 +954,27 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                 </>
             )}
 
+            {/* Custom Confirm Modal for Template Deletion */}
+            <ConfirmModal
+                isOpen={!!templateToDelete}
+                title={language === 'tr' ? 'Şablonu Sil' : 'Delete Template'}
+                message={language === 'tr' ? `"${templateToDelete}" şablonunu silmek istediğinize emin misiniz?` : `Are you sure you want to delete template "${templateToDelete}"?`}
+                onConfirm={() => {
+                    if (templateToDelete) {
+                        const key = templateToDelete;
+                        setLocalTemplates(prev => {
+                            const next = { ...prev };
+                            delete next[key];
+                            return next;
+                        });
+                        if (activeRole === key) {
+                            setActiveRole('frontline');
+                        }
+                    }
+                    setTemplateToDelete(null);
+                }}
+                onCancel={() => setTemplateToDelete(null)}
+            />
         </div>
     );
 });

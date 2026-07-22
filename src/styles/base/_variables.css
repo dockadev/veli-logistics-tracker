@@ -34,12 +34,12 @@
     --glass-blur: 16px;
     --glass-opacity: 0.85;
 
-    /* Dark Theme Variables (Default) */
-    --bg-main: #000000;
-    --bg-surface: #0a0a0f;
-    --bg-card: rgba(18, 18, 26, var(--glass-opacity));
-    --bg-card-hover: rgba(26, 26, 38, 0.95);
-    --border-color: rgba(148, 163, 184, 0.2);
+    /* Dark Theme Variables (Dark Khaki Green Theme) */
+    --bg-main: #0c100c;
+    --bg-surface: #101610;
+    --bg-card: rgba(18, 26, 18, var(--glass-opacity));
+    --bg-card-hover: rgba(24, 36, 24, 0.95);
+    --border-color: rgba(148, 163, 148, 0.2);
     --border-hover: rgba(255, 255, 255, 0.45);
     --border-focus: #ffffff;
 
@@ -64,14 +64,14 @@
     --color-warning-bg: rgba(245, 158, 11, 0.08);
     --color-warning-border: rgba(245, 158, 11, 0.3);
 
-    --header-bg: rgba(14, 14, 22, 0.98);
+    --header-bg: rgba(12, 18, 12, 0.98);
     --btn-primary-text: #06060c;
     --btn-secondary-bg: rgba(255, 255, 255, 0.04);
     --input-bg: rgba(0, 0, 0, 0.35);
     --input-focus-bg: rgba(0, 0, 0, 0.5);
     --card-header-bg: rgba(0, 0, 0, 0.15);
-    --table-header-bg: #0f0f18;
-    --modal-bg: #0f0f18;
+    --table-header-bg: #121812;
+    --modal-bg: #121812;
     --modal-header-bg: rgba(0, 0, 0, 0.2);
     --modal-sidebar-bg: rgba(0, 0, 0, 0.2);
     --request-card-open-bg: rgba(22, 22, 34, 0.45);

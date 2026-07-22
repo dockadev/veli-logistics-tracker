@@ -3,9 +3,10 @@ import { Search, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, Eye
 import { CustomSelect } from './CustomSelect';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { Depot, FilterState, SortField, StockpileTemplates, RegionSettings } from '../types';
-import { getPaginationRange, getCategoryClass } from '../utils/helpers';
+import { getPaginationRange, getCategoryClass, resolveTemplateSetting } from '../utils/helpers';
 import { getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
 import { getDefaultTemplates } from '../utils/defaultTemplates';
+import { getItemIconUrl, getCategoryIconUrl } from '../utils/itemIcons';
 
 const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
     const parts = fullName.split(' - ')
@@ -22,7 +23,8 @@ const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
         });
     
     const code = parts[parts.length - 1] || fullName;
-    const region = parts[0] || '';
+    const rawRegion = parts[0] || '';
+    const region = (rawRegion === 'The Blemish' || rawRegion === 'The Blemsh') ? 'Blemish' : rawRegion;
     let subregion = '';
 
     if (parts.length >= 3) {
@@ -34,7 +36,7 @@ const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
     if (subregion) {
         const trimmed = subregion.trim();
         if (trimmed === 'Glimmerhaven') subregion = "Light's End";
-        else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') subregion = 'Blemish';
+        else if (trimmed === 'Loftmire' || trimmed === 'The Blemish' || trimmed === 'The Blemsh') subregion = 'Blemish';
         else if (trimmed === 'Rising Loom') subregion = 'Therizo';
     }
 
@@ -153,8 +155,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
         search: '',
         category: 'all',
         change: 'all',
-        sortField: undefined,
-        sortDirection: 'none'
+        sortField: 'currVal',
+        sortDirection: 'desc'
     });
 
     const [searchInput, setSearchInput] = React.useState('');
@@ -188,7 +190,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
         let totalTarget = 0;
         
         activeRegions.forEach(regionName => {
-            const setting = regionSettings[regionName] || { regionName: regionName, templateType: 'backline', demandPercentage: 100 };
+            const setting = resolveTemplateSetting(regionName, activeDepot?.townName || null, activeDepot?.subregion || null, regionSettings);
             const template = templates[setting.templateType] || {};
             let rule = template[itemName];
             if (!rule) {
@@ -253,8 +255,8 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
             search: '',
             category: 'all',
             change: 'all',
-            sortField: undefined,
-            sortDirection: 'none'
+            sortField: 'currVal',
+            sortDirection: 'desc'
         });
     }, [activeDepot?.name]);
 
@@ -561,12 +563,21 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                     opacity: isDisabled && !isHovered ? 0.5 : 1,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.25rem',
+                                    gap: '0.35rem',
                                     userSelect: 'none',
                                     WebkitUserSelect: 'none'
                                 }}
                             >
-                                {isDisabled ? <EyeOff size={10} /> : <Eye size={10} />}
+                                {isDisabled ? <EyeOff size={10} /> : (
+                                    getCategoryIconUrl(cat) ? (
+                                        <img 
+                                            src={getCategoryIconUrl(cat)!} 
+                                            alt={cat} 
+                                            style={{ width: 14, height: 14, objectFit: 'contain', flexShrink: 0 }} 
+                                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                        />
+                                    ) : <Eye size={10} />
+                                )}
                                 {t(`cat_${cat}` as any)}
                             </button>
                         );
@@ -661,6 +672,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                     const isCrate = item.name.endsWith('(Crate)');
                                     const displayName = isCrate ? item.name.substring(0, item.name.length - 7).trim() : item.name;
                                     const canExpandRow = canExpand && getDepotDistribution(item.name).length > 0;
+                                    const iconUrl = getItemIconUrl(item.name);
 
                                     return (
                                         <React.Fragment key={item.name}>
@@ -674,8 +686,18 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                                 className={expandedItem === item.name ? 'row-expanded' : ''}
                                             >
                                                 <td className={changeClass}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%' }}>
-                                                        {isCrate && <Package size={12} style={{ color: 'var(--accent-color)', opacity: 0.8, flexShrink: 0 }} />}
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%' }}>
+                                                        {iconUrl && (
+                                                            <img 
+                                                                src={iconUrl} 
+                                                                alt={displayName} 
+                                                                style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} 
+                                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                                            />
+                                                        )}
+                                                        {isCrate && (item.category === 'vehicles' || item.category === 'vehicle_crates' || item.category === 'shippables' || item.category === 'shippable_crates') && (
+                                                            <Package size={12} style={{ color: 'var(--accent-color)', opacity: 0.8, flexShrink: 0 }} />
+                                                        )}
                                                         <span style={{ wordBreak: 'break-word' }}>{displayName}</span>
                                                         {canExpandRow && (
                                                             <ChevronDown 

@@ -12,7 +12,10 @@ export interface Depot {
     accessCode?: string;
     isCodePublic?: boolean;
     townName?: string | null;
+    subregion?: string | null;
     depotType?: 'frontline' | 'backline';
+    isIntegrated?: boolean;
+    lastUpdatedBy?: string | null;
 }
 
 export type CategoryFilterType = 
@@ -155,7 +158,7 @@ export interface TransferPlan {
 
 export interface RegionSetting {
     regionName: string;
-    templateType: 'frontline' | 'backline';
+    templateType: string; // 'frontline' | 'backline' | 'aircraft' | 'unassigned' | custom template name
     demandPercentage: number; // 0 to 200
 }
 

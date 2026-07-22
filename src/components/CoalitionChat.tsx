@@ -357,8 +357,8 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         width: isFloatingOnly ? '360px' : '100%',
                         height: isFloatingOnly ? '460px' : '100%',
                         minHeight: isFloatingOnly ? undefined : '600px',
-                        background: theme === 'dark' ? '#0f0f18' : '#ffffff',
-                        border: '1px solid var(--border-color)',
+                        background: theme === 'dark' ? 'linear-gradient(135deg, rgba(16, 24, 18, 0.98) 0%, rgba(10, 16, 11, 0.98) 100%)' : '#ffffff',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
                         borderRadius: 'var(--radius-md)',
                         boxShadow: isFloatingOnly ? '0 8px 32px rgba(0, 0, 0, 0.8)' : undefined,
                         display: 'flex',
@@ -417,18 +417,18 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         onMouseDown={handleMouseDown}
                         style={{
                             padding: '0.75rem 1rem',
-                            borderBottom: '1px solid var(--border-color)',
+                            borderBottom: '1px solid rgba(16, 185, 129, 0.25)',
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            background: 'rgba(0, 0, 0, 0.2)',
+                            background: 'rgba(0, 0, 0, 0.3)',
                             cursor: isFloatingOnly ? 'move' : 'default',
                             userSelect: 'none'
                         }}
                     >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <MessageSquare size={16} style={{ color: 'var(--accent-color)' }} />
-                            <span style={{ fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', fontFamily: 'var(--font-heading)' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.85rem', textTransform: 'uppercase', fontFamily: 'var(--font-heading)', color: 'var(--text-primary)' }}>
                                 Coalition Chat
                             </span>
                         </div>
@@ -498,8 +498,8 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                                 borderRadius: isSelf 
                                                     ? (isConsecutive ? '12px' : '12px 12px 2px 12px') 
                                                     : (isConsecutive ? '12px' : '12px 12px 12px 2px'),
-                                                background: isSelf ? 'rgba(249, 115, 22, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                                                border: isSelf ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid var(--border-color)',
+                                                background: isSelf ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 0, 0, 0.3)',
+                                                border: isSelf ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
                                                 fontSize: '0.75rem',
                                                 color: '#fff',
                                                 wordBreak: 'break-word'

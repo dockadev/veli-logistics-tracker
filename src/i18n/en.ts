@@ -510,5 +510,22 @@ export const en = {
     importers: "Top CSV Importers",
     creators: "Top Request Creators",
     deliverers: "Top Deliverers",
-    no_rankings: "No members with contribution points in this category yet."
+    no_rankings: "No members with contribution points in this category yet.",
+
+    // Direct SAV Sync & Navigation
+    browse_sav_file: "Browse",
+    auto_detect: "Auto Detect",
+    sav_file_path: "Foxhole MapData Save File Path:",
+    start_capturing: "Start Capturing",
+    stop_capturing: "Stop Capturing",
+    scan_interval: "Scan Interval:",
+    watching_active: "WATCHING ACTIVE",
+    scan_error: "SCAN ERROR",
+    idle: "IDLE",
+    test_scan_log: "Test Scan Log",
+    direct_sync_desc: "Automatically watches and parses your local Foxhole MapData save file in real-time.",
+    stockpile_management: "Stockpile Management",
+    template_management: "Template Management",
+    officer_menu: "Officer+ Menu",
+    direct_sync: "Direct Sync"
 };

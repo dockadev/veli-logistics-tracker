@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Shield, Key, Search, Copy, Check, Eye, EyeOff, MapPin, Warehouse, Compass, Lock, Info } from 'lucide-react';
-import { useLanguage, type TranslationKey } from '../context/LanguageContext';
+import { Shield, Key, Search, Copy, Check, Eye, EyeOff, MapPin, Warehouse, Compass, Info } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 import type { Depot, UserRole, RegionSettings } from '../types';
+import { resolveTemplateSetting } from '../utils/helpers';
 
 interface StockpilePasscodesTabProps {
     depots: Record<string, Depot>;
-    userRole: UserRole;
+    userRole?: UserRole;
     regionSettings?: RegionSettings;
     onEditDepotSettings?: (depotKey: string) => void;
     onDeleteDepot?: (depotKey: string) => void;
@@ -23,12 +24,9 @@ interface ParsedDepotItem {
 
 export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({ 
     depots, 
-    userRole, 
-    regionSettings = {},
-    onEditDepotSettings,
-    onDeleteDepot
+    regionSettings = {}
 }) => {
-    const { t, language } = useLanguage();
+    const { t } = useLanguage();
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedRegion, setSelectedRegion] = useState<string>('all');
     const [revealedCodes, setRevealedCodes] = useState<Record<string, boolean>>({});
@@ -46,14 +44,11 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
         return () => document.removeEventListener('click', handleOutsideClick);
     }, []);
 
-    const toggleReveal = (e: React.MouseEvent, depotKey: string, canReveal: boolean) => {
-        e.stopPropagation();
-        if (!canReveal) return;
+    const toggleReveal = (depotKey: string) => {
         setRevealedCodes(prev => ({ ...prev, [depotKey]: !prev[depotKey] }));
     };
 
-    const handleCopy = (depotKey: string, code: string, canReveal: boolean) => {
-        if (!canReveal) return;
+    const handleCopy = (depotKey: string, code: string) => {
         try {
             navigator.clipboard.writeText(code);
         } catch (err) {
@@ -75,20 +70,18 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
     // Helper to reliably parse region, town, and display name
     const parseDepotInfo = (depot: Depot): { region: string; town: string; displayName: string; type: string } => {
         const parts = depot.name.split(' - ').map(s => s.trim()).filter(Boolean);
-        const region = parts[0] || t('unknown_region');
+        const rawRegion = parts[0] || t('unknown_region');
+        const region = (rawRegion === 'The Blemish' || rawRegion === 'The Blemsh') ? 'Blemish' : rawRegion;
         
-        let town = depot.townName || '';
-        if (!town && parts.length >= 3) {
-            town = parts[1];
-        }
+        let town = (depot.subregion && depot.subregion.trim()) || (depot.townName && depot.townName.trim()) || '';
         if (town) {
             const trimmed = town.trim();
             if (trimmed === 'Glimmerhaven' || trimmed === 'Lights End' || trimmed === "Light’s End" || trimmed === "Light's End") town = "Light's End";
-            else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') town = 'Blemish';
+            else if (trimmed === 'Loftmire' || trimmed === 'The Blemish' || trimmed === 'The Blemsh') town = 'Blemish';
             else if (trimmed === 'Rising Loom') town = 'Therizo';
         }
-        if (!town) {
-            town = t('general_stockpiles');
+        if (!town || town === 'Storage Depot' || town === 'Seaport') {
+            town = 'Unassigned Subregion';
         }
 
         const type = parts.length > 2 ? parts[2] : (parts[1] || 'Depot');
@@ -178,9 +171,9 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
             {/* Header / Hero Banner */}
             <div className="panel-card" style={{ 
                 marginBottom: '1.5rem', 
-                background: 'var(--bg-card)', 
+                background: 'rgba(18, 26, 18, 0.6)', 
                 border: '1px solid var(--border-color)',
-                padding: '1.5rem',
+                padding: '1.25rem 1.5rem',
                 borderRadius: 'var(--radius-md)'
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1.5rem' }}>
@@ -189,12 +182,12 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                             width: '44px', 
                             height: '44px', 
                             borderRadius: '12px', 
-                            background: 'rgba(var(--accent-color-rgb), 0.12)', 
-                            border: '1px solid rgba(var(--accent-color-rgb), 0.25)',
+                            background: 'rgba(16, 185, 129, 0.12)', 
+                            border: '1px solid rgba(16, 185, 129, 0.25)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            color: 'var(--accent-color)'
+                            color: '#10B981'
                         }}>
                             <Shield size={24} />
                         </div>
@@ -231,7 +224,7 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                                             left: 0,
                                             zIndex: 99999,
                                             width: '320px',
-                                            background: 'rgba(20, 20, 23, 0.96)',
+                                            background: 'rgba(20, 28, 20, 0.96)',
                                             backdropFilter: 'blur(8px)',
                                             border: '1px solid var(--border-color)',
                                             borderRadius: '8px',
@@ -264,11 +257,11 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
 
                     {/* Stats Counter Bar */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                        <div style={{ background: 'var(--bg-tertiary)', padding: '0.5rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', minWidth: '100px' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.5rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', minWidth: '100px' }}>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('total_depots')}</div>
                             <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--accent-color)', fontFamily: 'var(--font-heading)' }}>{stats.total}</div>
                         </div>
-                        <div style={{ background: 'var(--bg-tertiary)', padding: '0.5rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', minWidth: '100px' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.5rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', minWidth: '100px' }}>
                             <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('regions_stat')}</div>
                             <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>{stats.regionCount}</div>
                         </div>
@@ -291,7 +284,7 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                                 width: '100%',
                                 padding: '0.6rem 0.85rem 0.6rem 2.25rem',
                                 borderRadius: 'var(--radius-sm)',
-                                background: 'var(--bg-surface)',
+                                background: 'rgba(0, 0, 0, 0.3)',
                                 border: '1px solid var(--border-color)',
                                 color: 'var(--text-primary)',
                                 fontSize: '0.85rem',
@@ -315,8 +308,8 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                                 cursor: 'pointer',
                                 transition: 'all 0.15s',
                                 border: '1px solid ' + (selectedRegion === 'all' ? 'var(--accent-color)' : 'var(--border-color)'),
-                                background: selectedRegion === 'all' ? 'rgba(249, 115, 22, 0.15)' : 'var(--bg-surface)',
-                                color: selectedRegion === 'all' ? 'var(--accent-color)' : 'var(--text-secondary)'
+                                background: selectedRegion === 'all' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 0, 0, 0.3)',
+                                color: selectedRegion === 'all' ? '#10B981' : 'var(--text-secondary)'
                             }}
                         >
                             {t('all_regions')} ({stats.regionCount})
@@ -337,8 +330,8 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                                         cursor: 'pointer',
                                         transition: 'all 0.15s',
                                         border: '1px solid ' + (isSel ? 'var(--accent-color)' : 'var(--border-color)'),
-                                        background: isSel ? 'rgba(249, 115, 22, 0.15)' : 'var(--bg-surface)',
-                                        color: isSel ? 'var(--accent-color)' : 'var(--text-secondary)'
+                                        background: isSel ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 0, 0, 0.3)',
+                                        color: isSel ? '#10B981' : 'var(--text-secondary)'
                                     }}
                                 >
                                     {reg}
@@ -349,7 +342,7 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                 )}
             </div>
 
-            {/* Hierarchical Passcodes Display */}
+            {/* Hierarchical Passcodes Display: Discord Webhook Style Multi-Column Grid */}
             {Object.keys(groupedData).length === 0 ? (
                 <div className="panel-card" style={{ textAlign: 'center', padding: '3.5rem 1.5rem', color: 'var(--text-secondary)' }}>
                     <Shield size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.3, display: 'block' }} />
@@ -358,255 +351,219 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                     </p>
                 </div>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+                /* Multi-Column Grid of Region Cards separated by DISTINCT WHITE BORDER (up to 3 per row on wide screens) */
+                <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', 
+                    gap: '1.25rem',
+                    alignItems: 'flex-start'
+                }}>
                     {Object.entries(groupedData).map(([region, towns]) => (
-                        /* Distinct Region Outer Dörtgen Card */
+                        /* Distinct Region Card with Crisp WHITE BORDER */
                         <div 
                             key={region} 
-                            className="panel-card anim-fade-in"
                             style={{ 
-                                padding: '1.35rem 1.5rem', 
-                                border: '1px solid var(--border-color)',
-                                borderRadius: 'var(--radius-md)',
-                                background: 'var(--card-bg)',
-                                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)'
+                                padding: '1rem 1.15rem', 
+                                border: '1px solid rgba(255, 255, 255, 0.4)',
+                                borderRadius: '8px',
+                                background: 'rgba(18, 26, 18, 0.8)',
+                                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.4)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '1rem'
                             }}
                         >
                             {/* Region Header */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '1.35rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
-                                <Compass size={20} style={{ color: 'var(--accent-color)' }} />
-                                <h2 style={{ fontSize: '1.15rem', margin: 0, fontFamily: 'var(--font-heading)', color: 'var(--accent-color)', fontWeight: 700, letterSpacing: '0.03em' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingBottom: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.2)' }}>
+                                <Compass size={18} style={{ color: 'var(--accent-color)' }} />
+                                <h3 style={{ fontSize: '1.05rem', margin: 0, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', fontWeight: 800 }}>
                                     {region}
-                                </h2>
+                                </h3>
                                 {/* Template Assignment Badge */}
                                 {(() => {
                                     const setting = regionSettings[region];
                                     const type = setting?.templateType;
                                     
                                     let badgeStyle: React.CSSProperties = {
-                                        fontSize: '0.65rem',
+                                        fontSize: '0.62rem',
                                         fontWeight: 700,
-                                        padding: '0.2rem 0.55rem',
-                                        borderRadius: '5px',
+                                        padding: '0.15rem 0.45rem',
+                                        borderRadius: '4px',
                                         textTransform: 'uppercase',
-                                        letterSpacing: '0.04em',
-                                        marginLeft: '0.4rem'
+                                        marginLeft: 'auto'
                                     };
                                     
                                     if (type === 'frontline') {
                                         badgeStyle = {
                                             ...badgeStyle,
-                                            background: 'rgba(239, 68, 68, 0.12)',
+                                            background: 'rgba(239, 68, 68, 0.15)',
                                             color: '#ef4444',
-                                            border: '1px solid rgba(239, 68, 68, 0.22)'
+                                            border: '1px solid rgba(239, 68, 68, 0.3)'
                                         };
                                     } else if (type === 'backline') {
                                         badgeStyle = {
                                             ...badgeStyle,
-                                            background: 'rgba(168, 85, 247, 0.12)',
+                                            background: 'rgba(168, 85, 247, 0.15)',
                                             color: '#a855f7',
-                                            border: '1px solid rgba(168, 85, 247, 0.22)'
+                                            border: '1px solid rgba(168, 85, 247, 0.3)'
                                         };
                                     } else {
-                                        badgeStyle = {
-                                            ...badgeStyle,
-                                            background: 'rgba(255, 255, 255, 0.05)',
-                                            color: 'var(--text-secondary)',
-                                            border: '1px solid var(--border-color)'
-                                        };
+                                        return null;
                                     }
                                     
-                                    const label = type 
-                                        ? (type === 'frontline' ? 'FRONTLINE' : 'BACKLINE')
-                                        : (language === 'tr' ? 'Şablon Belirtilmedi' : 'No Template Assigned');
-                                        
-                                    return (
-                                        <span style={badgeStyle}>
-                                            {label}
-                                        </span>
-                                    );
+                                    const label = type === 'frontline' ? 'FRONTLINE' : 'BACKLINE';
+                                    return <span style={badgeStyle}>{label}</span>;
                                 })()}
-                                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: 'auto', fontWeight: 600 }}>
-                                    {Object.values(towns).flat().length} {t('total_depots')}
-                                </span>
                             </div>
 
-                            {/* Subregion Groups separated by generous spacing (1.5rem gap) */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                                {Object.entries(towns).map(([town, items]) => (
-                                    <div key={town} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                        {/* Subregion / Town Title Header */}
-                                        <div style={{ 
-                                            display: 'flex', 
-                                            alignItems: 'center', 
-                                            gap: '0.4rem', 
-                                            fontSize: '0.88rem', 
-                                            fontWeight: 700, 
-                                            color: 'var(--text-primary)',
-                                            background: 'rgba(255, 255, 255, 0.03)',
-                                            padding: '0.4rem 0.75rem',
-                                            borderRadius: '6px',
-                                            borderLeft: '3px solid var(--accent-color)'
-                                        }}>
-                                            <MapPin size={14} style={{ color: 'var(--accent-color)' }} />
-                                            <span>{town}</span>
-                                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: '0.3rem' }}>
-                                                ({items.length})
-                                            </span>
-                                        </div>
+                            {/* Subregion Groups: Discord Style Vertical Stack Under Subregion Header */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                {Object.entries(towns).map(([town, items]) => {
+                                    const sortedItems = items.slice().sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { numeric: true, sensitivity: 'base' }));
 
-                                        {/* Passcode Cards Grid */}
-                                        <div style={{ 
-                                            display: 'grid', 
-                                            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
-                                            gap: '0.85rem'
-                                        }}>
-                                            {items.slice().sort((a, b) => a.displayName.localeCompare(b.displayName, undefined, { numeric: true, sensitivity: 'base' })).map(item => {
-                                                const canReveal = userRole === 'developer' || userRole === 'logistics_lead' || userRole === 'officer' || (userRole === 'member' && !!item.depot.isCodePublic);
-                                                const isRevealed = canReveal && !!revealedCodes[item.key];
-                                                const isCopied = canReveal && copiedKey === item.key;
+                                    return (
+                                        <div key={town} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {/* Subregion / Town Subheader */}
+                                            <div style={{ 
+                                                display: 'flex', 
+                                                alignItems: 'center', 
+                                                gap: '0.4rem', 
+                                                fontSize: '0.82rem', 
+                                                fontWeight: 700, 
+                                                color: '#10B981',
+                                                background: 'rgba(0, 0, 0, 0.25)',
+                                                padding: '0.35rem 0.6rem',
+                                                borderRadius: '5px',
+                                                borderLeft: '3px solid #10B981'
+                                            }}>
+                                                <MapPin size={13} />
+                                                <span>{town}</span>
+                                                {(() => {
+                                                    if (!town || town === 'Unassigned Subregion') return null;
+                                                    const subSetting = resolveTemplateSetting(region, town, town, regionSettings);
+                                                    const type = subSetting.templateType;
+                                                    if (!type || type === 'unassigned') return null;
+                                                    const colorMap: Record<string, string> = {
+                                                        frontline: '#ef4444',
+                                                        backline: '#ffffff',
+                                                        aircraft: '#06b6d4'
+                                                    };
+                                                    const color = colorMap[type] || '#10b981';
+                                                    const label = type === 'aircraft' ? 'Aircraft' : type.toUpperCase();
+                                                    return (
+                                                        <span style={{
+                                                            fontSize: '0.6rem',
+                                                            fontWeight: 800,
+                                                            padding: '0.12rem 0.4rem',
+                                                            borderRadius: '4px',
+                                                            background: `${color}20`,
+                                                            color: color,
+                                                            border: `1px solid ${color}50`,
+                                                            textTransform: 'uppercase',
+                                                            marginLeft: '0.3rem'
+                                                        }}>
+                                                            {label}
+                                                        </span>
+                                                    );
+                                                })()}
+                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 400, marginLeft: 'auto' }}>
+                                                    ({items.length})
+                                                </span>
+                                            </div>
 
-                                                return (
-                                                    <div
-                                                        key={item.key}
-                                                        style={{
-                                                            background: 'var(--bg-tertiary)',
-                                                            border: '1px solid var(--border-color)',
-                                                            borderRadius: 'var(--radius-sm)',
-                                                            padding: '0.85rem 1rem',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            gap: '0.65rem',
-                                                            transition: 'all 0.2s ease-in-out'
-                                                        }}
-                                                    >
-                                                        {/* Top Row: Warehouse Icon + Depot Title + Actions */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                <Warehouse size={16} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
-                                                                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: '1.3' }}>
-                                                                    {item.displayName}
-                                                                </span>
-                                                            </div>
-                                                            {userRole !== 'member' && (
-                                                                <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            onEditDepotSettings?.(item.key);
-                                                                        }}
-                                                                        style={{
-                                                                            fontSize: '0.62rem',
-                                                                            padding: '0.2rem 0.45rem',
-                                                                            background: 'rgba(255,255,255,0.04)',
-                                                                            border: '1px solid var(--border-color)',
-                                                                            borderRadius: '4px',
-                                                                            color: 'var(--text-secondary)',
-                                                                            cursor: 'pointer',
-                                                                            fontWeight: 600,
-                                                                            transition: 'all 0.15s'
-                                                                        }}
-                                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
-                                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.04)'}
-                                                                    >
-                                                                        {language === 'tr' ? 'Şifre Koy' : 'Set Password'}
-                                                                    </button>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={(e) => {
-                                                                            e.stopPropagation();
-                                                                            onDeleteDepot?.(item.key);
-                                                                        }}
-                                                                        style={{
-                                                                            fontSize: '0.62rem',
-                                                                            padding: '0.2rem 0.45rem',
-                                                                            background: 'rgba(239, 68, 68, 0.05)',
-                                                                            border: '1px solid rgba(239, 68, 68, 0.2)',
-                                                                            borderRadius: '4px',
-                                                                            color: '#ef4444',
-                                                                            cursor: 'pointer',
-                                                                            fontWeight: 600,
-                                                                            transition: 'all 0.15s'
-                                                                        }}
-                                                                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
-                                                                        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.05)'}
-                                                                    >
-                                                                        {language === 'tr' ? 'Depoyu Sil' : 'Delete Depot'}
-                                                                    </button>
-                                                                </div>
-                                                            )}
-                                                        </div>
+                                            {/* Vertical Stack of Depots */}
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginLeft: '0.25rem' }}>
+                                                {sortedItems.map(item => {
+                                                    const isRevealed = !!revealedCodes[item.key];
+                                                    const isCopied = copiedKey === item.key;
 
-                                                        {/* Integrated Passcode Box with Copy on Click */}
-                                                        <div 
-                                                            onClick={() => handleCopy(item.key, item.code, canReveal)}
-                                                            style={{ 
-                                                                cursor: canReveal ? 'pointer' : 'not-allowed',
-                                                                padding: '0.45rem 0.85rem',
-                                                                borderRadius: '6px',
-                                                                fontFamily: 'monospace',
-                                                                fontSize: '0.92rem',
-                                                                fontWeight: 800,
-                                                                letterSpacing: '0.12em',
-                                                                userSelect: 'none',
-                                                                background: isCopied ? 'rgba(34, 197, 94, 0.18)' : (isRevealed ? 'rgba(249, 115, 22, 0.1)' : 'var(--bg-surface)'),
-                                                                color: isCopied ? '#22c55e' : (isRevealed ? 'var(--accent-color)' : 'var(--text-muted)'),
-                                                                border: '1px solid ' + (isCopied ? 'rgba(34, 197, 94, 0.4)' : (isRevealed ? 'rgba(249, 115, 22, 0.35)' : 'var(--border-color)')),
+                                                    return (
+                                                        <div
+                                                            key={item.key}
+                                                            style={{
+                                                                background: 'rgba(0, 0, 0, 0.35)',
+                                                                border: '1px solid var(--border-color)',
+                                                                borderRadius: '5px',
+                                                                padding: '0.45rem 0.75rem',
                                                                 display: 'flex',
                                                                 alignItems: 'center',
                                                                 justifyContent: 'space-between',
-                                                                gap: '0.5rem',
-                                                                transition: 'all 0.15s ease-in-out',
-                                                                opacity: canReveal ? 1 : 0.65
+                                                                gap: '0.75rem'
                                                             }}
-                                                            title={canReveal ? (isCopied ? t('copied') : t('copy')) : t('passcode_restricted_member' as TranslationKey)}
                                                         >
-                                                            {/* Left: Key Icon + Code */}
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                                <Key size={14} style={{ color: isCopied ? '#22c55e' : (isRevealed ? 'var(--accent-color)' : 'var(--text-muted)') }} />
-                                                                <span>{isRevealed ? item.code : '••••••'}</span>
+                                                            {/* Depot Tag / Display Name (No Text Truncation) */}
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', minWidth: 0, flex: 1 }}>
+                                                                <Warehouse size={14} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
+                                                                <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                                                    {item.displayName}
+                                                                </span>
                                                             </div>
 
-                                                            {/* Right: Eye Toggle / Lock Icon + Copy Icon */}
-                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                                                                {/* Reveal Eye Toggle / Lock Button */}
-                                                                {canReveal ? (
-                                                                    <div 
-                                                                        onClick={(e) => toggleReveal(e, item.key, canReveal)}
-                                                                        style={{ opacity: 0.7, padding: '2px', display: 'flex', alignItems: 'center', cursor: 'pointer' }}
-                                                                        title={isRevealed ? "Hide Passcode" : "Reveal Passcode"}
-                                                                    >
-                                                                        {isRevealed ? <EyeOff size={14} /> : <Eye size={14} />}
-                                                                    </div>
-                                                                ) : (
-                                                                    <div 
-                                                                        style={{ opacity: 0.4, padding: '2px', display: 'flex', alignItems: 'center', cursor: 'not-allowed' }}
-                                                                        title={t('passcode_restricted_member' as TranslationKey)}
-                                                                    >
-                                                                        <Lock size={14} />
-                                                                    </div>
-                                                                )}
+                                                            {/* Actions & Passcode Box: Eye Toggle + Passcode + Copy */}
+                                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                                                                {/* Passcode Display Box */}
+                                                                <div style={{ 
+                                                                    padding: '0.25rem 0.55rem',
+                                                                    borderRadius: '4px',
+                                                                    fontFamily: 'monospace',
+                                                                    fontSize: '0.8rem',
+                                                                    fontWeight: 800,
+                                                                    letterSpacing: '0.1em',
+                                                                    userSelect: 'none',
+                                                                    background: isCopied ? 'rgba(34, 197, 94, 0.18)' : (isRevealed ? 'rgba(16, 185, 129, 0.15)' : 'rgba(0, 0, 0, 0.3)'),
+                                                                    color: isCopied ? '#22c55e' : (isRevealed ? '#10B981' : 'var(--text-muted)'),
+                                                                    border: '1px solid ' + (isCopied ? 'rgba(34, 197, 94, 0.4)' : (isRevealed ? 'rgba(16, 185, 129, 0.35)' : 'var(--border-color)')),
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.35rem'
+                                                                }}>
+                                                                    <Key size={12} />
+                                                                    <span>{isRevealed ? item.code : '••••••'}</span>
+                                                                </div>
 
-                                                                {/* Copy Icon Indicator / Green Success Badge */}
-                                                                {isCopied ? (
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#22c55e', fontSize: '0.75rem', fontWeight: 800 }}>
-                                                                        <Check size={14} />
-                                                                        <span>{t('copied')}</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    <div style={{ opacity: canReveal ? 0.6 : 0.25, display: 'flex', alignItems: 'center' }}>
-                                                                        <Copy size={14} />
-                                                                    </div>
-                                                                )}
+                                                                {/* Eye Reveal Toggle Button */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => toggleReveal(item.key)}
+                                                                    style={{
+                                                                        background: 'rgba(255, 255, 255, 0.05)',
+                                                                        border: '1px solid var(--border-color)',
+                                                                        borderRadius: '4px',
+                                                                        padding: '0.25rem 0.4rem',
+                                                                        color: isRevealed ? '#10B981' : 'var(--text-secondary)',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center'
+                                                                    }}
+                                                                >
+                                                                    {isRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                                                                </button>
+
+                                                                {/* Copy Button (turns to Check tick icon on click) */}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleCopy(item.key, item.code)}
+                                                                    style={{
+                                                                        background: isCopied ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                                                                        border: '1px solid ' + (isCopied ? 'rgba(34, 197, 94, 0.4)' : 'var(--border-color)'),
+                                                                        borderRadius: '4px',
+                                                                        padding: '0.25rem 0.4rem',
+                                                                        color: isCopied ? '#22c55e' : 'var(--text-secondary)',
+                                                                        cursor: 'pointer',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center'
+                                                                    }}
+                                                                >
+                                                                    {isCopied ? <Check size={13} style={{ color: '#22c55e' }} /> : <Copy size={13} />}
+                                                                </button>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                );
-                                            })}
+                                                    );
+                                                })}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     ))}
@@ -615,3 +572,5 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
         </div>
     );
 };
+
+export default StockpilePasscodesTab;

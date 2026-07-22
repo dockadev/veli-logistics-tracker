@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-    UploadCloud,
-    Compass,
     FileText,
     CheckCircle,
     AlertOctagon,
@@ -21,7 +19,9 @@ import {
     ArrowLeftRight,
     ClipboardList,
     LogOut,
-    Download
+    Download,
+    Database,
+    ShieldCheck
 } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DepotSettingsModal } from './components/DepotSettingsModal';
@@ -44,18 +44,19 @@ import { StockpileTemplatesTab } from './components/StockpileTemplatesTab';
 import { LeaderboardTab } from './components/LeaderboardTab';
 import { TransferCalculatorTab } from './components/TransferCalculatorTab';
 import { CoalitionChat } from './components/CoalitionChat';
-import { CompactOverlay } from './components/CompactOverlay';
 import { DemandTab } from './components/DemandTab';
 import { FeedbackTab } from './components/FeedbackTab';
-import { ManualCsvImportModal } from './components/ManualCsvImportModal';
+import { DirectSyncTab } from './components/DirectSyncTab';
+import { RegionManagementTab } from './components/RegionManagementTab';
+import type { ParsedStockpile } from './utils/savParser';
+import { getItemOfficialCategory } from './utils/itemCategories';
 
 import type { Depot, UserRole, SupplyRequest, RequestItem, SystemNotification, AuditLogEntry, PortalUser, ItemInfo, DepotHistoryEntry, StockpileTemplates, RegionSettings } from './types';
-import { parseCSV } from './utils/csvParser';
-import { useLanguage, type TranslationKey, type Language } from './context/LanguageContext';
+import { useLanguage, type Language } from './context/LanguageContext';
 import { dbService } from './utils/dbService';
 import { getDefaultTemplates } from './utils/defaultTemplates';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
-import { getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor } from './utils/helpers';
+import { getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor, resolveTemplateSetting } from './utils/helpers';
 import { generateTestDepotsSet1, generateTestDepotsSet2 } from './utils/testDataGenerator';
 
 function getDepotMatchKey(rawFullName: string): string {
@@ -86,6 +87,9 @@ function getDepotMatchKey(rawFullName: string): string {
     }
     
     let normalizedRegion = region.toLowerCase();
+    if (normalizedRegion === 'the blemish') {
+        normalizedRegion = 'blemish';
+    }
     if (
         normalizedRegion === 'seaport' || normalizedRegion === 'seehafen' || 
         normalizedRegion === 'porto' || normalizedRegion === 'porto marítimo' || 
@@ -108,19 +112,7 @@ function getDepotMatchKey(rawFullName: string): string {
 
 const IS_TAURI = typeof window !== 'undefined' && !!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
-const getTauriApis = async () => {
-    if (!IS_TAURI) return null;
-    try {
-        const windowApi = await import('@tauri-apps/api/window');
-        const dpiApi = await import('@tauri-apps/api/dpi');
-        return { windowApi, dpiApi };
-    } catch (err) {
-        console.error('Failed to import Tauri APIs:', err);
-        return null;
-    }
-};
-
-const APP_VERSION = '0.1.63';
+const APP_VERSION = '0.1.64';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);
@@ -184,8 +176,6 @@ export const App: React.FC = () => {
         return localStorage.getItem('docka_user_clan');
     });
 
-    const [isOverlayMode, setIsOverlayMode] = useState<boolean>(false);
-    const [isAlwaysOnTop, setIsAlwaysOnTop] = useState<boolean>(false);
     const [showProductionBoardInfo, setShowProductionBoardInfo] = useState(false);
 
     useEffect(() => {
@@ -231,46 +221,6 @@ export const App: React.FC = () => {
         }
     }, [userClan, currentUsername, masterKey]);
 
-    const handleToggleOverlayMode = useCallback(async (enable: boolean) => {
-        if (!IS_TAURI) return;
-        const apis = await getTauriApis();
-        if (!apis) return;
-        const { windowApi, dpiApi } = apis;
-        const appWindow = windowApi.getCurrentWindow();
-
-        try {
-            if (enable) {
-                await appWindow.setDecorations(false);
-                await appWindow.setSize(new dpiApi.LogicalSize(320, 420));
-                await appWindow.setResizable(false);
-                await appWindow.setAlwaysOnTop(isAlwaysOnTop);
-                setIsOverlayMode(true);
-            } else {
-                await appWindow.setDecorations(true);
-                await appWindow.setSize(new dpiApi.LogicalSize(1400, 850));
-                await appWindow.setResizable(true);
-                await appWindow.setAlwaysOnTop(false);
-                await appWindow.center();
-                setIsOverlayMode(false);
-            }
-        } catch (err) {
-            console.error('Failed to toggle overlay mode:', err);
-        }
-    }, [isAlwaysOnTop]);
-
-    const handleToggleAlwaysOnTop = useCallback(async (pin: boolean) => {
-        setIsAlwaysOnTop(pin);
-        if (!IS_TAURI) return;
-        const apis = await getTauriApis();
-        if (!apis) return;
-        try {
-            const appWindow = apis.windowApi.getCurrentWindow();
-            await appWindow.setAlwaysOnTop(pin);
-        } catch (err) {
-            console.error('Failed to set always on top:', err);
-        }
-    }, []);
-
     // Native window controls utilized instead of custom app-titlebar
     const [depots, setDepots] = useState<Record<string, Depot>>({});
     useEffect(() => {
@@ -283,8 +233,7 @@ export const App: React.FC = () => {
     const [activeDepotName, setActiveDepotName] = useState<string | null>(() => {
         return localStorage.getItem('foxhole_active_depot');
     });
-    const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
-    const [activeTab, setActiveTab] = useState<'inventory' | 'passcodes' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback' | 'leaderboard' | 'templates' | 'transfer-calculator' | 'demand'>('inventory');
+    const [activeTab, setActiveTab] = useState<'inventory' | 'passcodes' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback' | 'leaderboard' | 'templates' | 'transfer-calculator' | 'demand' | 'direct-sync' | 'region-management'>('inventory');
     const [minAppVersion, setMinAppVersion] = useState<string>('0.1.60');
     const isDataLoadedRef = useRef(false);
     const isRemoteDepotsUpdateRef = useRef(false);
@@ -331,7 +280,7 @@ export const App: React.FC = () => {
         return val ? Number(val) : 0;
     });
 
-    const handleTabChange = (tab: 'inventory' | 'passcodes' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback' | 'leaderboard' | 'templates' | 'transfer-calculator' | 'demand') => {
+    const handleTabChange = (tab: 'inventory' | 'passcodes' | 'requests' | 'announcements' | 'dev-portal' | 'analytics' | 'feedback' | 'leaderboard' | 'templates' | 'transfer-calculator' | 'demand' | 'direct-sync' | 'region-management') => {
         setActiveTab(tab);
         setIsChatOpen(false);
         setIsPersonalizeOpen(false);
@@ -861,107 +810,89 @@ export const App: React.FC = () => {
     useEffect(() => {
         setActiveSubDepotFilter('all');
     }, [activeDepotName]);
-    const importCSVData = useCallback((text: string) => {
-        const trimmed = text.trim();
-        if (!trimmed) {
-            showToast(t('paste_csv_first'), 'warning');
-            return false;
-        }
 
-        const parsed = parseCSV(trimmed);
-        if (!parsed) {
-            showToast(t('invalid_csv_format'), 'error');
-            return false;
-        }
-
-        if ('error' in parsed && parsed.error) {
-            let errorMsg = t(parsed.error as TranslationKey) || parsed.error;
-            if ('details' in parsed && parsed.details) {
-                errorMsg += ` (${parsed.details})`;
-            }
-            showToast(errorMsg, 'error');
-            return false;
-        }
-
-        const { location, timestamp, items, townName } = parsed as { location: string; timestamp: string; items: Record<string, ItemInfo>; townName?: string | null };
-
-        if (location === '__proto__' || location === 'constructor') {
-            showToast(t('invalid_depot_name'), 'error');
-            return false;
-        }
-
-
-        const parsedMatchKey = getDepotMatchKey(location);
-        const matchedKey = Object.keys(depots).find(k => getDepotMatchKey(k) === parsedMatchKey);
-        const isUpdate = !!matchedKey;
-
+    const importParsedStockpiles = useCallback((stockpiles: ParsedStockpile[]) => {
+        if (!stockpiles || stockpiles.length === 0) return;
+        
+        let syncedCount = 0;
+        
         setDepots(prev => {
             const nextDepots = { ...prev };
-            const targetKey = matchedKey || location;
-            const prevDepot = nextDepots[targetKey];
+            
+            stockpiles.forEach(stockpile => {
+                const { location, timestamp, items: rawItems, townName } = stockpile;
 
-            if (prevDepot) {
-                const prevTime = new Date(prevDepot.lastUpdated).getTime();
-                const currTime = new Date(timestamp).getTime();
-                const isWithinCooldown = !isNaN(prevTime) && !isNaN(currTime) && Math.abs(currTime - prevTime) < 15 * 60 * 1000;
-
-                if (prevDepot.lastUpdated === timestamp || isWithinCooldown) {
-                    nextDepots[targetKey] = {
-                        ...prevDepot,
-                        name: location,
-                        lastUpdated: timestamp,
-                        previous: prevDepot.previous || null,
-                        current: items,
-                        townName: townName || prevDepot.townName || null
-                    };
-                } else {
-                    nextDepots[targetKey] = {
-                        ...prevDepot,
-                        name: location,
-                        lastUpdated: timestamp,
-                        previous: prevDepot.current,
-                        current: items,
-                        townName: townName || prevDepot.townName || null
-                    };
-                }
-
-                // If key changed (e.g. sub-region segments changed or OLD parser key matches NEW key), rename key in record
-                if (matchedKey && matchedKey !== location) {
-                    nextDepots[location] = nextDepots[matchedKey];
-                    delete nextDepots[matchedKey];
-                    if (isSupabaseConfigured) {
-                        dbService.deleteDepot(matchedKey);
+                const items: Record<string, ItemInfo> = {};
+                Object.entries(rawItems).forEach(([itemName, count]) => {
+                    const officialCat = getItemOfficialCategory(itemName);
+                    const category: 'item' | 'crate' | 'vehicle' | 'structure' | 'crate_vehicle' = 
+                        officialCat === 'vehicles' ? (itemName.endsWith('(Crate)') ? 'crate_vehicle' : 'vehicle') :
+                        officialCat === 'shippables' ? 'structure' :
+                        itemName.endsWith('(Crate)') ? 'crate' : 'item';
+                    items[itemName] = { count, category };
+                });
+                
+                const parsedMatchKey = getDepotMatchKey(location);
+                const matchedKey = Object.keys(nextDepots).find(k => getDepotMatchKey(k) === parsedMatchKey);
+                const targetKey = matchedKey || location;
+                const prevDepot = nextDepots[targetKey];
+                
+                if (prevDepot) {
+                    const prevTime = new Date(prevDepot.lastUpdated).getTime();
+                    const currTime = new Date(timestamp).getTime();
+                    const isWithinCooldown = !isNaN(prevTime) && !isNaN(currTime) && Math.abs(currTime - prevTime) < 15 * 60 * 1000;
+                    
+                    if (prevDepot.lastUpdated === timestamp || isWithinCooldown) {
+                        nextDepots[targetKey] = {
+                            ...prevDepot,
+                            name: prevDepot.name || location,
+                            lastUpdated: timestamp,
+                            lastUpdatedBy: currentUsername || 'Developer',
+                            previous: prevDepot.previous || null,
+                            current: items,
+                            townName: townName || prevDepot.townName || null
+                        };
+                    } else {
+                        nextDepots[targetKey] = {
+                            ...prevDepot,
+                            name: prevDepot.name || location,
+                            lastUpdated: timestamp,
+                            lastUpdatedBy: currentUsername || 'Developer',
+                            previous: prevDepot.current,
+                            current: items,
+                            townName: townName || prevDepot.townName || null
+                        };
                     }
+                    
+                    if (matchedKey && matchedKey !== location) {
+                        nextDepots[location] = nextDepots[matchedKey];
+                        delete nextDepots[matchedKey];
+                        if (isSupabaseConfigured) {
+                            dbService.deleteDepot(matchedKey);
+                        }
+                    }
+                } else {
+                    nextDepots[location] = {
+                        name: location,
+                        customName: null,
+                        lastUpdated: timestamp,
+                        lastUpdatedBy: currentUsername || 'Developer',
+                        previous: null,
+                        current: items,
+                        townName: townName || null,
+                        isIntegrated: false
+                    };
                 }
-            } else {
-                nextDepots[location] = {
-                    name: location,
-                    customName: null,
-                    lastUpdated: timestamp,
-                    previous: null,
-                    current: items,
-                    townName: townName || null
-                };
-            }
+                
+                checkCriticalStock(location, items);
+                syncedCount++;
+            });
+            
             return nextDepots;
         });
-
-        setActiveDepotName(location);
-        showToast(isUpdate ? t('import_updated', { location }) : t('import_success', { location }), 'success');
         
-        // Log action & scan critical stock alarms
-        logAction(isUpdate ? `Updated stock data for depot: ${location}` : `Imported stock data for depot: ${location}`);
-        checkCriticalStock(location, items);
-
-        if (isSupabaseConfigured && supabase) {
-            dbService.incrementProfileStat('import').then(() => {
-                fetchPortalUsers();
-            });
-        }
-        incrementLocalUserStat('import');
-
-        return true;
-    }, [userRole, depots, showToast, t, logAction, checkCriticalStock, isSupabaseConfigured, fetchPortalUsers, incrementLocalUserStat]);
+        logAction(`Direct SAV Sync: Synced ${syncedCount} stockpiles successfully.`);
+    }, [isSupabaseConfigured, checkCriticalStock, logAction]);
 
 
 
@@ -1415,11 +1346,12 @@ export const App: React.FC = () => {
                 setDepots(prev => {
                     const nextDepots = { ...prev };
                     delete nextDepots[depotKey];
+                    if (masterKey) {
+                        dbService.saveDepots(nextDepots, masterKey);
+                    }
                     return nextDepots;
                 });
-                if (isSupabaseConfigured && supabase) {
-                    dbService.deleteDepot(depotKey);
-                }
+                dbService.deleteDepot(depotKey);
                 setConfirmModal(null);
                 showToast(t('delete_depot_success', { displayName }), 'info');
                 logAction(`Deleted depot node: ${depotKey}`);
@@ -2185,7 +2117,9 @@ export const App: React.FC = () => {
 
     const getDepotRegion = (dep: Depot): string => {
         const parts = dep.name.split(' - ').map(s => s.trim()).filter(Boolean);
-        return parts[0] || 'Unknown Region';
+        const rawRegion = parts[0] || 'Unknown Region';
+        if (rawRegion === 'The Blemish' || rawRegion === 'The Blemsh') return 'Blemish';
+        return rawRegion;
     };
 
     const isDepotType = (str: string): boolean => {
@@ -2240,13 +2174,73 @@ export const App: React.FC = () => {
         return label || dep.name;
     };
 
-    const activeDepot = useMemo(() => {
+    const integratedDepots = useMemo(() => {
+        const filtered: Record<string, Depot> = {};
+        Object.entries(depots).forEach(([key, dep]) => {
+            if (dep.isIntegrated) {
+                filtered[key] = dep;
+            }
+        });
+        return filtered;
+    }, [depots]);
+
+    const handleIntegrateDepot = useCallback((depotKey: string, subregion: string, accessCode: string) => {
+        setDepots(prev => {
+            if (!prev[depotKey]) return prev;
+            const target = prev[depotKey];
+            const parts = target.name.split(' - ').map(s => s.trim()).filter(Boolean);
+            const region = parts[0] || 'Unknown Region';
+            
+            let structureType = 'Storage Depot';
+            for (const p of parts) {
+                const l = p.toLowerCase();
+                if (l.includes('seaport') || l.includes('depot') || l.includes('port')) {
+                    structureType = p;
+                    break;
+                }
+            }
+
+            let tag = '';
+            const lastPart = parts[parts.length - 1];
+            const subLower = subregion.toLowerCase();
+            if (lastPart && 
+                lastPart.toLowerCase() !== structureType.toLowerCase() && 
+                lastPart.toLowerCase() !== region.toLowerCase() && 
+                lastPart.toLowerCase() !== subLower) {
+                tag = lastPart;
+            }
+
+            // Keep base depot name clean: "Region - StructureType - Tag" (without injecting subregion into name)
+            const cleanBaseName = tag
+                ? `${region} - ${structureType} - ${tag}`
+                : `${region} - ${structureType}`;
+
+            const updated: Depot = {
+                ...target,
+                name: cleanBaseName,
+                subregion: subregion,
+                townName: subregion,
+                accessCode: accessCode,
+                isIntegrated: true
+            };
+
+            const nextDepots = { ...prev, [depotKey]: updated };
+            if (isSupabaseConfigured) {
+                dbService.saveDepots(nextDepots, sessionStorage.getItem('docka_session_master_key') || '');
+            }
+            return nextDepots;
+        });
+        showToast(language === 'tr' ? `${depotKey} deposu entegre edildi!` : `Depot ${depotKey} integrated!`, 'success');
+        logAction(`Approved & integrated depot: ${depotKey} into subregion ${subregion}`);
+    }, [showToast, language, logAction, isSupabaseConfigured]);
+
+    const activeDepot = useMemo<Depot | null>(() => {
         if (!activeDepotName) return null;
         if (activeDepotName === 'all') {
             const mergedCurrent: Record<string, ItemInfo> = {};
             const mergedPrevious: Record<string, ItemInfo> = {};
             let latestUpdated = '';
-            Object.values(depots).forEach(dep => {
+            Object.values(integratedDepots).forEach(dep => {
                 if (dep.lastUpdated && dep.lastUpdated > latestUpdated) {
                     latestUpdated = dep.lastUpdated;
                 }
@@ -2278,10 +2272,10 @@ export const App: React.FC = () => {
 
         if (activeDepotName.startsWith('town:')) {
             const town = activeDepotName.substring(5);
-            const townDepots = Object.values(depots).filter(dep => getDepotGroup(dep) === town);
+            const townDepots = Object.values(integratedDepots).filter(dep => getDepotGroup(dep) === town);
 
             if (activeSubDepotFilter !== 'all') {
-                const target = depots[activeSubDepotFilter];
+                const target = integratedDepots[activeSubDepotFilter];
                 if (target) return target;
             }
 
@@ -2318,8 +2312,8 @@ export const App: React.FC = () => {
             } as Depot;
         }
 
-        return depots[activeDepotName] || null;
-    }, [activeDepotName, activeSubDepotFilter, depots, t]);
+        return integratedDepots[activeDepotName] || null;
+    }, [activeDepotName, activeSubDepotFilter, integratedDepots, t]);
 
     const depotOptions = useMemo(() => {
         const options = [
@@ -2327,13 +2321,13 @@ export const App: React.FC = () => {
         ];
 
         const groups = new Set<string>();
-        Object.values(depots).forEach(dep => {
+        Object.values(integratedDepots).forEach(dep => {
             const group = getDepotGroup(dep);
             if (group) groups.add(group);
         });
 
         Array.from(groups).sort().forEach(group => {
-            const groupDepots = Object.values(depots).filter(d => getDepotGroup(d) === group);
+            const groupDepots = Object.values(integratedDepots).filter(d => getDepotGroup(d) === group);
             const hasStaleDepot = groupDepots.some(d => {
                 return d.lastUpdated 
                     ? (Date.now() - new Date(d.lastUpdated).getTime()) / (1000 * 60 * 60) >= 12 
@@ -2348,18 +2342,19 @@ export const App: React.FC = () => {
         });
 
         return options;
-    }, [depots, t]);
+    }, [integratedDepots, t]);
 
     const currentTownDepotsList = useMemo(() => {
         if (!activeDepotName || !activeDepotName.startsWith('town:')) return [];
         const townName = activeDepotName.substring(5);
-        return Object.entries(depots)
+        return Object.entries(integratedDepots)
             .filter(([, dep]) => getDepotGroup(dep) === townName)
             .map(([key, dep]) => ({
                 key,
                 label: getSubDepotLabel(dep)
-            }));
-    }, [activeDepotName, depots]);
+            }))
+            .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: 'base' }));
+    }, [activeDepotName, integratedDepots]);
 
     const unreadCount = notifications.filter(n => n.type !== 'critical_stock' && !n.isRead).length;
     const unreadFeedbackCount = userRole === 'developer'
@@ -2461,47 +2456,11 @@ export const App: React.FC = () => {
         return (
             <div className="react-root-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-main)' }}>
                 <div className="anim-pulse-glow" style={{ textAlign: 'center' }}>
-                    <Compass size={48} style={{ color: 'var(--accent-color)', margin: '0 auto 1.25rem auto', display: 'block' }} />
+                    <Database size={48} style={{ color: 'var(--accent-color)', margin: '0 auto 1.25rem auto', display: 'block' }} />
                     <div style={{ color: 'var(--text-primary)', fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.08em', fontFamily: 'var(--font-heading)', textTransform: 'uppercase' }}>
                         {language === 'tr' ? 'Veritabanı Şifresi Çözülüyor...' : 'Decrypting Logistics Database...'}
                     </div>
                 </div>
-            </div>
-        );
-    }
-
-    if (isOverlayMode) {
-        return (
-            <div className="react-root-container" style={{ background: 'transparent' }}>
-                <CompactOverlay
-                    language={language}
-                    onCloseOverlay={() => handleToggleOverlayMode(false)}
-                    onImportCSV={importCSVData}
-                    isAlwaysOnTop={isAlwaysOnTop}
-                    onToggleAlwaysOnTop={handleToggleAlwaysOnTop}
-                />
-                {toast && (
-                    <div className="toast-container">
-                        <div className={`toast-message ${toast.type} ${!toastVisible ? 'toast-fade-out' : ''}`}>
-                            {toast.type === 'success' && <CheckCircle size={18} />}
-                            {toast.type === 'error' && <AlertOctagon size={18} />}
-                            {toast.type === 'warning' && <AlertTriangle size={18} />}
-                            {toast.type === 'info' && <Info size={18} />}
-                            <div className="toast-content">{toast.message}</div>
-                            
-                            <div className="toast-timer-ring">
-                                <svg width="18" height="18" viewBox="0 0 20 20">
-                                    <circle cx="10" cy="10" r="8" fill="transparent" stroke="rgba(255,255,255,0.15)" strokeWidth="2" />
-                                    <circle className="toast-timer-ring-fill" cx="10" cy="10" r="8" fill="transparent" stroke="currentColor" strokeWidth="2" strokeDasharray="50.24" strokeDashoffset="0" />
-                                </svg>
-                            </div>
-
-                            <button className="toast-close" onClick={() => setToastVisible(false)}>
-                                <X size={14} />
-                            </button>
-                        </div>
-                    </div>
-                )}
             </div>
         );
     }
@@ -2626,7 +2585,7 @@ export const App: React.FC = () => {
             <main className="app-container">
                 {isInitialLoading && !activeDepot && Object.keys(depots).length === 0 ? (
                     <div className="table-container" style={{ padding: '3rem 1.5rem', textAlign: 'center', maxWidth: '600px', margin: '2rem auto' }}>
-                        <Compass size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+                        <Database size={48} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
                         <h2 style={{ fontFamily: 'var(--font-heading)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                             {t('select_depot')}
                         </h2>
@@ -2722,7 +2681,7 @@ export const App: React.FC = () => {
                             {!activeDepot && activeTab === 'inventory' ? (
                         <div className="table-container" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
                             <div className="empty-row" style={{ border: 'none' }}>
-                                <Compass size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4, display: 'block' }} />
+                                <Database size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.4, display: 'block' }} />
                                 <p>{t('no_active_depot')}</p>
                             </div>
                         </div>
@@ -2738,56 +2697,63 @@ export const App: React.FC = () => {
                                                 onChange={(val) => setActiveDepotName(val)}
                                                 className="header-depot-select"
                                             />
-                                            {/* Template assignment badge next to selector */}
                                             {activeDepotName && activeDepotName !== 'all' && (
-                                                (() => {
-                                                    const region = resolveRegionForDepotName(activeDepotName, depots);
-                                                    if (!region) return null;
-                                                    const setting = regionSettings[region];
-                                                    const type = setting?.templateType;
-                                                    
-                                                    let badgeStyle: React.CSSProperties = {
-                                                        fontSize: '0.72rem',
-                                                        fontWeight: 700,
-                                                        padding: '0.25rem 0.65rem',
-                                                        borderRadius: '6px',
-                                                        textTransform: 'uppercase',
-                                                        letterSpacing: '0.05em'
-                                                    };
-                                                    
-                                                    if (type === 'frontline') {
-                                                        badgeStyle = {
-                                                            ...badgeStyle,
-                                                            background: 'rgba(239, 68, 68, 0.15)',
-                                                            color: '#ef4444',
-                                                            border: '1px solid rgba(239, 68, 68, 0.25)'
-                                                        };
-                                                    } else if (type === 'backline') {
-                                                        badgeStyle = {
-                                                            ...badgeStyle,
-                                                            background: 'rgba(168, 85, 247, 0.15)',
-                                                            color: '#a855f7',
-                                                            border: '1px solid rgba(168, 85, 247, 0.25)'
-                                                        };
-                                                    } else {
-                                                        badgeStyle = {
-                                                            ...badgeStyle,
-                                                            background: 'rgba(255, 255, 255, 0.05)',
-                                                            color: 'var(--text-secondary)',
-                                                            border: '1px solid var(--border-color)'
-                                                        };
-                                                    }
-                                                    
-                                                    const label = type 
-                                                        ? (type === 'frontline' ? 'FRONTLINE' : 'BACKLINE')
-                                                        : (language === 'tr' ? 'Şablon Belirtilmedi' : 'No Template Assigned');
-                                                        
-                                                    return (
-                                                        <span style={badgeStyle}>
-                                                            {label}
-                                                        </span>
-                                                    );
-                                                })()
+                                                 (() => {
+                                                     const targetDepot = depots[activeDepotName];
+                                                     let regName = resolveRegionForDepotName(activeDepotName, depots);
+                                                     let townName = targetDepot?.townName || targetDepot?.subregion || null;
+                                                     let subName = targetDepot?.subregion || targetDepot?.townName || null;
+
+                                                     if (!townName && activeDepotName.startsWith('town:')) {
+                                                         const subKey = activeDepotName.substring(5);
+                                                         const parts = subKey.split(' - ');
+                                                         regName = parts[0];
+                                                         townName = parts[1] || null;
+                                                         subName = parts[1] || null;
+                                                     }
+
+                                                     if (!regName) return null;
+
+                                                     const setting = resolveTemplateSetting(regName, townName, subName, regionSettings);
+                                                     const type = setting?.templateType;
+
+                                                     const getTemplateColor = (tType?: string) => {
+                                                         if (!tType || tType === 'unassigned') return '#ef4444';
+                                                         try {
+                                                             const saved = localStorage.getItem('foxhole_template_colors');
+                                                             if (saved) {
+                                                                 const map = JSON.parse(saved);
+                                                                 if (map[tType]) return map[tType];
+                                                             }
+                                                         } catch (e) {}
+                                                         if (tType === 'frontline') return '#ef4444';
+                                                         if (tType === 'backline') return '#ffffff';
+                                                         if (tType === 'aircraft') return '#06b6d4';
+                                                         return '#10b981';
+                                                     };
+
+                                                     const color = getTemplateColor(type);
+                                                     const isUnassigned = !type || type === 'unassigned';
+                                                     const label = isUnassigned
+                                                         ? (language === 'tr' ? 'ŞABLON ATANMADI' : 'TEMPLATE UNASSIGNED')
+                                                         : type === 'aircraft' ? 'AIRCRAFT' : type.toUpperCase();
+
+                                                     return (
+                                                         <span style={{
+                                                             fontSize: '0.72rem',
+                                                             fontWeight: 800,
+                                                             padding: '0.25rem 0.65rem',
+                                                             borderRadius: '6px',
+                                                             textTransform: 'uppercase',
+                                                             letterSpacing: '0.05em',
+                                                             background: `${color}20`,
+                                                             color: color,
+                                                             border: `1px solid ${color}60`
+                                                         }}>
+                                                             {label}
+                                                         </span>
+                                                     );
+                                                 })()
                                             )}
                                             
                                         </div>
@@ -3099,7 +3065,7 @@ export const App: React.FC = () => {
                                        {activeTab === 'analytics' && (
                                      <ErrorBoundary>
                                           <AnalyticsTab 
-                                               depots={depots} 
+                                               depots={integratedDepots} 
                                                theme={theme} 
                                                supplyRequests={supplyRequests} 
                                                auditLogs={auditLogs} 
@@ -3114,7 +3080,7 @@ export const App: React.FC = () => {
                                         {activeTab === 'demand' && (
                                      <ErrorBoundary>
                                           <DemandTab 
-                                               depots={depots} 
+                                               depots={integratedDepots} 
                                                templates={templates}
                                                regionSettings={regionSettings}
                                            />
@@ -3131,19 +3097,29 @@ export const App: React.FC = () => {
                                              userRole={userRole}
                                              regionSettings={regionSettings}
                                              onSaveRegionSettings={handleSaveRegionSettings}
-                                             depots={depots}
+                                             depots={integratedDepots}
                                         />
                                    </ErrorBoundary>
                               )}
                               {activeTab === 'transfer-calculator' && (
                                    <ErrorBoundary>
                                         <TransferCalculatorTab
-                                             depots={depots}
+                                             depots={integratedDepots}
                                              templates={templates}
                                              regionSettings={regionSettings}
                                              userRole={userRole}
                                              onCopyToast={() => showToast(t('manifest_copied'), 'success')}
                                         />
+                                   </ErrorBoundary>
+                              )}
+                              {activeTab === 'region-management' && (userRole === 'developer' || userRole === 'logistics_lead' || userRole === 'officer') && (
+                                   <ErrorBoundary>
+                                       <RegionManagementTab
+                                           depots={depots}
+                                           userRole={userRole}
+                                           onIntegrateDepot={handleIntegrateDepot}
+                                           onDeleteDepot={handleDeleteDepotKey}
+                                       />
                                    </ErrorBoundary>
                               )}
                               {activeTab === 'leaderboard' && (
@@ -3153,6 +3129,13 @@ export const App: React.FC = () => {
                                        />
                                    </ErrorBoundary>
                                )}
+                              {activeTab === 'direct-sync' && (
+                                  <ErrorBoundary>
+                                      <DirectSyncTab
+                                          onSyncStockpiles={importParsedStockpiles}
+                                      />
+                                  </ErrorBoundary>
+                              )}
                               {activeTab === 'feedback' && (
                                   <ErrorBoundary>
                                       <FeedbackTab
@@ -3236,32 +3219,39 @@ export const App: React.FC = () => {
 
             {/* Integrated Navigation Tabs (Left Vertical Sidebar Menu) */}
             <div className={`vertical-navigation-sidebar anim-fade-in ${isChatOpen || isPersonalizeOpen ? 'forced-collapsed' : ''}`}>
-                <button
-                    className="vertical-nav-btn"
-                    onClick={() => setIsCsvModalOpen(true)}
-                    data-tooltip={t('csv_input')}
-                    type="button"
-                >
-                    <UploadCloud size={18} />
-                    <span>{t('csv_input')}</span>
-                </button>
-
                 {IS_TAURI && (
-                    <button
-                        className="vertical-nav-btn capturer-nav-btn"
-                        onClick={() => handleToggleOverlayMode(true)}
-                        data-tooltip={t('csv_capturer')}
-                        type="button"
-                    >
-                        <Compass size={18} style={{ color: 'var(--accent-color)' }} />
-                        <span style={{ color: 'var(--accent-color)' }}>{t('csv_capturer')}</span>
-                    </button>
+                    <div style={{ paddingTop: '0.4rem', width: '100%' }}>
+                        <button
+                            className={`vertical-nav-btn ${activeTab === 'direct-sync' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('direct-sync')}
+                            data-tooltip="Direct SAV Sync (New Import Method)"
+                            type="button"
+                        >
+                            <Database size={18} style={{ color: 'var(--accent-color)' }} />
+                            <span style={{ color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                Direct Sync
+                                <span style={{
+                                    fontSize: '0.58rem',
+                                    fontWeight: 800,
+                                    background: 'var(--accent-color)',
+                                    color: '#000000',
+                                    padding: '0.12rem 0.35rem',
+                                    borderRadius: '4px',
+                                    letterSpacing: '0.04em',
+                                    lineHeight: 1,
+                                    textTransform: 'uppercase'
+                                }}>
+                                    NEW
+                                </span>
+                            </span>
+                        </button>
+                    </div>
                 )}
 
                 <div className="sidebar-divider" />
 
                 <div className="sidebar-scrollable-content">
-                    {/* 1. Announcements at the very top of sidebar */}
+                    {/* 1. Announcements */}
                     <button
                         className={`vertical-nav-btn ${activeTab === 'announcements' ? 'active' : ''}`}
                         onClick={() => handleTabChange('announcements')}
@@ -3271,7 +3261,7 @@ export const App: React.FC = () => {
                         <span>{t('announcements')}</span>
                     </button>
 
-                    {/* 3. Passcodes */}
+                    {/* 2. Passcodes */}
                     {userRole !== 'recruit' && (
                         <button
                             className={`vertical-nav-btn ${activeTab === 'passcodes' ? 'active' : ''}`}
@@ -3283,7 +3273,7 @@ export const App: React.FC = () => {
                         </button>
                     )}
 
-                    {/* 2. Inventory */}
+                    {/* 3. Inventory */}
                     <button
                         className={`vertical-nav-btn ${activeTab === 'inventory' ? 'active' : ''}`}
                         onClick={() => handleTabChange('inventory')}
@@ -3293,7 +3283,7 @@ export const App: React.FC = () => {
                         <span>{t('tab_inventory')}</span>
                     </button>
 
-                    {/* Demand */}
+                    {/* 4. Demand */}
                     <button
                         className={`vertical-nav-btn ${activeTab === 'demand' ? 'active' : ''}`}
                         onClick={() => handleTabChange('demand')}
@@ -3303,7 +3293,7 @@ export const App: React.FC = () => {
                         <span>{t('tab_demand')}</span>
                     </button>
 
-                    {/* 5. Production Orders */}
+                    {/* 5. Supply Requests */}
                     <button
                         className={`vertical-nav-btn ${activeTab === 'requests' ? 'active' : ''}`}
                         onClick={() => handleTabChange('requests')}
@@ -3332,56 +3322,18 @@ export const App: React.FC = () => {
                         <BarChart3 size={18} />
                         <span>Analytics</span>
                     </button>
+
+                    {/* 8. Leaderboard */}
                     <button
                         className={`vertical-nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
                         onClick={() => handleTabChange('leaderboard')}
-                        data-tooltip={(() => {
-                            if (language === 'tr') return 'Liderlik Tablosu';
-                            if (language === 'pt-BR') return 'Classificação';
-                            if (language === 'ru') return 'Таблица лидеров';
-                            if (language === 'de') return 'Rangliste';
-                            return 'Leaderboard';
-                        })()}
+                        data-tooltip={language === 'tr' ? 'Liderlik Tablosu' : 'Leaderboard'}
                     >
                         <Trophy size={18} />
-                        <span>{(() => {
-                            if (language === 'tr') return 'Liderlik Tablosu';
-                            if (language === 'pt-BR') return 'Classificação';
-                            if (language === 'ru') return 'Таблица лидеров';
-                            if (language === 'de') return 'Rangliste';
-                            return 'Leaderboard';
-                        })()}</span>
+                        <span>{language === 'tr' ? 'Liderlik Tablosu' : 'Leaderboard'}</span>
                     </button>
-                    
-                    {userRole !== 'member' && (
-                        <button
-                            className={`vertical-nav-btn dev-portal-nav-btn ${activeTab === 'dev-portal' ? 'active' : ''}`}
-                            onClick={() => handleTabChange('dev-portal')}
-                            data-tooltip={
-                                unreadFeedbackCount > 0
-                                    ? (language === 'tr' ? `${unreadFeedbackCount} yeni bildirim` : `${unreadFeedbackCount} new notifications`)
-                                    : "Dev Portal"
-                            }
-                        >
-                            <ShieldAlert size={18} />
-                            <span>Dev Portal</span>
-                            {unreadFeedbackCount > 0 && (
-                                <span className="nav-badge">{unreadFeedbackCount}</span>
-                            )}
-                        </button>
-                    )}
 
-                    {(userRole === 'developer' || userRole === 'logistics_lead') && (
-                        <button
-                            className={`vertical-nav-btn ${activeTab === 'templates' ? 'active' : ''}`}
-                            onClick={() => handleTabChange('templates')}
-                            data-tooltip={t('tab_stockpile_templates')}
-                        >
-                            <Sliders size={18} />
-                            <span>{t('tab_stockpile_templates')}</span>
-                        </button>
-                    )}
-
+                    {/* 9. Feedback */}
                     <button
                         className={`vertical-nav-btn ${activeTab === 'feedback' ? 'active' : ''}`}
                         onClick={() => handleTabChange('feedback')}
@@ -3390,6 +3342,65 @@ export const App: React.FC = () => {
                         <Lightbulb size={18} />
                         <span>{language === 'tr' ? 'Geri Bildirim' : 'Feedback'}</span>
                     </button>
+
+                    {/* Management Divider */}
+                    <div className="sidebar-divider" />
+
+                    {/* 10. Stockpile Management */}
+                    {(userRole === 'developer' || userRole === 'logistics_lead' || userRole === 'officer') && (
+                        <button
+                            className={`vertical-nav-btn ${activeTab === 'region-management' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('region-management')}
+                            data-tooltip={t('stockpile_management')}
+                        >
+                            <ShieldCheck size={18} />
+                            <span>{t('stockpile_management')}</span>
+                            {Object.values(depots).some(d => !d.isIntegrated) && (
+                                <span style={{
+                                    background: '#ef4444',
+                                    color: '#ffffff',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 800,
+                                    borderRadius: '10px',
+                                    padding: '0.1rem 0.45rem',
+                                    marginLeft: 'auto'
+                                }}>
+                                    {Object.values(depots).filter(d => !d.isIntegrated).length}
+                                </span>
+                            )}
+                        </button>
+                    )}
+
+                    {/* 11. Template Management */}
+                    {(userRole === 'developer' || userRole === 'logistics_lead') && (
+                        <button
+                            className={`vertical-nav-btn ${activeTab === 'templates' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('templates')}
+                            data-tooltip={t('template_management')}
+                        >
+                            <Sliders size={18} />
+                            <span>{t('template_management')}</span>
+                        </button>
+                    )}
+
+                    {/* 12. Officer+ Menu */}
+                    {userRole !== 'member' && (
+                        <button
+                            className={`vertical-nav-btn dev-portal-nav-btn ${activeTab === 'dev-portal' ? 'active' : ''}`}
+                            onClick={() => handleTabChange('dev-portal')}
+                            data-tooltip={
+                                unreadFeedbackCount > 0
+                                    ? (language === 'tr' ? `${unreadFeedbackCount} yeni bildirim` : `${unreadFeedbackCount} new notifications`)
+                                    : t('officer_menu')
+                            }
+                        >
+                            <ShieldAlert size={18} />
+                            <span>{t('officer_menu')}</span>
+                            {unreadFeedbackCount > 0 && (
+                                <span className="nav-badge">{unreadFeedbackCount}</span>
+                            )}
+                        </button>
+                    )}
                 </div>
 
                 <div className="sidebar-divider" />
@@ -3515,14 +3526,6 @@ export const App: React.FC = () => {
                 />
             )}
 
-            {isCsvModalOpen && (
-                <ManualCsvImportModal
-                    isOpen={isCsvModalOpen}
-                    onClose={() => setIsCsvModalOpen(false)}
-                    onImport={importCSVData}
-                />
-            )}
-
             {/* Developer Portal is now a page tab, not a modal */}
 
             {userRole && masterKey && (
@@ -3552,8 +3555,8 @@ export const App: React.FC = () => {
                             left: '5.5rem',
                             top: '110px',
                             width: '360px',
-                            background: theme === 'dark' ? '#000000' : '#ffffff',
-                            border: '1px solid var(--border-color)',
+                            background: theme === 'dark' ? 'linear-gradient(135deg, rgba(16, 24, 18, 0.98) 0%, rgba(10, 16, 11, 0.98) 100%)' : '#ffffff',
+                            border: '1px solid rgba(16, 185, 129, 0.35)',
                             borderRadius: 'var(--radius-md)',
                             boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
                             zIndex: 9999,
@@ -3562,10 +3565,10 @@ export const App: React.FC = () => {
                             flexDirection: 'column'
                         }}
                     >
-                        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: theme === 'dark' ? '#000000' : 'rgba(0, 0, 0, 0.02)' }}>
+                        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: theme === 'dark' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(0, 0, 0, 0.02)', borderBottom: '1px solid rgba(16, 185, 129, 0.25)' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                                <Sliders size={18} />
-                                <h2>{language === 'tr' ? 'Kişiselleştir' : 'Personalize'}</h2>
+                                <Sliders size={18} style={{ color: 'var(--accent-color)' }} />
+                                <h2 style={{ color: 'var(--text-primary)', margin: 0, fontSize: '1.1rem', fontWeight: 600 }}>{language === 'tr' ? 'Kişiselleştir' : 'Personalize'}</h2>
                             </div>
                             <button 
                                 type="button" 

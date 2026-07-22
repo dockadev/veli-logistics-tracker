@@ -45,11 +45,11 @@
     min-width: 100%;
     max-height: 320px;
     overflow-y: auto;
-    background: rgba(15, 15, 20, 0.98);
+    background: rgba(14, 23, 17, 0.98);
     backdrop-filter: blur(12px);
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(16, 185, 129, 0.3);
     border-radius: var(--radius-sm);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
     z-index: 99999 !important;
     padding: 4px 0;
 }
@@ -64,30 +64,31 @@
 }
 
 .custom-select-dropdown::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.25);
+    background: rgba(16, 185, 129, 0.3);
     border-radius: 3px;
 }
 
 .custom-select-dropdown::-webkit-scrollbar-thumb:hover {
-    background: var(--accent-color);
+    background: #10b981;
 }
 
 .custom-select-option {
     padding: 0.55rem 0.75rem;
-    color: var(--text-secondary);
+    color: #cbd5e1;
     font-size: 0.8rem;
     cursor: pointer;
     transition: background-color 0.15s ease, color 0.15s ease;
+    white-space: nowrap;
 }
 
 .custom-select-option:hover {
-    background-color: var(--accent-bg);
-    color: var(--text-primary);
+    background-color: rgba(16, 185, 129, 0.18);
+    color: #ffffff;
 }
 
 .custom-select-option.selected {
-    color: var(--text-primary);
-    background-color: var(--accent-bg);
+    color: #10b981;
+    background-color: rgba(16, 185, 129, 0.15);
     font-weight: 700;
 }
 

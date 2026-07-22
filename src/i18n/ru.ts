@@ -1,15 +1,12 @@
 import { en } from './en';
 
 export const ru: Partial<Record<keyof typeof en, string>> = {
-    // App / Header
     logistics_intelligence: "Логистическая информация",
     officer_access: "Права офицера",
     member_access: "Обычные права",
     recruit_access: "Права рекрута",
     disconnect: "Выйти",
     tactical_logistics_dashboard: "Разработчик: docka",
-
-    // CSV Input Panel
     csv_input: "Ввод CSV",
     csv_input_desc_officer: "Вставьте CSV-данные инвентаря Морского порта или Склада снабжения.",
     csv_input_desc_member: "Вставка данных разрешена только офицерам логистики.",
@@ -17,8 +14,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     csv_input_placeholder_member: "Для вставки и импорта данных сканирования требуются учетные данные офицера логистики.",
     import_stock: "Импортировать запасы",
     load_sample: "Загрузить пример",
-
-    // Depot Database Panel
     depot_database: "БАЗА ДАННЫХ СКЛАДОВ",
     depot_database_desc: "Доступ и просмотр региональных складов и портов, зарегистрированных в тактической базе данных.",
     browse_depots: "Просмотр складов",
@@ -26,8 +21,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     clear_all_data: "Очистить все данные",
     select_active_depot: "Выбор активного склада",
     no_depots_imported: "Склады еще не импортированы.",
-
-    // Main Display
     no_active_depot: "Нет активного склада. Пожалуйста, импортируйте CSV для начала работы.",
     location: "Местоположение",
     last_updated: "Последнее обновление",
@@ -35,7 +28,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     delete_depot: "Удалить склад",
     supply_request_board: "ТАБЛИЦА ЗАКАЗОВ НА ПРОИЗВОДСТВО",
     supply_request_board_desc: "Координация и отслеживание заказов на производство между активными региональными объектами.",
-
     tab_inventory: "Инвентарь",
     tab_cross_search: "Перекрестный поиск",
     tab_supply_requests: "Заказы на производство",
@@ -55,20 +47,14 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     no_passcodes_found: "Пароли складов по вашему запросу не найдены.",
     search_passcodes_placeholder: "Поиск по региону, подрегиону или названию склада...",
     items_per_page: "Элементов на странице",
-
-    // Confirm Modal
     confirm_title: "ПОДТВЕРЖДЕНИЕ ДЕЙСТВИЯ",
     confirm_cancel: "Отмена",
     confirm_yes: "Да, подтвердить",
-
-    // Depot Settings Modal
     depot_settings: "НАСТРОЙКИ СКЛАДА",
     depot_settings_desc: "Настройте идентификационное имя склада.",
     custom_identifier_name: "Пользовательское имя идентификатора",
     save_changes: "Сохранить изменения",
     close: "Закрыть",
-
-    // Discord Gate
     tactical_intel_gateway: "Система отслеживания логистики",
     auth_required: "Для отслеживания логистики требуется авторизация. Пожалуйста, выберите вашу роль.",
     role_officer: "Права офицера",
@@ -84,8 +70,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     auth_btn_go_back: "Выйти / Назад",
     auth_btn_enter_system: "Войти в систему",
     secure_access: "Безопасный доступ",
-
-    // Inventory Tab
     filter_stock_category: "ФИЛЬТР КАТЕГОРИИ ЗАПАСОВ",
     all_items: "Все предметы",
     crates_only: "Только ящики",
@@ -117,8 +101,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     previous: "Предыдущий",
     next: "Следующий",
     search_logs_placeholder: "Поиск логов...",
-
-    // Cross Search Tab
     global_search: "ГЛОБАЛЬНЫЙ ПОИСК",
     global_search_desc: "Поиск материала по всем зарегистрированным складам.",
     search_item_name: "Поиск предмета...",
@@ -136,8 +118,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     click_to_reveal: "Нажмите, чтобы показать код доступа",
     validation_6_digits: "Код доступа должен состоять ровно из 6 цифр.",
     remove_code_help: "Оставьте пустым, чтобы удалить пароль",
-
-    // Supply Requests Tab
     active_requests: "Активные запросы",
     completed: "Завершено",
     request_item: "Запрошенный предмет",
@@ -148,8 +128,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     undo_completion: "Отменить завершение",
     no_active_supply_requests: "Нет активных заказов на производство.",
     open_request: "Создать заказ",
-
-    // Create Request Modal
     open_supply_request: "СОЗДАТЬ ЗАКАЗ НА ПРОИЗВОДСТВО",
     target_depot_port: "Целевой склад / Порт",
     add_items_request: "Добавить предметы в заказ",
@@ -176,8 +154,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     cat_vehicles: "Vehicles",
     cat_shippables: "Shippables & Structures",
     enter_target_depot_name: "Введите название целевого склада...",
-
-    // Toast Messages & Dialog confirmation
     role_officer_required_csv: "Для импорта сканов инвентаря требуется роль офицера логистики.",
     paste_csv_first: "Пожалуйста, сначала вставьте CSV-данные.",
     invalid_csv_format: "Ошибка: Неверный формат CSV.",
@@ -220,8 +196,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     item_already_added: "Этот предмет уже добавлен в заказ.",
     qty_must_greater_zero: "Количество должно быть больше нуля.",
     no_items_positive_qty: "Ошибка: Предметы с положительным количеством не найдены. Склад не импортирован.",
-
-    // Analytics Modal
     tactical_stock_analysis: "ТАКТИЧЕСКИЙ АНАЛИЗ ЗАПАСОВ",
     analytics_desc: "Сводные изменения запасов базы данных и метрики логистической информации.",
     analytics_maintenance_title: "В РАЗРАБОТКЕ",
@@ -252,8 +226,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     no_data_for_item: "Данных об истощении или запасах для \"{item}\" в активной области не найдено.",
     depletion_logs_desc: "Хронологический список уменьшений запасов, выделяющий объем потребленных/вывезенных предметов.",
     regional_breakdown_desc: "Сводный статус инвентаря, сгруппированный по географическим регионам и классам предметов.",
-
-    // Supply Requests Tab additional
     percent_full: "{percent}% Заполнено",
     created_at: "Создано: {time}",
     request_order_num: "Заказ на производство #{id}",
@@ -267,8 +239,6 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     all_depots: "Все склады",
     active_depot_only: "Только активный склад",
     no_matching_requests: "Не найдено активных заказов на производство, соответствующих вашим фильтрам.",
-
-    // Crypto & Login
     enter_password: "Введите пароль доступа",
     login_btn: "Войти",
     invalid_password: "Сбой авторизации: Сбой расшифровки. Неверный пароль.",
@@ -376,47 +346,134 @@ export const ru: Partial<Record<keyof typeof en, string>> = {
     reset_to_defaults: "Сбросить по умолчанию",
     reset_confirm_title: "Сбросить шаблоны?",
     reset_confirm_message: "Вы уверены, что хотите сбросить все шаблоны запасов по умолчанию? Это приведет к отмене несохраненных изменений.",
-
-    // Standardized Info Box Popovers
     info_health_title: "Формула расчета здоровья склада",
     info_health_bullet1: "Доля предмета: Общие 100% равными частями делятся на активные предметы (100% / Активные предметы).",
     info_health_bullet2: "Штраф за запасы: Предметы ниже минимума или выше максимума штрафуются пропорционально отклонению.",
-
     info_alerts_title: "Обзор критических предупреждений",
     info_alerts_bullet1: "Критический порог: Автоматический сигнал срабатывает, если запасы ниже минимума.",
     info_alerts_bullet2: "Приоритет: Срочные предметы с высоким расходом находятся вверху списка.",
-
     info_increased_title: "Наибольший прирост предметов",
     info_increased_bullet1: "Показывает предметы с наибольшим приростом за выбранный период.",
     info_increased_bullet2: "Отражает новые доставленные, произведенные или переданные запасы.",
-
     info_decreased_title: "Наибольшее снижение предметов",
     info_decreased_bullet1: "Показывает предметы с наибольшим снижением за выбранный период.",
     info_decreased_bullet2: "Отражает предметы, отправленные на фронт или израсходованные.",
-
     info_velocity_title: "Анализ скорости расхода",
     info_velocity_bullet1: "Рассчитывает суточную и часовую скорость расхода на основе прошлых сканирований.",
     info_velocity_bullet2: "Отражает активность боевых действий и темп расхода ресурсов.",
-
     info_runway_title: "Прогноз времени запасов",
     info_runway_bullet1: "Оценивает количество дней запаса путем деления остатка на скорость расхода.",
     info_runway_bullet2: "Выделяет критические ресурсы с риском полного истощения.",
-
     info_heatmap_title: "Тепловая карта активности",
     info_heatmap_bullet1: "Пиковые часы: Темные ячейки показывают часы с наибольшим числом поставок.",
     info_heatmap_bullet2: "Спокойные часы: Светлые ячейки показывают периоды низкой активности.",
-
     info_transfer_title: "Планировщик перевозок",
     info_transfer_bullet1: "Упаковка контейнеров: Автоматическая упаковка предметов в контейнеры по приоритету.",
     info_transfer_bullet2: "Копирование: Копирование плана перевозки в один клик для каналов Discord.",
-
     info_status_title: "Статус предмета в шаблоне",
     info_status_bullet1: "Активно: Предмет учитывается в предупреждениях, здоровье склада и перевозках.",
     info_status_bullet2: "Неактивно: Предмет исключен из всей аналитики и расчетов.",
-
     analytics_title: "ОПЕРАТИВНО-ТАКТИЧЕСКИЙ ОТЧЕТ",
     bottlenecks: "КРИТИЧЕСКИЕ ПРЕДУПРЕЖДЕНИЯ О ДЕФИЦИТЕ",
     no_bottlenecks: "Активных логистических дефицитов не обнаружено. Отличная работа!",
     stock_level: "Уровень запасов",
-    critical_limit: "Критический лимит"
+    critical_limit: "Критический лимит",
+    demand_target: "Цель",
+    demand_available: "Доступный",
+    demand_needed: "Нужный",
+    search_items: "Поиск предметов...",
+    demand_alphabetical: "Алфавитный",
+    tab_demand: "Требовать",
+    demand_fulfilled: "выполнено",
+    demand_items_view: "Предметы",
+    demand_cities_view: "Города",
+    health_by_category: "Здоровье по категориям",
+    demand_overview: "Обзор спроса",
+    needed_items: "Необходимые предметы:",
+    needed_in_cities: "Требуется в городах:",
+    demand_low_high: "Спрос: низкий ➔ высокий",
+    demand_high_low: "Спрос: высокий ➔ низкий",
+    surplus_stocks: "Излишки запасов",
+    quantity_fulfilled: "количество выполнено",
+    demote_to_officer: "Понизить до офицера",
+    items_fulfilled: "пункты выполнены",
+    per_item: "За единицу",
+    cat_shippable_crates: "Shippable Crates",
+    cat_vehicle_crates: "Vehicle Crates",
+    needed_demands: "Необходимые требования",
+    per_quantity: "За количество",
+    role_logistics_lead: "Руководитель отдела логистики",
+    logistics_lead_access: "Доступ к логистике включен",
+    promote_to_logistics_lead: "Повышение до руководителя отдела логистики",
+    depot_is_empty: "Сейчас это депо пустует.",
+    surplus_cities: "Избыточные города",
+    needed_cities_title: "Нужные города",
+    vehicle_type: "Тип транспортного средства",
+    train_freight: "Логистический поезд (индивидуальные контейнеры)",
+    destination_depot: "Депо назначения (Цель)",
+    barge_ship: "Грузовое судно/железный корабль (5 контейнеров/300 ящиков)",
+    manifest_copied: "План доставки скопирован в буфер обмена!",
+    flatbed_truck: "Бортовой грузовик (1 контейнер / 60 ящиков)",
+    priority_critical_tag: "КРИТИЧЕСКАЯ НЕОБХОДИМОСТЬ",
+    transfer_calculator_title: "Калькулятор трансфера",
+    copy_manifest: "Копировать план доставки",
+    transfer_manifest_title: "Упакованный план доставки",
+    wagon_count_label: "Контейнеры/Вагоны",
+    calculate_transfer: "Рассчитать трансфер",
+    source_depot: "Исходное хранилище (Origin)",
+    transfer_calculator_desc: "Рассчитайте накладные транспортных контейнеров от избыточных складов до дефицитных или голодных объектов.",
+    container_header: "Контейнер",
+    info_comparison_title: "Матрица сравнения акций",
+    info_detail_health_title: "Подробный анализ здоровья",
+    info_prio_health_title: "Приоритетные предметы Здоровье",
+    info_backline_health_title: "Здоровье бэклайн-регионов",
+    info_frontline_health_title: "Здоровье прифронтовых регионов",
+    no_transfer_needed: "На складе назначения достигнут оптимальный уровень запасов для излишков товаров.",
+    info_prio_health_bullet2: "Представляет средний процент выполнения основных поставок, необходимых для операций.",
+    no_surplus_available: "В исходном складе нет излишков, соответствующих пороговым значениям шаблона.",
+    info_detail_health_bullet2: "По региону/городу: оценивается средний показатель выполнения целевых показателей шаблона для каждой группы городов.",
+    info_frontline_health_bullet1: "Объединяет и усредняет показатели здоровья всех субрегионов, отмеченных как «Линия фронта».",
+    info_prio_health_bullet1: "Отслеживает общую оценку работоспособности элементов, помеченных как приоритетные (isPriority) в шаблонах.",
+    info_backline_health_bullet1: "Усредняет показатель работоспособности всех логистических узлов и складов, отмеченных как Backline.",
+    info_detail_health_bullet1: "По категориям: оценивает средний процент здоровья групп предметов (например, стрелковое оружие, тяжелые боеприпасы) во всем мире.",
+    info_frontline_health_bullet2: "Помогает оценить готовность и уровень снабжения активных боевых секторов.",
+    info_backline_health_bullet2: "Представляет собой общие резервы и запасы в тыловых зонах снабжения.",
+    info_demand_overview_bullet1: "Необходимые потребности: количества, необходимые для достижения минимального целевого порога во всех субрегионах.",
+    info_passcodes_bullet1: "Контроль доступа: установите пароли для ограничения импорта, редактирования шаблонов или удаления данных.",
+    info_minmax_templates_bullet1: "Определение целей: установите оптимальные уровни запасов (мин/макс) для сотрудников первой и второй линии.",
+    info_comparison_bullet2: "Помогает визуализировать дефицит и излишки запасов в режиме реального времени.",
+    info_region_settings_bullet2: "Масштабирование спроса: отрегулируйте множитель процента спроса для масштабирования минимальных и максимальных целевых показателей.",
+    info_minmax_templates_bullet2: "Игнорировать правило: установка для Min и Max значения 0 исключает элемент из аналитики и переносов.",
+    info_region_settings_bullet1: "Назначение шаблона: определите, будет ли регион вести себя как передовой или бэклайн.",
+    info_demand_overview_bullet2: "Излишки запасов: количества, превышающие максимальный предел, доступные для перевозки.",
+    info_passcodes_bullet2: "Веб-хуки Discord: отправляйте мгновенные уведомления об обновлениях акций на каналы логики Discord.",
+    info_comparison_bullet1: "Параллельное сравнение уровней исходных складских запасов с целевыми уровнями складских запасов.",
+    info_demand_overview_title: "Необходимые и избыточные запасы",
+    info_region_settings_title: "Конфигурация региональных настроек",
+    info_production_board_title: "Логистическое производственное управление",
+    info_passcodes_title: "Обзор безопасности и интеграции",
+    info_minmax_templates_title: "Минимальные/максимальные правила шаблона",
+    browse_sav_file: "Просматривать",
+    auto_detect: "Автоопределение",
+    info_production_board_bullet1: "Отслеживание заказов: создавайте и отслеживайте очереди на производство оружия, боеприпасов или транспортных средств.",
+    no_rankings: "В этой категории пока нет участников с баллами вклада.",
+    info_production_board_bullet2: "Интеграция с автозаполнением: отслеживайте целевые элементы непосредственно из шаблонов регионов.",
+    watching_active: "СМОТРЮ АКТИВНО",
+    stop_capturing: "Прекратить захват",
+    deliverers: "Лучшие поставщики",
+    leaderboard_title: "ВКЛАД ЛИДЕРОВ",
+    creators: "Лучшие создатели запросов",
+    scan_interval: "Интервал сканирования:",
+    leaderboard_subtitle: "Рейтинги самых активных участников во время нынешней войны",
+    sav_file_path: "Путь к файлу сохранения данных Foxhole MapData:",
+    importers: "Топ импортеров CSV",
+    start_capturing: "Начать съемку",
+    idle: "ПРАЗДНЫЙ",
+    direct_sync_desc: "Автоматически просматривает и анализирует локальный файл сохранения Foxhole MapData в режиме реального времени.",
+    scan_error: "ОШИБКА СКАНИРОВАНИЯ",
+    test_scan_log: "Журнал тестового сканирования",
+    template_management: "Управление шаблонами",
+    officer_menu: "Офицер+ Меню",
+    direct_sync: "Прямая синхронизация",
+    stockpile_management: "Управление запасами"
 };

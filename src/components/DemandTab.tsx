@@ -176,7 +176,9 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
     // Helper functions for region/town parsing matching main app logic
     const getDepotRegion = (depName: string): string => {
         const parts = depName.split(' - ').map(s => s.trim()).filter(Boolean);
-        return parts[0] || 'Unknown Region';
+        const reg = parts[0] || 'Unknown Region';
+        if (reg === 'The Blemish' || reg === 'The Blemsh') return 'Blemish';
+        return reg;
     };
 
     const getDepotTown = (depName: string, depotTownField?: string | null): string | null => {
@@ -207,11 +209,11 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         
         Object.values(depots).forEach(dep => {
             const region = getDepotRegion(dep.name);
-            const town = getDepotTown(dep.name, dep.townName) || 'General';
-            const groupKey = `${region} - ${town}`;
+            const town = getDepotTown(dep.name, dep.subregion || dep.townName);
+            const groupKey = town ? `${region} - ${town}` : region;
             
             if (!groups[groupKey]) {
-                groups[groupKey] = { region, town, depots: [] };
+                groups[groupKey] = { region, town: town || '', depots: [] };
             }
             groups[groupKey].depots.push(dep);
         });

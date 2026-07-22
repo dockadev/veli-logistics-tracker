@@ -1,21 +1,27 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import type { Depot, SupplyRequest, DepotHistoryEntry, SystemNotification, AuditLogEntry, StockpileTemplates, StockpileTemplateRule, RegionSettings } from '../types';
-import { isVehicleName } from './csvParser';
 import { getItemOfficialCategory } from './itemCategories';
 import { getDefaultTemplates } from './defaultTemplates';
 
 function migrateDepot(depot: Depot): Depot {
     if (!depot) return depot;
+    if (depot.isIntegrated === undefined) {
+        depot.isIntegrated = true;
+    }
     if (depot.current) {
         Object.entries(depot.current).forEach(([name, item]) => {
-            if (name.endsWith('(Crate)') && isVehicleName(name) && item.category !== 'crate_vehicle') {
+            const cat = getItemOfficialCategory(name);
+            const isVeh = cat === 'vehicles' || cat === 'vehicle_crates';
+            if (name.endsWith('(Crate)') && isVeh && item.category !== 'crate_vehicle') {
                 item.category = 'crate_vehicle';
             }
         });
     }
     if (depot.previous) {
         Object.entries(depot.previous).forEach(([name, item]) => {
-            if (name.endsWith('(Crate)') && isVehicleName(name) && item.category !== 'crate_vehicle') {
+            const cat = getItemOfficialCategory(name);
+            const isVeh = cat === 'vehicles' || cat === 'vehicle_crates';
+            if (name.endsWith('(Crate)') && isVeh && item.category !== 'crate_vehicle') {
                 item.category = 'crate_vehicle';
             }
         });
@@ -35,9 +41,13 @@ function normalizeDepotName(name: string): string {
     let clean = name.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
     const parts = clean.split(/\s+-\s+/).map(p => p.trim());
     if (parts.length > 0) {
+        if (parts[0] === 'The Blemish') {
+            parts[0] = 'Blemish';
+        }
         const mappedParts = parts.map((part, index) => {
             if (index === 1) return part;
             const trimmed = part.trim();
+            if (trimmed === 'The Blemish') return 'Blemish';
             const lower = trimmed.toLowerCase();
             if (
                 lower === 'seaport' || 
@@ -112,6 +122,9 @@ function getMatchKey(rawFullName: string): string {
     }
     
     let normalizedRegion = region.toLowerCase();
+    if (normalizedRegion === 'the blemish') {
+        normalizedRegion = 'blemish';
+    }
     const name = parts[parts.length - 1] || '';
     return `${normalizedRegion}_${type}_${name.toLowerCase()}`;
 }
@@ -344,6 +357,20 @@ export const dbService = {
     },
 
     async deleteDepot(name: string): Promise<void> {
+        // Fallback / local storage update
+        const local = localStorage.getItem('docka_local_depots');
+        if (local) {
+            try {
+                const depots = JSON.parse(local);
+                if (depots[name]) {
+                    delete depots[name];
+                    localStorage.setItem('docka_local_depots', JSON.stringify(depots));
+                }
+            } catch (e) {
+                console.error('[DB Service] Error updating local depots on delete:', e);
+            }
+        }
+
         const client = supabase;
         if (isSupabaseConfigured && client) {
             try {
@@ -667,10 +694,20 @@ export const dbService = {
                     const parsed = typeof data.setting_value === 'string'
                         ? JSON.parse(data.setting_value)
                         : data.setting_value;
-                    return {
+                    
+                    const merged: StockpileTemplates = {
                         frontline: { ...defaults.frontline, ...normalizeKeys(parsed.frontline || {}) },
-                        backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) }
+                        backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) },
+                        aircraft: { ...defaults.aircraft, ...normalizeKeys(parsed.aircraft || {}) }
                     };
+
+                    Object.keys(parsed).forEach(k => {
+                        if (k !== 'frontline' && k !== 'backline' && k !== 'aircraft') {
+                            merged[k] = normalizeKeys(parsed[k] || {});
+                        }
+                    });
+
+                    return merged;
                 }
             } catch (err) {
                 console.warn('[DB Service] Supabase loadTemplates failed or table not ready, using defaults/local:', err);
@@ -681,10 +718,19 @@ export const dbService = {
         if (local) {
             try {
                 const parsed = JSON.parse(local);
-                return {
+                const merged: StockpileTemplates = {
                     frontline: { ...defaults.frontline, ...normalizeKeys(parsed.frontline || {}) },
-                    backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) }
+                    backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) },
+                    aircraft: { ...defaults.aircraft, ...normalizeKeys(parsed.aircraft || {}) }
                 };
+
+                Object.keys(parsed).forEach(k => {
+                    if (k !== 'frontline' && k !== 'backline' && k !== 'aircraft') {
+                        merged[k] = normalizeKeys(parsed[k] || {});
+                    }
+                });
+
+                return merged;
             } catch (e) {
                 console.error('[DB Service] Local parsing of templates failed:', e);
             }
@@ -709,6 +755,48 @@ export const dbService = {
                 }
             } catch (err) {
                 console.error('[DB Service] Supabase saveTemplates failed:', err);
+            }
+        }
+    },
+
+    async loadTemplateColors(): Promise<Record<string, string>> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('system_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'template_colors')
+                    .single();
+                if (!error && data && data.setting_value) {
+                    const parsed = typeof data.setting_value === 'string'
+                        ? JSON.parse(data.setting_value)
+                        : data.setting_value;
+                    return parsed as Record<string, string>;
+                }
+            } catch (err) {
+                console.warn('[DB Service] Supabase loadTemplateColors failed:', err);
+            }
+        }
+        const local = localStorage.getItem('foxhole_template_colors');
+        if (local) {
+            try { return JSON.parse(local); } catch (e) {}
+        }
+        return { frontline: '#ef4444', backline: '#ffffff', aircraft: '#06b6d4' };
+    },
+
+    async saveTemplateColors(colors: Record<string, string>): Promise<void> {
+        localStorage.setItem('foxhole_template_colors', JSON.stringify(colors));
+        if (isSupabaseConfigured && supabase) {
+            try {
+                await supabase
+                    .from('system_settings')
+                    .upsert({
+                        setting_key: 'template_colors',
+                        setting_value: JSON.stringify(colors),
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'setting_key' });
+            } catch (err) {
+                console.error('[DB Service] Supabase saveTemplateColors failed:', err);
             }
         }
     },
@@ -781,7 +869,7 @@ export const dbService = {
                 console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
             }
         }
-        return '0.1.63';
+        return '0.1.64';
     },
 
     async saveMinAppVersion(version: string): Promise<void> {
