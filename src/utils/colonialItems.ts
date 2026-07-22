@@ -363,8 +363,6 @@ export const COLONIAL_NEUTRAL_ITEMS = new Set<string>([
   "Legionary Fatigues (Crate)",
   "Legionary’s Oilcoat",
   "Legionary’s Oilcoat (Crate)",
-  "Liaison Transmitter",
-  "Liaison Transmitter (Crate)",
   "Liquid Container",
   "Liquid Container (Crate)",
   "Listening Kit",

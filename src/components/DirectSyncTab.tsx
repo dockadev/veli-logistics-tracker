@@ -138,28 +138,28 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
         region: 'Westgate',
         townName: null,
         timestamp: new Date().toISOString(),
-        items: { 'Rifle': 120, 'Rifle (Crate)': 45, '7.62mm': 500 }
+        items: { 'Argenti r.II Rifle': 120, 'Argenti r.II Rifle (Crate)': 45, '7.62mm': 500 }
       },
       {
         location: 'Westgate - Storage Depot - VELI-KNG-B',
         region: 'Westgate',
         townName: null,
         timestamp: new Date().toISOString(),
-        items: { 'Rifle': 30, '7.62mm': 150 }
+        items: { 'Argenti r.II Rifle': 30, '7.62mm': 150 }
       },
       {
         location: 'Heartlands - Storage Depot - VELI-BLE-C',
         region: 'Heartlands',
         townName: null,
         timestamp: new Date().toISOString(),
-        items: { 'Plasma': 80, 'Bandage': 300 }
+        items: { 'Blood Plasma': 80, 'Bandages': 300 }
       },
       {
         location: 'Ash Fields - Storage Depot - VELI-ASH-C',
         region: 'Ash Fields',
         townName: null,
         timestamp: new Date().toISOString(),
-        items: { 'Maintenance Supplies': 1000, 'Heavy Artillery (Crate)': 20 }
+        items: { 'Maintenance Supplies': 1000, '120mm (Crate)': 20 }
       }
     ];
 

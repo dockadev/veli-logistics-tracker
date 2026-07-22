@@ -276,5 +276,9 @@ export function formatCanonicalItemName(itemName: string): string {
     if (itemName === 'Supplies (Crate)') return 'Maintenance Supplies (Crate)';
     if (itemName === 'Garrison Supplies') return 'Maintenance Supplies';
     if (itemName === 'Garrison Supplies (Crate)') return 'Maintenance Supplies (Crate)';
+    if (itemName === 'Plasma') return 'Blood Plasma';
+    if (itemName === 'Plasma (Crate)') return 'Blood Plasma (Crate)';
+    if (itemName === 'Bandage') return 'Bandages';
+    if (itemName === 'Bandage (Crate)') return 'Bandages (Crate)';
     return itemName;
 }

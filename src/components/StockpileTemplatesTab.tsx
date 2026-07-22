@@ -386,13 +386,14 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         COLONIAL_NEUTRAL_ITEMS.forEach(rawName => {
             const cat = ITEM_CATEGORY_MAP[rawName] || getItemOfficialCategory(rawName);
             
-            if (cat === 'vehicles' || cat === 'shippables' || cat === 'aircraft_parts') {
-                // Vehicles, Shippables, Aircraft/Planes can be single units AND Crates
+            if (cat === 'vehicles' || cat === 'shippables') {
+                // Vehicles and Shippables exist as single units AND (Crate) variants
                 itemsMap.set(rawName, cat);
-                const crateCat = cat === 'vehicles' ? 'vehicle_crates' : cat === 'shippables' ? 'shippable_crates' : 'aircraft_parts';
+                const crateCat = cat === 'vehicles' ? 'vehicle_crates' : 'shippable_crates';
                 itemsMap.set(`${rawName} (Crate)`, crateCat);
             } else {
-                // All regular items in stockpiles exist ONLY as Crates
+                // aircraft_parts and all regular items: already registered with/without (Crate) in colonialItems.ts
+                // Just use the name as-is; don't generate a second (Crate) suffix
                 const crateName = rawName.endsWith('(Crate)') ? rawName : `${rawName} (Crate)`;
                 itemsMap.set(crateName, cat);
             }

@@ -494,8 +494,6 @@ export const ITEM_CATEGORY_MAP: Record<string, OfficialCategory> = {
     "Legionary's Oilcoat (Crate)": "uniforms",
     "Legionary’s Oilcoat": "uniforms",
     "Legionary’s Oilcoat (Crate)": "uniforms",
-    "Liaison Transmitter": "utility",
-    "Liaison Transmitter (Crate)": "utility",
     "Liquid Container": "shippables",
     "Liquid Container (Crate)": "shippable_crates",
     "Listening Kit": "utility",

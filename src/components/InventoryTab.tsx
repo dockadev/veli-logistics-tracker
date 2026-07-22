@@ -3,10 +3,11 @@ import { Search, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, Eye
 import { CustomSelect } from './CustomSelect';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { Depot, FilterState, SortField, StockpileTemplates, RegionSettings } from '../types';
-import { getPaginationRange, getCategoryClass, resolveTemplateSetting } from '../utils/helpers';
+import { getPaginationRange, getCategoryClass, resolveTemplateSetting, formatCanonicalItemName } from '../utils/helpers';
 import { getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
 import { getDefaultTemplates } from '../utils/defaultTemplates';
 import { getItemIconUrl, getCategoryIconUrl } from '../utils/itemIcons';
+import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 
 const parseDepotNameDetails = (fullName: string, townName?: string | null) => {
     const parts = fullName.split(' - ')
@@ -286,21 +287,48 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
 
     // Collect and compute difference between scans & calculate statistics (single-pass cached)
     const { itemsList, stats } = React.useMemo(() => {
-        const allItemNames = Array.from(
-            new Set([
-                ...Object.keys(depot.previous || {}),
-                ...Object.keys(depot.current || {})
-            ])
-        ).sort();
+        const rawKeys = [
+            ...Object.keys(depot.previous || {}),
+            ...Object.keys(depot.current || {})
+        ];
+
+        // 1. Canonicalize item names (Plasma -> Blood Plasma, Bandage -> Bandages, Supplies -> Maintenance Supplies)
+        const canonicalKeys = rawKeys.map(k => formatCanonicalItemName(k));
+
+        // 2. Filter out fake/invalid items that have no PNG icon AND are not valid Colonial items
+        const validKeys = canonicalKeys.filter(name => {
+            const clean = name.replace(/\s*\(Crate\)$/i, '').trim();
+            if (clean === 'Rifle' || clean === 'Heavy Artillery') return false;
+            // Non-crate Maintenance Supplies is an internal engine value; only the (Crate) form is meaningful
+            if (name === 'Maintenance Supplies') return false;
+            if (getItemIconUrl(name)) return true;
+            if (COLONIAL_NEUTRAL_ITEMS.has(clean) || COLONIAL_NEUTRAL_ITEMS.has(name)) return true;
+            return false;
+        });
+
+        const allItemNames = Array.from(new Set(validKeys)).sort();
 
         let totalCurrentQty = 0;
         let increasedCount = 0;
         let decreasedCount = 0;
         let newCount = 0;
 
+        const getQty = (dict: Record<string, { count: number }> | null | undefined, targetName: string): number | null => {
+            if (!dict) return null;
+            let sum = 0;
+            let found = false;
+            Object.entries(dict).forEach(([k, v]) => {
+                if (formatCanonicalItemName(k) === targetName) {
+                    sum += (v?.count || 0);
+                    found = true;
+                }
+            });
+            return found ? sum : null;
+        };
+
         const list = allItemNames.map(name => {
-            const prevVal = depot.previous ? (depot.previous[name]?.count ?? 0) : null;
-            const currVal = depot.current ? (depot.current[name]?.count ?? 0) : 0;
+            const prevVal = getQty(depot.previous, name);
+            const currVal = getQty(depot.current, name) ?? 0;
             const officialCat = getItemOfficialCategory(name);
             const targetMax = getItemTargetMax(name, officialCat);
             const target = targetMax;
@@ -670,7 +698,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                     }
 
                                     const isCrate = item.name.endsWith('(Crate)');
-                                    const displayName = isCrate ? item.name.substring(0, item.name.length - 7).trim() : item.name;
+                                    const displayName = item.name;
                                     const canExpandRow = canExpand && getDepotDistribution(item.name).length > 0;
                                     const iconUrl = getItemIconUrl(item.name);
 
@@ -695,7 +723,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                                             />
                                                         )}
-                                                        {isCrate && (item.category === 'vehicles' || item.category === 'vehicle_crates' || item.category === 'shippables' || item.category === 'shippable_crates') && (
+                                                        {isCrate && (
                                                             <Package size={12} style={{ color: 'var(--accent-color)', opacity: 0.8, flexShrink: 0 }} />
                                                         )}
                                                         <span style={{ wordBreak: 'break-word' }}>{displayName}</span>

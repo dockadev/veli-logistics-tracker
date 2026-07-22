@@ -282,7 +282,6 @@ export const ITEM_CODENAMES: Record<string, string> = {
   "PistolW": "Ahti Model 2",
   "RPGTW": "Cutler Foebreaker",
   "Radio": "Radio",
-  "RadioAircraft": "Liaison Transmitter",
   "RadioBackpack": "Radio Backpack",
   "RainUniformC": "Legionary’s Oilcoat",
   "RareMaterials": "Rare Materials",

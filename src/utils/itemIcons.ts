@@ -5,7 +5,12 @@ const REVERSE_CODENAMES_MAP: Record<string, string> = {};
 
 Object.entries(ITEM_CODENAMES).forEach(([code, displayName]) => {
   if (displayName) {
-    REVERSE_CODENAMES_MAP[displayName.toLowerCase()] = code;
+    const key = displayName.toLowerCase();
+    const cleanCode = code.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    const cleanDisplay = displayName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (!REVERSE_CODENAMES_MAP[key] || cleanCode === cleanDisplay) {
+      REVERSE_CODENAMES_MAP[key] = code;
+    }
   }
 });
 
@@ -17,6 +22,10 @@ export function getItemIconUrl(itemName?: string | null): string | null {
 
   // Clean item name (remove " (Crate)" if present)
   let cleanName = itemName.replace(/\s*\(Crate\)$/i, '').trim();
+
+  if (cleanName === 'Maintenance Supplies' || cleanName === 'Supplies' || cleanName === 'Garrison Supplies') {
+    return '/item-icons/MaintenanceSupplies.png';
+  }
   
   // If it's already a codename key in ITEM_CODENAMES
   if (ITEM_CODENAMES[cleanName]) {
