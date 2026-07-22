@@ -285,8 +285,19 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
             }
         });
 
+        // Filter out items already added to the request
+        const addedSet = new Set(
+            addedItems.map(i => i.itemName.toLowerCase().replace(/[\u201c\u201d\u201e\u201f\u2033\u2036"']/g, '').replace(/\s+/g, ' ').trim())
+        );
+
+        let filteredList = list.filter(item => {
+            const norm = item.name.toLowerCase().replace(/[\u201c\u201d\u201e\u201f\u2033\u2036"']/g, '').replace(/\s+/g, ' ').trim();
+            const crateNorm = `${norm} (crate)`;
+            const baseNorm = norm.replace(' (crate)', '');
+            return !addedSet.has(norm) && !addedSet.has(crateNorm) && !addedSet.has(baseNorm);
+        });
+
         // Filter by category if a specific one is selected
-        let filteredList = list;
         if (recCategory !== 'all') {
             filteredList = filteredList.filter(item => item.category === recCategory);
         }
@@ -323,7 +334,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
                 return b.consumed - a.consumed;
             }
         }).slice(0, 12);
-    }, [depots, templates, depotsHistory, regionSettings, recCategory, includeVehicles, depotName]);
+    }, [depots, templates, depotsHistory, regionSettings, recCategory, includeVehicles, depotName, addedItems]);
 
     const handleSelectRecommendation = (rec: { name: string; category: any; suggestedQty: number }) => {
         setItemNameInput(rec.name);

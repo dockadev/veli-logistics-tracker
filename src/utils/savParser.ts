@@ -289,7 +289,10 @@ export function parseSavFile(fileBuffer: Uint8Array): ParsedStockpile[] {
           
           const processEntry = (entry: any, isCrate: boolean) => {
             if (!entry || !entry.CodeName) return;
-            const stdName = ITEM_CODENAMES[entry.CodeName];
+            let stdName = ITEM_CODENAMES[entry.CodeName] || entry.CodeName;
+            if (stdName === 'Supplies' || stdName === 'Garrison Supplies') {
+              stdName = 'Maintenance Supplies';
+            }
             if (stdName) {
               const finalName = isCrate ? `${stdName} (Crate)` : stdName;
               items[finalName] = (items[finalName] || 0) + (entry.Quantity || 0);

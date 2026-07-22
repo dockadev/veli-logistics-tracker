@@ -269,3 +269,12 @@ export const playChimeSound = (): void => {
         console.error('Failed to play chime sound:', e);
     }
 };
+
+export function formatCanonicalItemName(itemName: string): string {
+    if (!itemName) return itemName;
+    if (itemName === 'Supplies') return 'Maintenance Supplies';
+    if (itemName === 'Supplies (Crate)') return 'Maintenance Supplies (Crate)';
+    if (itemName === 'Garrison Supplies') return 'Maintenance Supplies';
+    if (itemName === 'Garrison Supplies (Crate)') return 'Maintenance Supplies (Crate)';
+    return itemName;
+}

@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Save, Search, Sliders, CheckCircle2, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Save, Search, Sliders, CheckCircle2, ChevronDown, ChevronUp, Info, Trash2, Copy, ClipboardPaste, Eye, EyeOff, Star, Download, Upload } from 'lucide-react';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
-import type { StockpileTemplates, CategoryFilterType, UserRole, Depot, RegionSettings } from '../types';
-import { ITEM_CATEGORY_MAP, getItemOfficialCategory } from '../utils/itemCategories';
+import type { StockpileTemplates, UserRole, Depot, RegionSettings } from '../types';
+import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { CustomSelect } from './CustomSelect';
-import { getDefaultRuleForCategory, DEFAULT_TEMPLATE_COLORS, PRESET_COLORS } from '../utils/defaultTemplates';
-import { getItemIconUrl } from '../utils/itemIcons';
+import { getDefaultRuleForCategory, getDefaultTemplates, DEFAULT_TEMPLATE_COLORS, PRESET_COLORS } from '../utils/defaultTemplates';
+import { getItemIconUrl, getCategoryIconUrl } from '../utils/itemIcons';
 import { dbService } from '../utils/dbService';
 import { ConfirmModal } from './ConfirmModal';
 
@@ -33,10 +33,50 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     const [showRegionSettingsInfo, setShowRegionSettingsInfo] = useState(false);
     const [showMinMaxTemplatesInfo, setShowMinMaxTemplatesInfo] = useState(false);
     const [search, setSearch] = useState('');
-    const [categoryFilter, setCategoryFilter] = useState<CategoryFilterType>('all');
     const [isSaving, setIsSaving] = useState(false);
     const [savedSuccess, setSavedSuccess] = useState(false);
     
+    const OFFICIAL_CATEGORIES: OfficialCategory[] = [
+        'small_arms',
+        'heavy_arms',
+        'heavy_ammunition',
+        'utility',
+        'medical',
+        'materials',
+        'uniforms',
+        'aircraft_parts',
+        'vehicles',
+        'shippables',
+        'vehicle_crates',
+        'shippable_crates'
+    ];
+
+    const [disabledCategories, setDisabledCategories] = useState<Set<string>>(new Set());
+    const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
+    const [showOnlyPriority, setShowOnlyPriority] = useState(false);
+
+    const toggleCategory = (cat: string) => {
+        setDisabledCategories(prev => {
+            const next = new Set(prev);
+            if (next.has(cat)) {
+                next.delete(cat);
+            } else {
+                next.add(cat);
+            }
+            return next;
+        });
+    };
+
+    const toggleAllCategories = () => {
+        setDisabledCategories(prev => {
+            if (prev.size === 0) {
+                return new Set(OFFICIAL_CATEGORIES);
+            } else {
+                return new Set();
+            }
+        });
+    };
+
     // Custom templates states
     const [newTemplateName, setNewTemplateName] = useState('');
     const [selectedNewColor, setSelectedNewColor] = useState<string>('#10b981');
@@ -64,12 +104,135 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     const [savedRegionsSuccess, setSavedRegionsSuccess] = useState(false);
     const [isRegionPanelCollapsed, setIsRegionPanelCollapsed] = useState(true);
 
+    const [copiedBuffer, setCopiedBuffer] = useState<Record<string, any> | null>(null);
+    const [copiedName, setCopiedName] = useState<string | null>(null);
+    const [copyToast, setCopyToast] = useState<string | null>(null);
+    const [backupToast, setBackupToast] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+    const handleExportBackup = async () => {
+        try {
+            const defaults = getDefaultTemplates();
+            const safeTemplatesToExport: StockpileTemplates = {
+                frontline: localTemplates.frontline || defaults.frontline,
+                backline: localTemplates.backline || defaults.backline,
+                aircraft: localTemplates.aircraft || defaults.aircraft,
+                ...localTemplates
+            };
+
+            const exportData = {
+                _app: "Veli Logistics Tracker",
+                _version: "0.1.64",
+                _exportedAt: new Date().toISOString(),
+                _activeRole: activeRole,
+                templateColors,
+                templates: safeTemplatesToExport
+            };
+
+            const jsonStr = JSON.stringify(exportData, null, 2);
+            const dateStr = new Date().toISOString().split('T')[0];
+            const safeRoleName = activeRole.toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+            const defaultFilename = `foxhole_template_${safeRoleName}_${dateStr}.json`;
+
+            if ('showSaveFilePicker' in window) {
+                try {
+                    const handle = await (window as any).showSaveFilePicker({
+                        suggestedName: defaultFilename,
+                        types: [{
+                            description: 'JSON Files (*.json)',
+                            accept: { 'application/json': ['.json'] },
+                        }],
+                    });
+                    const writable = await handle.createWritable();
+                    await writable.write(jsonStr);
+                    await writable.close();
+
+                    setBackupToast(language === 'tr' ? 'Şablon yedeği seçtiğiniz konuma kaydedildi!' : 'Template backup saved to selected location!');
+                    setTimeout(() => setBackupToast(null), 3500);
+                    return;
+                } catch (err: any) {
+                    if (err.name === 'AbortError') {
+                        return; // User canceled save dialog
+                    }
+                    console.warn('showSaveFilePicker error, falling back to download:', err);
+                }
+            }
+
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = defaultFilename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            setBackupToast(language === 'tr' ? 'Şablon yedeği İndirilenler klasörünüze kaydedildi.' : 'Template backup saved to Downloads folder.');
+            setTimeout(() => setBackupToast(null), 3500);
+        } catch (err) {
+            console.error('Failed to export backup:', err);
+        }
+    };
+
+    const handleImportBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const content = e.target?.result as string;
+                const parsed = JSON.parse(content);
+                
+                const importedTemplates = parsed.templates || (parsed.frontline ? parsed : null);
+                if (!importedTemplates || typeof importedTemplates !== 'object') {
+                    alert(language === 'tr' ? 'Geçersiz şablon dosyası formatı!' : 'Invalid template file format!');
+                    return;
+                }
+
+                const defaults = getDefaultTemplates();
+                const mergedTemplates: StockpileTemplates = {
+                    frontline: importedTemplates.frontline || defaults.frontline,
+                    backline: importedTemplates.backline || defaults.backline,
+                    aircraft: importedTemplates.aircraft || defaults.aircraft,
+                    ...importedTemplates
+                };
+
+                setLocalTemplates(mergedTemplates);
+                await dbService.saveTemplates(mergedTemplates);
+                await onSaveTemplates(mergedTemplates);
+
+                if (parsed.templateColors && typeof parsed.templateColors === 'object') {
+                    setTemplateColors(prev => ({ ...prev, ...parsed.templateColors }));
+                    await dbService.saveTemplateColors({ ...templateColors, ...parsed.templateColors });
+                }
+
+                setBackupToast(language === 'tr' ? 'Şablon yedeği başarıyla içe aktarıldı!' : 'Template backup imported successfully!');
+                setTimeout(() => setBackupToast(null), 3500);
+            } catch (err) {
+                console.error('Failed to import template backup:', err);
+                alert(language === 'tr' ? 'Şablon dosyası okunamadı. Geçerli bir JSON dosyası seçin.' : 'Failed to parse template file. Select a valid JSON file.');
+            } finally {
+                event.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
+
     useEffect(() => {
         setLocalRegionSettings(regionSettings);
     }, [regionSettings]);
 
     useEffect(() => {
-        setLocalTemplates(templates);
+        const defaults = getDefaultTemplates();
+        const safe: StockpileTemplates = {
+            frontline: templates?.frontline || defaults.frontline,
+            backline: templates?.backline || defaults.backline,
+            aircraft: templates?.aircraft || defaults.aircraft,
+            ...(templates || {})
+        };
+        setLocalTemplates(safe);
     }, [templates]);
 
     useEffect(() => {
@@ -180,7 +343,13 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                 };
             }
 
+            const crateKey = itemName.endsWith(' (Crate)') ? itemName : `${itemName} (Crate)`;
+            const baseKey = itemName.endsWith(' (Crate)') ? itemName.replace(' (Crate)', '') : itemName;
+
             currentRoleTemplates[itemName] = updatedRule;
+            currentRoleTemplates[crateKey] = updatedRule;
+            currentRoleTemplates[baseKey] = updatedRule;
+
             return {
                 ...prev,
                 [activeRole]: currentRoleTemplates
@@ -193,8 +362,16 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     const handleSave = async () => {
         setIsSaving(true);
         try {
+            const defaults = getDefaultTemplates();
+            const safeTemplatesToSave: StockpileTemplates = {
+                frontline: localTemplates.frontline || defaults.frontline,
+                backline: localTemplates.backline || defaults.backline,
+                aircraft: localTemplates.aircraft || defaults.aircraft,
+                ...localTemplates
+            };
+
             await dbService.saveTemplateColors(templateColors);
-            await onSaveTemplates(localTemplates);
+            await onSaveTemplates(safeTemplatesToSave);
             setSavedSuccess(true);
             setTimeout(() => setSavedSuccess(false), 3000);
         } catch (e) {
@@ -223,13 +400,21 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         return Array.from(itemsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
     }, []);
 
-    const filteredItems = allItems.filter(([itemName, cat]) => {
-        const matchesCategory = categoryFilter === 'all' || cat === categoryFilter;
-        const matchesSearch = search.trim() === '' || itemName.toLowerCase().includes(search.toLowerCase());
-        return matchesCategory && matchesSearch;
-    });
-
     const activeRules = localTemplates[activeRole] || {};
+
+    const filteredItems = allItems.filter(([itemName, cat]) => {
+        const isCategoryEnabled = !disabledCategories.has(cat);
+        const matchesSearch = search.trim() === '' || itemName.toLowerCase().includes(search.toLowerCase());
+        
+        if (showOnlyPriority) {
+            const rule = activeRules[itemName];
+            if (!rule || !rule.isPriority) {
+                return false;
+            }
+        }
+
+        return isCategoryEnabled && matchesSearch;
+    });
 
     const templateStats = useMemo(() => {
         const rules = localTemplates[activeRole] || {};
@@ -534,19 +719,63 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                             <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem', maxWidth: '650px' }}>
                                 {t('stockpile_templates_desc')}
                             </p>
+                            {backupToast && (
+                                <div style={{ marginTop: '0.4rem', fontSize: '0.72rem', color: '#10b981', fontWeight: 700, padding: '0.25rem 0.65rem', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', borderRadius: '6px', display: 'inline-block' }}>
+                                    {backupToast}
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.65rem' }}>
+                    <div style={{ display: 'flex', gap: '0.65rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={handleExportBackup}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.55rem 1rem', fontSize: '0.75rem', fontWeight: 700 }}
+                            title={language === 'tr' ? 'Tüm şablonları JSON dosyası olarak bilgisayara indir' : 'Download all templates as JSON'}
+                        >
+                            <Download size={15} />
+                            <span>{language === 'tr' ? 'Yedek İndir (JSON)' : 'Export Backup (JSON)'}</span>
+                        </button>
+
+                        <input 
+                            type="file" 
+                            ref={fileInputRef} 
+                            accept=".json" 
+                            style={{ display: 'none' }} 
+                            onChange={handleImportBackup} 
+                        />
+                        <button
+                            type="button"
+                            className="btn btn-secondary"
+                            onClick={() => fileInputRef.current?.click()}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', padding: '0.55rem 1rem', fontSize: '0.75rem', fontWeight: 700 }}
+                            title={language === 'tr' ? 'JSON yedek dosyasını yükle' : 'Upload JSON backup file'}
+                        >
+                            <Upload size={15} />
+                            <span>{language === 'tr' ? 'Yedek Yükle' : 'Import Backup'}</span>
+                        </button>
+
                         <button
                             type="button"
                             className="btn btn-primary"
                             onClick={handleSave}
                             disabled={isSaving}
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.55rem 1.25rem', fontSize: '0.75rem', fontWeight: 800 }}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                justifyContent: 'center', 
+                                gap: '0.4rem', 
+                                padding: '0.55rem 1rem', 
+                                fontSize: '0.75rem', 
+                                fontWeight: 800, 
+                                minWidth: '170px', 
+                                height: '36px' 
+                            }}
                         >
                             {savedSuccess ? <CheckCircle2 size={16} style={{ color: '#10b981' }} /> : <Save size={16} />}
-                            <span>{savedSuccess ? t('templates_saved_success') : (isSaving ? (language === 'tr' ? 'Kaydediliyor...' : 'Saving...') : t('save_templates'))}</span>
+                            <span>{savedSuccess ? (language === 'tr' ? 'Kaydedildi' : 'Saved') : (isSaving ? (language === 'tr' ? 'Kaydediliyor...' : 'Saving...') : t('save_templates'))}</span>
                         </button>
                     </div>
                 </div>
@@ -561,12 +790,12 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                             const assignedColor = templateColors[tKey] || (tKey === 'frontline' ? '#ef4444' : tKey === 'backline' ? '#ffffff' : tKey === 'aircraft' ? '#06b6d4' : '#10b981');
                             
                             return (
-                                <div key={tKey} style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <div key={tKey} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                                     <button
                                         type="button"
                                         onClick={() => setActiveRole(tKey)}
                                         style={{
-                                            padding: '0.45rem 1.25rem',
+                                            padding: !isSystem ? '0.45rem 2.2rem 0.45rem 1rem' : '0.45rem 1.25rem',
                                             borderRadius: '6px',
                                             border: isActive ? `2px solid ${assignedColor}` : `1px solid ${assignedColor}60`,
                                             background: isActive ? `${assignedColor}25` : `${assignedColor}08`,
@@ -598,20 +827,34 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                                 setTemplateToDelete(tKey);
                                             }}
                                             style={{
-                                                background: 'transparent',
-                                                border: 'none',
+                                                position: 'absolute',
+                                                right: '6px',
+                                                top: '50%',
+                                                transform: 'translateY(-50%)',
+                                                background: 'rgba(239, 68, 68, 0.18)',
+                                                border: '1px solid rgba(239, 68, 68, 0.4)',
+                                                borderRadius: '4px',
                                                 color: '#ef4444',
                                                 cursor: 'pointer',
-                                                fontSize: '1rem',
-                                                padding: '0.2rem',
+                                                padding: '2px',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                opacity: 0.7
+                                                transition: 'all 0.15s ease',
+                                                width: '20px',
+                                                height: '20px'
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.45)';
+                                                e.currentTarget.style.borderColor = '#ef4444';
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.background = 'rgba(239, 68, 68, 0.18)';
+                                                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.4)';
                                             }}
                                             title={language === 'tr' ? 'Şablonu Sil' : 'Delete Template'}
                                         >
-                                            &times;
+                                            <Trash2 size={11} />
                                         </button>
                                     )}
                                 </div>
@@ -619,37 +862,116 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                         })}
                     </div>
 
-                    {/* Active Template Color Switcher Bar */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.25)', padding: '0.35rem 0.65rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.7rem', fontWeight: 800, color: templateColors[activeRole] || '#ef4444', fontFamily: 'var(--font-heading)', textTransform: 'uppercase' }}>
-                            {activeRole} {language === 'tr' ? 'Rengi:' : 'Color:'}
-                        </span>
-                        <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
-                            {PRESET_COLORS.map(c => {
-                                const activeColorVal = templateColors[activeRole] || (activeRole === 'frontline' ? '#ef4444' : activeRole === 'backline' ? '#ffffff' : activeRole === 'aircraft' ? '#06b6d4' : '#10b981');
-                                const isSelected = activeColorVal === c;
-                                return (
-                                    <button
-                                        key={c}
-                                        type="button"
-                                        onClick={() => {
-                                            const updated = { ...templateColors, [activeRole]: c };
-                                            setTemplateColors(updated);
-                                            localStorage.setItem('foxhole_template_colors', JSON.stringify(updated));
-                                        }}
-                                        style={{
-                                            width: '16px',
-                                            height: '16px',
-                                            borderRadius: '4px',
-                                            background: c,
-                                            border: isSelected ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.25)',
-                                            cursor: 'pointer',
-                                            boxShadow: isSelected ? `0 0 8px ${c}` : 'none'
-                                        }}
-                                        title={c}
-                                    />
-                                );
-                            })}
+                    {/* Active Template Controls: Color Picker + Copy & Paste Buttons */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap' }}>
+                        {/* Copy / Paste Actions */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    const rules = localTemplates[activeRole] || {};
+                                    setCopiedBuffer(JSON.parse(JSON.stringify(rules)));
+                                    const dispName = activeRole === 'frontline' ? t('frontline') : activeRole === 'backline' ? t('backline') : activeRole === 'aircraft' ? 'Aircraft' : activeRole;
+                                    setCopiedName(dispName);
+                                    setCopyToast(language === 'tr' ? `"${dispName}" kopyalandı` : `Copied "${dispName}"`);
+                                    setTimeout(() => setCopyToast(null), 2500);
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.3rem 0.65rem',
+                                    borderRadius: '5px',
+                                    border: '1px solid rgba(16, 185, 129, 0.35)',
+                                    background: 'rgba(16, 185, 129, 0.12)',
+                                    color: '#10b981',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 800,
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                title={language === 'tr' ? 'Bu şablon kurallarını kopyala' : 'Copy template rules'}
+                            >
+                                <Copy size={12} />
+                                <span>{language === 'tr' ? 'Kopyala' : 'Copy'}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={!copiedBuffer}
+                                onClick={() => {
+                                    if (!copiedBuffer) return;
+                                    setLocalTemplates(prev => ({
+                                        ...prev,
+                                        [activeRole]: JSON.parse(JSON.stringify(copiedBuffer))
+                                    }));
+                                    const dispName = activeRole === 'frontline' ? t('frontline') : activeRole === 'backline' ? t('backline') : activeRole === 'aircraft' ? 'Aircraft' : activeRole;
+                                    setCopyToast(language === 'tr' ? `"${copiedName}" kuralları "${dispName}" şablonuna yapıştırıldı` : `Pasted into "${dispName}"`);
+                                    setTimeout(() => setCopyToast(null), 2500);
+                                }}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                    padding: '0.3rem 0.65rem',
+                                    borderRadius: '5px',
+                                    border: copiedBuffer ? '1px solid rgba(59, 130, 246, 0.4)' : '1px solid rgba(255,255,255,0.08)',
+                                    background: copiedBuffer ? 'rgba(59, 130, 246, 0.15)' : 'rgba(255,255,255,0.03)',
+                                    color: copiedBuffer ? '#60a5fa' : 'var(--text-muted)',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 800,
+                                    cursor: copiedBuffer ? 'pointer' : 'not-allowed',
+                                    opacity: copiedBuffer ? 1 : 0.45,
+                                    transition: 'all 0.15s ease'
+                                }}
+                                title={copiedBuffer ? (language === 'tr' ? `Kopyalanan (${copiedName}) kurallarını bu şablona yapıştır` : `Paste rules from ${copiedName}`) : (language === 'tr' ? 'Önce bir şablon kopyalayın' : 'Copy a template first')}
+                            >
+                                <ClipboardPaste size={12} />
+                                <span>{language === 'tr' ? 'Yapıştır' : 'Paste'}</span>
+                                {copiedName && <span style={{ fontSize: '0.62rem', opacity: 0.8 }}>({copiedName})</span>}
+                            </button>
+
+                            {copyToast && (
+                                <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#10b981', paddingLeft: '0.3rem' }}>
+                                    {copyToast}
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Active Template Color Switcher Bar */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.25)', padding: '0.35rem 0.65rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                            <span style={{ fontSize: '0.7rem', fontWeight: 800, color: templateColors[activeRole] || '#ef4444', fontFamily: 'var(--font-heading)', textTransform: 'uppercase' }}>
+                                {activeRole} {language === 'tr' ? 'Rengi:' : 'Color:'}
+                            </span>
+                            <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+                                {PRESET_COLORS.map(c => {
+                                    const activeColorVal = templateColors[activeRole] || (activeRole === 'frontline' ? '#ef4444' : activeRole === 'backline' ? '#ffffff' : activeRole === 'aircraft' ? '#06b6d4' : '#10b981');
+                                    const isSelected = activeColorVal === c;
+                                    return (
+                                        <button
+                                            key={c}
+                                            type="button"
+                                            onClick={async () => {
+                                                const updated = { ...templateColors, [activeRole]: c };
+                                                setTemplateColors(updated);
+                                                localStorage.setItem('foxhole_template_colors', JSON.stringify(updated));
+                                                await dbService.saveTemplateColors(updated);
+                                                await onSaveTemplates(localTemplates);
+                                            }}
+                                            style={{
+                                                width: '16px',
+                                                height: '16px',
+                                                borderRadius: '4px',
+                                                background: c,
+                                                border: isSelected ? '2px solid #ffffff' : '1px solid rgba(255,255,255,0.25)',
+                                                cursor: 'pointer',
+                                                boxShadow: isSelected ? `0 0 8px ${c}` : 'none'
+                                            }}
+                                            title={c}
+                                        />
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -765,28 +1087,130 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                             onChange={(e) => setSearch(e.target.value)}
                         />
                     </div>
-                    <div style={{ width: '210px', flexShrink: 0 }}>
-                        <CustomSelect
-                            options={[
-                                { value: 'all', label: t('all_items') },
-                                { value: 'small_arms', label: t('cat_small_arms') },
-                                { value: 'heavy_arms', label: t('cat_heavy_arms') },
-                                { value: 'heavy_ammunition', label: t('cat_heavy_ammunition') },
-                                { value: 'utility', label: t('cat_utility') },
-                                { value: 'medical', label: t('cat_medical') },
-                                { value: 'materials', label: t('cat_materials') },
-                                { value: 'uniforms', label: t('cat_uniforms') },
-                                { value: 'aircraft_parts', label: t('cat_aircraft_parts') },
-                                { value: 'vehicles', label: t('cat_vehicles') },
-                                { value: 'shippables', label: t('cat_shippables') },
-                                { value: 'vehicle_crates', label: t('cat_vehicle_crates') },
-                                { value: 'shippable_crates', label: t('cat_shippable_crates') }
-                            ]}
-                            value={categoryFilter}
-                            onChange={(val) => setCategoryFilter(val as CategoryFilterType)}
-                            placeholder={t('category')}
-                        />
-                    </div>
+                </div>
+
+                {/* Category Filter Pills (Inventory Style) */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.4rem', marginTop: '0.85rem', marginBottom: '1.25rem' }}>
+                    <button
+                        type="button"
+                        onClick={toggleAllCategories}
+                        onMouseEnter={() => setHoveredCategory('all_master')}
+                        onMouseLeave={() => setHoveredCategory(null)}
+                        style={{
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '4px',
+                            fontSize: '0.62rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            background: hoveredCategory === 'all_master' 
+                                ? 'rgba(255, 255, 255, 0.08)' 
+                                : (disabledCategories.size === OFFICIAL_CATEGORIES.length ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
+                            border: hoveredCategory === 'all_master' 
+                                ? '1px solid rgba(255, 255, 255, 0.55)' 
+                                : (disabledCategories.size === OFFICIAL_CATEGORIES.length ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
+                            color: disabledCategories.size === OFFICIAL_CATEGORIES.length ? 'var(--text-muted)' : 'var(--text-primary)',
+                            opacity: disabledCategories.size === OFFICIAL_CATEGORIES.length && hoveredCategory !== 'all_master' ? 0.5 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            marginRight: '0.25rem'
+                        }}
+                    >
+                        {disabledCategories.size === OFFICIAL_CATEGORIES.length ? <EyeOff size={10} /> : <Eye size={10} />}
+                        {language === 'tr' ? 'Tümü' : 'All'}
+                    </button>
+
+                    {/* Orange Priority Items Filter Button */}
+                    <button
+                        type="button"
+                        onClick={() => setShowOnlyPriority(prev => !prev)}
+                        onMouseEnter={() => setHoveredCategory('priority_only')}
+                        onMouseLeave={() => setHoveredCategory(null)}
+                        style={{
+                            padding: '0.25rem 0.65rem',
+                            borderRadius: '4px',
+                            fontSize: '0.62rem',
+                            fontWeight: 800,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            background: showOnlyPriority 
+                                ? 'rgba(255, 122, 0, 0.28)' 
+                                : (hoveredCategory === 'priority_only' ? 'rgba(255, 122, 0, 0.15)' : 'rgba(255, 122, 0, 0.08)'),
+                            border: showOnlyPriority 
+                                ? '1px solid #ff7a00' 
+                                : (hoveredCategory === 'priority_only' ? '1px solid rgba(255, 122, 0, 0.6)' : '1px solid rgba(255, 122, 0, 0.35)'),
+                            color: '#ff7a00',
+                            boxShadow: showOnlyPriority ? '0 0 10px rgba(255, 122, 0, 0.4)' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            userSelect: 'none',
+                            WebkitUserSelect: 'none',
+                            marginRight: '0.35rem'
+                        }}
+                    >
+                        <Star size={11} style={{ fill: showOnlyPriority ? '#ff7a00' : 'transparent', color: '#ff7a00' }} />
+                        <span>{language === 'tr' ? 'ÖNCELİKLİ (PRIO)' : 'PRIORITY ITEMS'}</span>
+                    </button>
+
+                    {OFFICIAL_CATEGORIES.map(cat => {
+                        const isDisabled = disabledCategories.has(cat);
+                        const isHovered = hoveredCategory === cat;
+                        const catIcon = getCategoryIconUrl(cat);
+                        return (
+                            <button
+                                key={cat}
+                                type="button"
+                                onClick={() => toggleCategory(cat)}
+                                onMouseEnter={() => setHoveredCategory(cat)}
+                                onMouseLeave={() => setHoveredCategory(null)}
+                                style={{
+                                    padding: '0.25rem 0.65rem',
+                                    borderRadius: '4px',
+                                    fontSize: '0.62rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease',
+                                    background: isHovered 
+                                        ? 'rgba(255, 255, 255, 0.08)' 
+                                        : (isDisabled ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
+                                    border: isHovered 
+                                        ? '1px solid rgba(255, 255, 255, 0.55)' 
+                                        : (isDisabled ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
+                                    color: isDisabled ? 'var(--text-muted)' : 'var(--text-primary)',
+                                    opacity: isDisabled && !isHovered ? 0.45 : 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.3rem',
+                                    userSelect: 'none',
+                                    WebkitUserSelect: 'none'
+                                }}
+                            >
+                                {catIcon && (
+                                    <img 
+                                        src={catIcon} 
+                                        alt={cat} 
+                                        style={{ 
+                                            width: '12px', 
+                                            height: '12px', 
+                                            objectFit: 'contain',
+                                            filter: isDisabled ? 'grayscale(100%) opacity(0.5)' : 'none'
+                                        }} 
+                                    />
+                                )}
+                                <span>{t(`cat_${cat}` as TranslationKey)}</span>
+                            </button>
+                        );
+                    })}
                 </div>
 
                 {/* Template Stats Summary */}

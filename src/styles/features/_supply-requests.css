@@ -6,23 +6,24 @@
 
 .request-card-open {
     background: var(--request-card-open-bg);
-    border: 1px solid var(--border-color);
-    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    box-shadow: none;
 }
 
 .request-card-open:hover {
-    border-color: var(--border-hover);
-    box-shadow: 0 6px 18px var(--accent-glow);
+    border-color: rgba(16, 185, 129, 0.5);
+    box-shadow: none;
 }
 
 .request-card-completed {
     background: var(--color-positive-bg);
     border: 1px solid var(--color-positive-border);
-    box-shadow: 0 4px 12px rgba(var(--black-rgb), 0.1);
+    box-shadow: none;
 }
 
 .request-card-completed:hover {
     border-color: var(--color-positive);
+    box-shadow: none;
 }
 
 /* Category Badges for Requests */

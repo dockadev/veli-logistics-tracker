@@ -379,41 +379,6 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                                 <h3 style={{ fontSize: '1.05rem', margin: 0, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', fontWeight: 800 }}>
                                     {region}
                                 </h3>
-                                {/* Template Assignment Badge */}
-                                {(() => {
-                                    const setting = regionSettings[region];
-                                    const type = setting?.templateType;
-                                    
-                                    let badgeStyle: React.CSSProperties = {
-                                        fontSize: '0.62rem',
-                                        fontWeight: 700,
-                                        padding: '0.15rem 0.45rem',
-                                        borderRadius: '4px',
-                                        textTransform: 'uppercase',
-                                        marginLeft: 'auto'
-                                    };
-                                    
-                                    if (type === 'frontline') {
-                                        badgeStyle = {
-                                            ...badgeStyle,
-                                            background: 'rgba(239, 68, 68, 0.15)',
-                                            color: '#ef4444',
-                                            border: '1px solid rgba(239, 68, 68, 0.3)'
-                                        };
-                                    } else if (type === 'backline') {
-                                        badgeStyle = {
-                                            ...badgeStyle,
-                                            background: 'rgba(168, 85, 247, 0.15)',
-                                            color: '#a855f7',
-                                            border: '1px solid rgba(168, 85, 247, 0.3)'
-                                        };
-                                    } else {
-                                        return null;
-                                    }
-                                    
-                                    const label = type === 'frontline' ? 'FRONTLINE' : 'BACKLINE';
-                                    return <span style={badgeStyle}>{label}</span>;
-                                })()}
                             </div>
 
                             {/* Subregion Groups: Discord Style Vertical Stack Under Subregion Header */}
@@ -443,12 +408,20 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                                                     const subSetting = resolveTemplateSetting(region, town, town, regionSettings);
                                                     const type = subSetting.templateType;
                                                     if (!type || type === 'unassigned') return null;
-                                                    const colorMap: Record<string, string> = {
-                                                        frontline: '#ef4444',
-                                                        backline: '#ffffff',
-                                                        aircraft: '#06b6d4'
+                                                    const getTemplateColor = (tType: string) => {
+                                                        try {
+                                                            const saved = localStorage.getItem('foxhole_template_colors');
+                                                            if (saved) {
+                                                                const map = JSON.parse(saved);
+                                                                if (map[tType]) return map[tType];
+                                                            }
+                                                        } catch (e) {}
+                                                        if (tType === 'frontline') return '#ef4444';
+                                                        if (tType === 'backline') return '#ffffff';
+                                                        if (tType === 'aircraft') return '#06b6d4';
+                                                        return '#10b981';
                                                     };
-                                                    const color = colorMap[type] || '#10b981';
+                                                    const color = getTemplateColor(type);
                                                     const label = type === 'aircraft' ? 'Aircraft' : type.toUpperCase();
                                                     return (
                                                         <span style={{

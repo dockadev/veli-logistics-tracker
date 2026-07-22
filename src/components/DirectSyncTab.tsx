@@ -159,7 +159,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
         region: 'Ash Fields',
         townName: null,
         timestamp: new Date().toISOString(),
-        items: { 'Supplies': 1000, 'Heavy Artillery (Crate)': 20 }
+        items: { 'Maintenance Supplies': 1000, 'Heavy Artillery (Crate)': 20 }
       }
     ];
 

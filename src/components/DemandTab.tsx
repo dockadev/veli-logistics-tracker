@@ -8,6 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
 import { CustomSelect } from './CustomSelect';
+import { getItemIconUrl } from '../utils/itemIcons';
 import type { Depot, StockpileTemplates, RegionSettings } from '../types';
 
 interface DemandTabProps {
@@ -576,9 +577,9 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                                 left: 0,
                                 zIndex: 99999,
                                 width: '320px',
-                                background: 'rgba(20, 20, 23, 0.96)',
+                                background: 'rgba(16, 22, 19, 0.96)',
                                 backdropFilter: 'blur(8px)',
-                                border: '1px solid var(--border-color)',
+                                border: '1px solid rgba(16, 185, 129, 0.35)',
                                 borderRadius: '8px',
                                 padding: '0.85rem',
                                 marginTop: '0.35rem',
@@ -765,10 +766,15 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                                             {displayedItems.map(item => {
                                                 const percent = item.target > 0 ? Math.min(100, (item.available / item.target) * 100) : 0;
                                                 const surplus = Math.max(0, item.available - item.target);
+                                                const itemIcon = getItemIconUrl(item.name);
                                                 return (
                                                     <div key={item.name} className="panel-card needed-demand-card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                            <Package size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
+                                                            {itemIcon ? (
+                                                                <img src={itemIcon} alt={item.name} style={{ width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0 }} />
+                                                            ) : (
+                                                                <Package size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
+                                                            )}
                                                             <strong style={{ fontSize: '0.75rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={item.name}>
                                                                 {item.name}
                                                             </strong>
@@ -1000,7 +1006,11 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                                                 return (
                                                     <div key={item.name} className="panel-card surplus-stock-card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                            <Package size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                                                            {getItemIconUrl(item.name) ? (
+                                                                <img src={getItemIconUrl(item.name) || undefined} alt={item.name} style={{ width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0 }} />
+                                                            ) : (
+                                                                <Package size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                                                            )}
                                                             <strong style={{ fontSize: '0.75rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={item.name}>
                                                                 {item.name}
                                                             </strong>

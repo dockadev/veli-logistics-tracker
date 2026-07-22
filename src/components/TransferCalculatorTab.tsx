@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Truck, Copy, Package, ArrowRight, CheckCircle2, Info, Trash2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import type { Depot, StockpileTemplates, VehicleType, PackedContainer, PackedContainerItem, TransferPlan, RegionSettings, UserRole } from '../types';
-import { getDepotDisplayName } from '../utils/helpers';
-import { getDefaultTemplates } from '../utils/defaultTemplates';
+import type { Depot, StockpileTemplates, StockpileTemplateRule, VehicleType, PackedContainer, PackedContainerItem, TransferPlan, RegionSettings, UserRole } from '../types';
+import { getDepotDisplayName, resolveTemplateSetting } from '../utils/helpers';
+import { getDefaultRuleForCategory, getDefaultTemplates, DEFAULT_TEMPLATE_COLORS } from '../utils/defaultTemplates';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory } from '../utils/itemCategories';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { getItemIconUrl } from '../utils/itemIcons';
@@ -255,29 +255,137 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
         return d.current[crateKey]?.count || d.current[itemName]?.count || 0;
     };
 
+    const getResolvedSetting = (groupKey: string) => {
+        if (!groupKey) return { regionName: '', templateType: 'frontline', demandPercentage: 100 };
+
+        let res: any = null;
+
+        if (regionSettings[groupKey] && regionSettings[groupKey].templateType && regionSettings[groupKey].templateType !== 'unassigned') {
+            res = regionSettings[groupKey];
+        } else {
+            const cleanGroup = groupKey.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, ' ').trim();
+            for (const [k, v] of Object.entries(regionSettings)) {
+                if (v && v.templateType && v.templateType !== 'unassigned') {
+                    const cleanK = k.toLowerCase().replace(/^the\s+/, '').replace(/\s+/g, ' ').trim();
+                    if (cleanK === cleanGroup) {
+                        res = v;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (!res) {
+            const parts = groupKey.split(' - ').map(s => s.trim()).filter(Boolean);
+            const reg = parts[0] || '';
+            const town = parts[1] || null;
+            res = resolveTemplateSetting(reg, town, null, regionSettings);
+        }
+
+        const templateType = (res && res.templateType && res.templateType !== 'unassigned') ? res.templateType : 'frontline';
+        const demandPctRaw = res ? res.demandPercentage : 100;
+        const demandPercentage = (typeof demandPctRaw === 'number' && demandPctRaw > 0) ? demandPctRaw : 100;
+
+        return {
+            regionName: groupKey,
+            templateType,
+            demandPercentage
+        };
+    };
+
+    const getTemplateColor = (templateType: string, templateObj?: any): string => {
+        if (templateObj?.color && typeof templateObj.color === 'string') return templateObj.color;
+        try {
+            const saved = localStorage.getItem('foxhole_template_colors');
+            if (saved) {
+                const colors = JSON.parse(saved);
+                if (colors[templateType]) return colors[templateType];
+            }
+        } catch (e) {}
+        return DEFAULT_TEMPLATE_COLORS[templateType] || (templateType === 'frontline' ? '#ef4444' : templateType === 'aircraft' ? '#06b6d4' : '#a855f7');
+    };
+
+    const getTemplateName = (templateType: string, templateObj?: any): string => {
+        if (templateObj?.name && typeof templateObj.name === 'string') return templateObj.name;
+        if (templateType === 'frontline') return 'FRONTLINE';
+        if (templateType === 'backline') return 'BACKLINE';
+        if (templateType === 'aircraft') return 'AIRCRAFT';
+        return templateType.toUpperCase();
+    };
+
+    const getTemplateRule = (template: Record<string, any> | undefined, itemName: string, templateRole: string = 'frontline'): StockpileTemplateRule => {
+        const emptyRule: StockpileTemplateRule = { min: 0, max: 0 };
+
+        const crateName = itemName.endsWith(' (Crate)') ? itemName : `${itemName} (Crate)`;
+        const baseName = itemName.endsWith(' (Crate)') ? itemName.replace(' (Crate)', '') : itemName;
+
+        const normalizeKey = (str: string) => str.replace(/[\u201c\u201d\u201e\u201f\u2033\u2036"']/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+        const crateNorm = normalizeKey(crateName);
+        const baseNorm = normalizeKey(baseName);
+
+        if (template) {
+            // 1. Direct crate name match (where user edits in Template Manager are stored)
+            if (template[crateName] && typeof template[crateName] === 'object' && typeof template[crateName].min === 'number') {
+                return template[crateName];
+            }
+
+            // 2. Direct base name match
+            if (template[baseName] && typeof template[baseName] === 'object' && typeof template[baseName].min === 'number') {
+                return template[baseName];
+            }
+
+            // 3. Normalized crate name match
+            for (const [key, rule] of Object.entries(template)) {
+                if (key === 'color' || key === 'name' || key === 'type') continue;
+                if (rule && typeof rule === 'object' && typeof (rule as any).min === 'number') {
+                    if (normalizeKey(key) === crateNorm) {
+                        return rule as StockpileTemplateRule;
+                    }
+                }
+            }
+
+            // 4. Normalized base name match
+            for (const [key, rule] of Object.entries(template)) {
+                if (key === 'color' || key === 'name' || key === 'type') continue;
+                if (rule && typeof rule === 'object' && typeof (rule as any).min === 'number') {
+                    if (normalizeKey(key) === baseNorm) {
+                        return rule as StockpileTemplateRule;
+                    }
+                }
+            }
+        }
+
+        // 5. Fallback to category defaults if item is unlisted in template
+        const cat = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
+        if (cat) {
+            return getDefaultRuleForCategory(cat, templateRole);
+        }
+
+        return emptyRule;
+    };
+
     const logiItemsWithMetrics = useMemo(() => {
+        const defaults = getDefaultTemplates();
         return Array.from(COLONIAL_NEUTRAL_ITEMS).filter(name => !name.endsWith(' (Crate)')).map(itemName => {
             
             // Source Metrics
-            const sourceSetting = regionSettings[sourceRegion] || { regionName: sourceRegion, templateType: 'backline', demandPercentage: 100 };
-            const sourceTemplate = templates[sourceSetting.templateType] || {};
-            let sourceRule = sourceTemplate[itemName];
-            if (!sourceRule) {
-                sourceRule = { min: 0, max: 0 };
-            }
+            const sourceSetting = getResolvedSetting(sourceRegion);
+            const sourceTemplate = templates[sourceSetting.templateType] || defaults[sourceSetting.templateType as keyof StockpileTemplates] || {};
+            const sourceRule = getTemplateRule(sourceTemplate, itemName, sourceSetting.templateType);
+
             const sourceAvail = sourceContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
-            const sourceTarget = Math.round(sourceRule.min * (sourceSetting.demandPercentage / 100));
+            const sourceDemandPct = sourceSetting.demandPercentage || 100;
+            const sourceTarget = Math.round(sourceRule.min * (sourceDemandPct / 100));
             const sourceDiff = sourceAvail - sourceTarget;
 
             // Target Metrics
-            const targetSetting = regionSettings[targetRegion] || { regionName: targetRegion, templateType: 'backline', demandPercentage: 100 };
-            const targetTemplate = templates[targetSetting.templateType] || {};
-            let targetRule = targetTemplate[itemName];
-            if (!targetRule) {
-                targetRule = { min: 0, max: 0 };
-            }
+            const targetSetting = getResolvedSetting(targetRegion);
+            const targetTemplate = templates[targetSetting.templateType] || defaults[targetSetting.templateType as keyof StockpileTemplates] || {};
+            const targetRule = getTemplateRule(targetTemplate, itemName, targetSetting.templateType);
+
             const targetAvail = targetContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
-            const targetTarget = Math.round(targetRule.min * (targetSetting.demandPercentage / 100));
+            const targetDemandPct = targetSetting.demandPercentage || 100;
+            const targetTarget = Math.round(targetRule.min * (targetDemandPct / 100));
             const targetDiff = targetAvail - targetTarget;
 
             return {
@@ -378,11 +486,12 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
         }
 
         // Region settings
-        const sourceSetting = regionSettings[sourceRegion] || { regionName: sourceRegion, templateType: 'backline', demandPercentage: 100 };
-        const targetSetting = regionSettings[targetRegion] || { regionName: targetRegion, templateType: 'backline', demandPercentage: 100 };
+        const sourceSetting = getResolvedSetting(sourceRegion);
+        const targetSetting = getResolvedSetting(targetRegion);
 
-        const sourceTemplate = templates[sourceSetting.templateType] || {};
-        const targetTemplate = templates[targetSetting.templateType] || {};
+        const defaults = getDefaultTemplates();
+        const sourceTemplate = templates[sourceSetting.templateType] || defaults[sourceSetting.templateType as keyof StockpileTemplates] || {};
+        const targetTemplate = templates[targetSetting.templateType] || defaults[targetSetting.templateType as keyof StockpileTemplates] || {};
 
         // Find items that have surplus in source region AND deficit in target region
         interface TransferCandidate {
@@ -405,33 +514,44 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
             // Sum sourceQty across contributing depots
             const sourceQty = sourceContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
 
-            let sourceBaseRule = sourceTemplate[itemName];
-            if (!sourceBaseRule) {
-                sourceBaseRule = { min: 0, max: 0 };
-            }
-
-            let targetBaseRule = targetTemplate[itemName];
-            if (!targetBaseRule) {
-                targetBaseRule = { min: 0, max: 0 };
-            }
+            const sourceBaseRule = getTemplateRule(sourceTemplate, itemName, sourceSetting.templateType);
+            const targetBaseRule = getTemplateRule(targetTemplate, itemName, targetSetting.templateType);
 
             // Scale min/max by the region demand percentages and town group count
             const sourceMin = Math.round(sourceBaseRule.min * (sourceSetting.demandPercentage / 100));
             const targetMin = Math.round(targetBaseRule.min * (targetSetting.demandPercentage / 100));
             const targetMax = Math.round(targetBaseRule.max * (targetSetting.demandPercentage / 100));
 
-            // Available surplus from source region
-            const availableSurplus = sourceQty > sourceMin ? sourceQty - sourceMin : 0;
-            if (availableSurplus <= 0) return;
-
             // Sum targetQty across contributing depots
             const targetQty = targetContributingDepots.reduce((acc, d) => acc + getDepotItemQuantity(d, itemName), 0);
 
-            // Needed in target region up to target max
-            const targetDeficit = targetMax > targetQty ? targetMax - targetQty : 0;
+            // Needed in target region:
+            // If targetMax > 0 or targetMin > 0, calculate targetDeficit up to targetMax (or targetMin).
+            // If target template has min: 0 and max: 0, target depot does NOT want this item! targetDeficit = 0.
+            let targetDeficit = 0;
+            if (targetMax > 0) {
+                targetDeficit = targetMax > targetQty ? targetMax - targetQty : 0;
+            } else if (targetMin > 0) {
+                targetDeficit = targetMin > targetQty ? targetMin - targetQty : 0;
+            }
+
             if (targetDeficit <= 0) return;
 
-            const urgencyRatio = targetMin > 0 ? targetQty / targetMin : 1;
+            // Priority status is determined strictly by TARGET DEPOT template!
+            const isPrio = !!targetBaseRule.isPriority || (itemName === 'Soldier Supplies' || itemName === 'Basic Materials');
+
+            // Available surplus from source region
+            // Capped by targetDeficit so we never over-deliver
+            let availableSurplus = 0;
+            if (isPrio && sourceQty > 0) {
+                availableSurplus = Math.min(sourceQty, targetDeficit);
+            } else if (sourceQty > sourceMin) {
+                availableSurplus = Math.min(sourceQty - sourceMin, targetDeficit);
+            }
+
+            if (availableSurplus <= 0) return;
+
+            const urgencyRatio = targetMin > 0 ? targetQty / targetMin : (targetQty === 0 ? 0 : 1);
 
             candidates.push({
                 itemName,
@@ -439,7 +559,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                 surplusCrates: availableSurplus,
                 targetDeficit,
                 criticalUrgencyRatio: urgencyRatio,
-                isPriorityItem: !!targetBaseRule.isPriority
+                isPriorityItem: isPrio
             });
         });
 
@@ -709,8 +829,10 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                         {sourceRegion && (
                             <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
                                 {(() => {
-                                    const setting = regionSettings[sourceRegion] || { regionName: sourceRegion, templateType: 'backline', demandPercentage: 100 };
-                                    const type = setting.templateType;
+                                    const setting = getResolvedSetting(sourceRegion);
+                                    const tmpl = templates[setting.templateType] as any;
+                                    const color = getTemplateColor(setting.templateType, tmpl);
+                                    const name = getTemplateName(setting.templateType, tmpl);
                                     return (
                                         <span style={{
                                             fontSize: '0.62rem',
@@ -719,13 +841,11 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                             borderRadius: '4px',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.04em',
-                                            background: type === 'frontline' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                                            color: type === 'frontline' ? '#ef4444' : '#a855f7',
-                                            border: type === 'frontline' ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(168, 85, 247, 0.3)'
+                                            background: `${color}25`,
+                                            color: color,
+                                            border: `1px solid ${color}50`
                                         }}>
-                                            {type === 'frontline' 
-                                                ? (language === 'tr' ? 'ÖN CEPHE (FRONTLINE)' : 'FRONTLINE') 
-                                                : (language === 'tr' ? 'GERİ CEPHE (BACKLINE)' : 'BACKLINE')}
+                                            {name}
                                         </span>
                                     );
                                 })()}
@@ -765,8 +885,10 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                         {targetRegion && (
                             <div style={{ marginTop: '0.45rem', display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'center' }}>
                                 {(() => {
-                                    const setting = regionSettings[targetRegion] || { regionName: targetRegion, templateType: 'backline', demandPercentage: 100 };
-                                    const type = setting.templateType;
+                                    const setting = getResolvedSetting(targetRegion);
+                                    const tmpl = templates[setting.templateType] as any;
+                                    const color = getTemplateColor(setting.templateType, tmpl);
+                                    const name = getTemplateName(setting.templateType, tmpl);
                                     return (
                                         <span style={{
                                             fontSize: '0.62rem',
@@ -775,13 +897,11 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                             borderRadius: '4px',
                                             textTransform: 'uppercase',
                                             letterSpacing: '0.04em',
-                                            background: type === 'frontline' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                                            color: type === 'frontline' ? '#ef4444' : '#a855f7',
-                                            border: type === 'frontline' ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(168, 85, 247, 0.3)'
+                                            background: `${color}25`,
+                                            color: color,
+                                            border: `1px solid ${color}50`
                                         }}>
-                                            {type === 'frontline' 
-                                                ? (language === 'tr' ? 'ÖN CEPHE (FRONTLINE)' : 'FRONTLINE') 
-                                                : (language === 'tr' ? 'GERİ CEPHE (BACKLINE)' : 'BACKLINE')}
+                                            {name}
                                         </span>
                                     );
                                 })()}
@@ -1227,21 +1347,23 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                         {sourceRegion} ({language === 'tr' ? 'Kaynak' : 'Source'})
                                     </span>
                                     {(() => {
-                                        const setting = regionSettings[sourceRegion] || { regionName: sourceRegion, templateType: 'backline', demandPercentage: 100 };
-                                        const type = setting.templateType;
+                                        const setting = getResolvedSetting(sourceRegion);
+                                        const tmpl = templates[setting.templateType] as any;
+                                        const color = getTemplateColor(setting.templateType, tmpl);
+                                        const name = getTemplateName(setting.templateType, tmpl);
                                         return (
                                             <span style={{
                                                 fontSize: '0.62rem',
-                                                fontWeight: 700,
+                                                fontWeight: 800,
                                                 padding: '0.15rem 0.45rem',
                                                 borderRadius: '4px',
                                                 textTransform: 'uppercase',
                                                 letterSpacing: '0.04em',
-                                                background: type === 'frontline' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(168, 85, 247, 0.12)',
-                                                color: type === 'frontline' ? '#ef4444' : '#a855f7',
-                                                border: type === 'frontline' ? '1px solid rgba(239, 68, 68, 0.22)' : '1px solid rgba(168, 85, 247, 0.22)'
+                                                background: `${color}25`,
+                                                color: color,
+                                                border: `1px solid ${color}50`
                                             }}>
-                                                {type}
+                                                {name}
                                             </span>
                                         );
                                     })()}
@@ -1330,21 +1452,23 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                         {targetRegion} ({language === 'tr' ? 'Hedef' : 'Target'})
                                     </span>
                                     {(() => {
-                                        const setting = regionSettings[targetRegion] || { regionName: targetRegion, templateType: 'backline', demandPercentage: 100 };
-                                        const type = setting.templateType;
+                                        const setting = getResolvedSetting(targetRegion);
+                                        const tmpl = templates[setting.templateType] as any;
+                                        const color = getTemplateColor(setting.templateType, tmpl);
+                                        const name = getTemplateName(setting.templateType, tmpl);
                                         return (
                                             <span style={{
                                                 fontSize: '0.62rem',
-                                                fontWeight: 700,
+                                                fontWeight: 800,
                                                 padding: '0.15rem 0.45rem',
                                                 borderRadius: '4px',
                                                 textTransform: 'uppercase',
                                                 letterSpacing: '0.04em',
-                                                background: type === 'frontline' ? 'rgba(239, 68, 68, 0.12)' : 'rgba(168, 85, 247, 0.12)',
-                                                color: type === 'frontline' ? '#ef4444' : '#a855f7',
-                                                border: type === 'frontline' ? '1px solid rgba(239, 68, 68, 0.22)' : '1px solid rgba(168, 85, 247, 0.22)'
+                                                background: `${color}25`,
+                                                color: color,
+                                                border: `1px solid ${color}50`
                                             }}>
-                                                {type}
+                                                {name}
                                             </span>
                                         );
                                     })()}

@@ -21,7 +21,9 @@
 
 .popover-card {
     z-index: 99999 !important;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75), 0 0 1px rgba(255, 255, 255, 0.2) !important;
+    background: rgba(16, 22, 19, 0.96) !important;
+    border: 1px solid rgba(16, 185, 129, 0.35) !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75), 0 0 10px rgba(16, 185, 129, 0.15) !important;
 }
 
 .card-header {

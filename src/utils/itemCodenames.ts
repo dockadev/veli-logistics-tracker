@@ -343,6 +343,7 @@ export const ITEM_CODENAMES: Record<string, string> = {
   "SnowUniformC": "Heavy Topcoat",
   "SnowUniformW": "Caoivish Parka",
   "SoldierSupplies": "Soldier Supplies",
+  "Supplies": "Maintenance Supplies",
   "SoldierUniformC": "Legionary Fatigues",
   "SoldierUniformW": "Infantry Battledress",
   "StickyBomb": "Anti-Tank Sticky Bomb",

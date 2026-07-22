@@ -1,8 +1,9 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Check, Clock, Trash2, Truck } from 'lucide-react';
+import { Plus, Check, Clock, Trash2, Truck, ChevronDown, ChevronUp, MapPin } from 'lucide-react';
 import type { SupplyRequest, UserRole, Depot } from '../types';
 import { getCategoryClass, getDepotDisplayName } from '../utils/helpers';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
+import { getItemIconUrl } from '../utils/itemIcons';
 
 interface SupplyRequestsTabProps {
     requests: SupplyRequest[];
@@ -34,7 +35,7 @@ export const RequestCard: React.FC<RequestCardProps> = React.memo(({
     onDeleteRequest,
     onToggleRequestStatus,
 }) => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [isExpanded, setIsExpanded] = useState(false);
 
     const itemsList = req.items || [];
@@ -44,198 +45,271 @@ export const RequestCard: React.FC<RequestCardProps> = React.memo(({
     const isDone = req.status === 'completed';
     const depotDisplayName = depots[req.depotName] ? getDepotDisplayName(depots[req.depotName]) : req.depotName;
 
+    const itemsByCategory = useMemo(() => {
+        const groups: Record<string, { item: typeof itemsList[0]; originalIndex: number }[]> = {};
+        itemsList.forEach((item, originalIndex) => {
+            const cat = item.itemCategory || 'utility';
+            if (!groups[cat]) groups[cat] = [];
+            groups[cat].push({ item, originalIndex });
+        });
+        return groups;
+    }, [itemsList]);
+
     return (
-        <div className={`panel-card request-card-component ${isDone ? 'request-card-completed' : 'request-card-open'}`}>
-            <div>
-                {/* Card Header */}
-                <div className="request-card-header-layout">
-                    <div className="request-card-title-container">
-                        <span className="depot-label">
-                            {depotDisplayName}
-                        </span>
-                        <h3>
-                            {t('request_order_num', { id: req.id.substring(0, 5).toUpperCase() })}
-                        </h3>
-                        <span className="time-label">{t('created_at', { time: req.createdTime })}</span>
+        <div 
+            className={`panel-card request-card-component ${isDone ? 'request-card-completed' : 'request-card-open'}`}
+            style={{
+                background: isDone ? 'rgba(16, 185, 129, 0.05)' : 'rgba(20, 24, 22, 0.95)',
+                border: isDone ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(16, 185, 129, 0.2)',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                transition: 'all 0.2s ease',
+                width: '100%',
+                marginBottom: '0.85rem'
+            }}
+        >
+            {/* Accordion Card Header - Clickable Bar */}
+            <div 
+                onClick={() => setIsExpanded(!isExpanded)}
+                style={{
+                    padding: '0.85rem 1.25rem',
+                    background: isExpanded ? 'rgba(16, 185, 129, 0.1)' : 'rgba(0, 0, 0, 0.3)',
+                    borderBottom: isExpanded ? '1px solid rgba(16, 185, 129, 0.2)' : 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '1rem',
+                    flexWrap: 'wrap',
+                    userSelect: 'none',
+                    WebkitUserSelect: 'none'
+                }}
+            >
+                {/* Left Meta Info */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: '#10b981', fontWeight: 800, fontSize: '0.78rem' }}>
+                        <MapPin size={15} />
+                        <span>{depotDisplayName}</span>
                     </div>
-                    <div className="request-card-progress-container">
-                        <span className="pct-label" style={{ color: isDone ? 'var(--color-positive)' : 'var(--text-primary)' }}>
-                            {t('percent_full', { percent: Math.round(aggregatePercent) })}
+
+                    <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
+                        {t('request_order_num', { id: req.id.substring(0, 5).toUpperCase() })}
+                    </span>
+
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                        {req.createdTime}
+                    </span>
+
+                    <span style={{
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                        padding: '0.15rem 0.5rem',
+                        borderRadius: '4px',
+                        textTransform: 'uppercase',
+                        background: isDone ? 'rgba(16, 185, 129, 0.2)' : 'rgba(249, 115, 22, 0.15)',
+                        color: isDone ? '#10b981' : '#f97316',
+                        border: isDone ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(249, 115, 22, 0.3)'
+                    }}>
+                        {isDone ? (language === 'tr' ? 'TAMAMLANDI' : 'COMPLETED') : (language === 'tr' ? 'AÇIK SİPARİŞ' : 'OPEN ORDER')}
+                    </span>
+                </div>
+
+                {/* Right Progress Summary & Expand Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: '170px' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: isDone ? '#10b981' : '#10b981', minWidth: '90px', textAlign: 'right' }}>
+                            {Math.round(aggregatePercent)}% ({totalDelivered}/{totalRequired})
                         </span>
-                        <div className="request-card-progress-bar-track">
-                            <div style={{ 
-                                width: `${aggregatePercent}%`, 
-                                background: isDone ? 'var(--color-positive)' : 'var(--accent-color)'
-                            }} className="request-card-progress-bar-fill" />
+                        <div style={{ flex: 1, height: '6px', background: 'rgba(0,0,0,0.4)', borderRadius: '3px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                            <div style={{ width: `${aggregatePercent}%`, height: '100%', background: isDone ? '#10b981' : 'linear-gradient(90deg, #10b981, #059669)', transition: 'width 0.3s ease' }} />
                         </div>
                     </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', color: '#10b981', opacity: 0.8 }}>
+                        {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                    </div>
                 </div>
+            </div>
 
-
-
-                {/* List of items inside this request */}
-                <div className="request-card-items-list" style={{ maxHeight: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.85rem', paddingRight: '0.35rem' }}>
-                    {(isExpanded ? itemsList : itemsList.slice(0, 3)).map((item, idx) => {
-                         const itemPercent = item.quantityRequired > 0 ? Math.min(100, Math.max(0, (item.quantityDelivered / item.quantityRequired) * 100)) : 0;
-                         const isItemDone = item.quantityDelivered >= item.quantityRequired;
-
-                        return (
-                            <div key={idx} className="request-card-item-box">
-                                {/* Item title / badge / progress numbers */}
-                                <div className="request-card-item-row-header">
-                                    <div className="request-card-item-meta">
-                                        <span className={`badge ${getCategoryClass(item.itemCategory)}`}>
-                                            {t(`cat_${item.itemCategory}` as TranslationKey)}
-                                        </span>
-                                        <span className="request-card-item-name">
-                                            {item.itemName}
-                                        </span>
-                                    </div>
-                                    <span className="request-card-item-progress-text" style={{ color: isItemDone ? 'var(--color-positive)' : 'var(--text-secondary)' }}>
-                                        {item.quantityDelivered} / {item.quantityRequired} ({Math.round(itemPercent)}%)
-                                    </span>
-                                </div>
-
-                                {/* Progress bar per item */}
-                                <div className="request-card-item-progress-bar-track">
-                                    <div 
-                                        className="request-card-item-progress-bar-fill"
-                                        style={{ 
-                                            width: `${itemPercent}%`, 
-                                            background: isItemDone ? 'var(--color-positive)' : 'var(--accent-color)'
-                                        }} 
-                                    />
-                                </div>
-
-                                {/* Buttons for delivering this specific item (hidden if completed) */}
-                                {isItemDone ? (
-                                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.4rem', color: 'var(--color-positive)', fontSize: '0.72rem', fontWeight: 700, padding: '0.2rem 0' }}>
-                                        <Check size={14} style={{ strokeWidth: 3 }} />
-                                        <span>Completed</span>
-                                        {!isDone && userRole !== 'member' && (
-                                            <button 
-                                                onClick={() => onToggleCompleteItem(req.id, idx)}
-                                                style={{ 
-                                                    background: 'none', 
-                                                    border: 'none', 
-                                                    color: 'var(--text-muted)', 
-                                                    fontSize: '0.65rem', 
-                                                    textDecoration: 'underline', 
-                                                    cursor: 'pointer', 
-                                                    marginLeft: '0.6rem',
-                                                    padding: 0
-                                                }}
-                                            >
-                                                Reopen
-                                            </button>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className="request-card-item-actions-row">
-                                        <div className="request-card-item-btn-group">
-                                            <button 
-                                                className="btn btn-secondary request-card-item-btn" 
-                                                onClick={() => onUpdateProgress(req.id, idx, 1)}
-                                                disabled={isDone}
-                                            >
-                                                +1
-                                            </button>
-                                            <button 
-                                                className="btn btn-secondary request-card-item-btn" 
-                                                onClick={() => onUpdateProgress(req.id, idx, 5)}
-                                                disabled={isDone}
-                                            >
-                                                +5
-                                            </button>
-                                            <button 
-                                                className="btn btn-secondary request-card-item-btn" 
-                                                onClick={() => onUpdateProgress(req.id, idx, 10)}
-                                                disabled={isDone}
-                                            >
-                                                +10
-                                            </button>
-                                            <button 
-                                                className="btn btn-secondary request-card-item-btn" 
-                                                onClick={() => onUpdateProgress(req.id, idx, 60)}
-                                                disabled={isDone}
-                                            >
-                                                +60
-                                            </button>
-                                        </div>
-
-                                        {/* Complete tick button */}
-                                        <button 
-                                            className="btn btn-secondary request-card-item-complete-btn"
-                                            style={{ 
-                                                borderColor: 'rgba(16, 185, 129, 0.3)'
-                                            }}
-                                            onClick={() => onToggleCompleteItem(req.id, idx)}
-                                            disabled={isDone}
-                                            title={t('mark_item_complete')}
-                                        >
-                                            <Check size={12} />
-                                        </button>
-                                    </div>
-                                )}
+            {/* Expanded Item List Content */}
+            {isExpanded && (
+                <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    {Object.entries(itemsByCategory).map(([cat, groupItems]) => (
+                        <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {/* Category Subheader */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '0.35rem' }}>
+                                <span className={`badge ${getCategoryClass(cat)}`}>
+                                    {t(`cat_${cat}` as TranslationKey)}
+                                </span>
                             </div>
-                        );
-                    })}
-                </div>
 
-                {/* Show More / Less button if items count exceeds 3 */}
-                {itemsList.length > 3 && (
-                    <button 
-                        className="btn btn-secondary"
-                        onClick={() => setIsExpanded(!isExpanded)}
-                        style={{ 
-                            width: '100%', 
-                            fontSize: '0.68rem', 
-                            padding: '0.35rem', 
-                            marginTop: '0.5rem', 
-                            background: 'rgba(255,255,255,0.01)', 
-                            borderColor: 'rgba(255,255,255,0.05)' 
-                        }}
-                    >
-                        {isExpanded ? 'Show Less' : `Show More (+${itemsList.length - 3} items)`}
-                    </button>
-                )}
-            </div>
+                            {/* Item Rows */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {groupItems.map(({ item, originalIndex }) => {
+                                    const itemPercent = item.quantityRequired > 0 ? Math.min(100, Math.max(0, (item.quantityDelivered / item.quantityRequired) * 100)) : 0;
+                                    const isItemDone = item.quantityDelivered >= item.quantityRequired;
+                                    const iconUrl = getItemIconUrl(item.itemName);
 
-            {/* Order Action Buttons at card level */}
-            <div className="request-card-actions-footer">
-                {(!isDone || userRole !== 'member') && (
-                    <button 
-                        className="btn btn-secondary request-card-footer-btn-reopen" 
-                        style={{ 
-                            color: isDone ? 'var(--text-secondary)' : 'var(--text-primary)',
-                            borderColor: isDone ? 'rgba(255,255,255,0.05)' : 'var(--border-color)'
-                        }}
-                        onClick={() => onToggleRequestStatus(req.id)}
-                    >
-                        {isDone ? (
-                            <>
-                                <Clock size={12} />
-                                <span>{t('reopen_order')}</span>
-                            </>
-                        ) : (
-                            <>
-                                <Check size={12} style={{ color: 'var(--color-positive)' }} />
-                                <span>{t('complete_order')}</span>
-                            </>
+                                    return (
+                                        <div 
+                                            key={originalIndex}
+                                            style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'space-between',
+                                                gap: '1rem',
+                                                padding: '0.6rem 0.85rem',
+                                                background: isItemDone ? 'rgba(16, 185, 129, 0.06)' : 'rgba(0, 0, 0, 0.25)',
+                                                border: isItemDone ? '1px solid rgba(16, 185, 129, 0.25)' : '1px solid rgba(255, 255, 255, 0.06)',
+                                                borderRadius: '6px',
+                                                flexWrap: 'wrap'
+                                            }}
+                                        >
+                                            {/* Item Icon & Title */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: '200px' }}>
+                                                {iconUrl && (
+                                                    <img 
+                                                        src={iconUrl} 
+                                                        alt={item.itemName} 
+                                                        style={{ width: '28px', height: '28px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} 
+                                                    />
+                                                )}
+                                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: isItemDone ? '#10b981' : 'var(--text-primary)' }}>
+                                                    {item.itemName}
+                                                </span>
+                                            </div>
+
+                                            {/* Item Progress Bar & Text */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', minWidth: '200px' }}>
+                                                <div style={{ flex: 1, height: '6px', background: 'rgba(0,0,0,0.4)', borderRadius: '3px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                                    <div style={{ width: `${itemPercent}%`, height: '100%', background: isItemDone ? '#10b981' : '#f97316', transition: 'width 0.3s ease' }} />
+                                                </div>
+                                                <span style={{ fontSize: '0.75rem', fontWeight: 800, color: isItemDone ? '#10b981' : 'var(--text-secondary)', minWidth: '100px', textAlign: 'right' }}>
+                                                    {item.quantityDelivered} / {item.quantityRequired} ({Math.round(itemPercent)}%)
+                                                </span>
+                                            </div>
+
+                                            {/* Quick Increment Buttons: +1, +4, +5, +10, +60, +100 */}
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                                {isItemDone ? (
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#10b981', fontSize: '0.72rem', fontWeight: 800 }}>
+                                                        <Check size={14} style={{ strokeWidth: 3 }} />
+                                                        <span>{language === 'tr' ? 'Tamamlandı' : 'Completed'}</span>
+                                                        {!isDone && userRole !== 'member' && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => onToggleCompleteItem(req.id, originalIndex)}
+                                                                style={{
+                                                                    background: 'none',
+                                                                    border: 'none',
+                                                                    color: 'var(--text-muted)',
+                                                                    fontSize: '0.65rem',
+                                                                    textDecoration: 'underline',
+                                                                    cursor: 'pointer',
+                                                                    marginLeft: '0.5rem',
+                                                                    padding: 0
+                                                                }}
+                                                            >
+                                                                {language === 'tr' ? 'Yeniden Aç' : 'Reopen'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        {[1, 4, 5, 10, 60, 100].map(amt => (
+                                                            <button
+                                                                key={amt}
+                                                                type="button"
+                                                                onClick={() => onUpdateProgress(req.id, originalIndex, amt)}
+                                                                disabled={isDone}
+                                                                style={{
+                                                                    padding: '0.25rem 0.45rem',
+                                                                    borderRadius: '4px',
+                                                                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                                                                    background: 'rgba(16, 185, 129, 0.1)',
+                                                                    color: '#10b981',
+                                                                    fontSize: '0.68rem',
+                                                                    fontWeight: 800,
+                                                                    cursor: 'pointer',
+                                                                    transition: 'all 0.15s ease'
+                                                                }}
+                                                                onMouseEnter={(e) => {
+                                                                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.25)';
+                                                                }}
+                                                                onMouseLeave={(e) => {
+                                                                    e.currentTarget.style.background = 'rgba(16, 185, 129, 0.1)';
+                                                                }}
+                                                            >
+                                                                +{amt}
+                                                            </button>
+                                                        ))}
+
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => onToggleCompleteItem(req.id, originalIndex)}
+                                                            disabled={isDone}
+                                                            style={{
+                                                                padding: '0.25rem 0.45rem',
+                                                                borderRadius: '4px',
+                                                                border: '1px solid rgba(16, 185, 129, 0.4)',
+                                                                background: 'rgba(16, 185, 129, 0.2)',
+                                                                color: '#10b981',
+                                                                cursor: 'pointer',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                justifyContent: 'center'
+                                                            }}
+                                                            title={language === 'tr' ? 'Tamamlandı işaretle' : 'Mark as complete'}
+                                                        >
+                                                            <Check size={12} />
+                                                        </button>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    ))}
+
+                    {/* Order Action Buttons at bottom of expanded card */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.65rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '0.85rem' }}>
+                        {(!isDone || userRole !== 'member') && (
+                            <button
+                                type="button"
+                                className="btn btn-secondary"
+                                onClick={() => onToggleRequestStatus(req.id)}
+                                style={{ fontSize: '0.75rem', fontWeight: 800, padding: '0.4rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                            >
+                                {isDone ? (
+                                    <>
+                                        <Clock size={14} />
+                                        <span>{t('reopen_order')}</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Check size={14} style={{ color: '#10b981' }} />
+                                        <span>{t('complete_order')}</span>
+                                    </>
+                                )}
+                            </button>
                         )}
-                    </button>
-                )}
 
-                {userRole !== 'member' && (
-                    <button 
-                        className="btn btn-secondary text-negative request-card-footer-btn-delete" 
-                        onClick={() => onDeleteRequest(req.id)}
-                        title={t('delete_request_order')}
-                    >
-                        <Trash2 size={14} />
-                    </button>
-                )}
-            </div>
+                        {userRole !== 'member' && (
+                            <button
+                                type="button"
+                                className="btn btn-secondary text-negative"
+                                onClick={() => onDeleteRequest(req.id)}
+                                style={{ fontSize: '0.75rem', padding: '0.4rem 0.65rem' }}
+                                title={t('delete_request_order')}
+                            >
+                                <Trash2 size={14} />
+                            </button>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 });
@@ -305,7 +379,7 @@ export const SupplyRequestsTab: React.FC<SupplyRequestsTabProps> = React.memo(({
                 )}
             </div>
 
-            {/* Grid of Supply Request Cards */}
+            {/* Grid / List of Supply Request Cards */}
             {filteredRequests.length === 0 ? (
                 <div className="table-container requests-empty-state-card">
                     <div className="empty-row">
@@ -314,7 +388,7 @@ export const SupplyRequestsTab: React.FC<SupplyRequestsTabProps> = React.memo(({
                     </div>
                 </div>
             ) : (
-                <div className="requests-grid-layout">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
                     {filteredRequests.map(req => (
                         <RequestCard
                             key={req.id}

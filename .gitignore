@@ -34,5 +34,8 @@ dist-ssr
 # SQL Migrations
 *.sql
 
-# Backups
+# Backups & Scratch
 src_backup/
+scratch/
+*.backup.json
+stockpile_templates_backup.json

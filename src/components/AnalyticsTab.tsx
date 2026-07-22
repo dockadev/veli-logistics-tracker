@@ -8,6 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
 import type { Depot, SupplyRequest, AuditLogEntry, RegionSettings, StockpileTemplates, ItemInfo } from '../types';
+import { formatCanonicalItemName } from '../utils/helpers';
 
 interface AnalyticsTabProps {
     depots?: Record<string, Depot>;
@@ -104,18 +105,20 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 }
                 if (dep.current) {
                     Object.entries(dep.current).forEach(([itemName, itemInfo]) => {
-                        if (!mergedCurrent[itemName]) {
-                            mergedCurrent[itemName] = { count: 0, category: itemInfo.category };
+                        const canonicalName = formatCanonicalItemName(itemName);
+                        if (!mergedCurrent[canonicalName]) {
+                            mergedCurrent[canonicalName] = { count: 0, category: itemInfo.category };
                         }
-                        mergedCurrent[itemName].count += itemInfo.count;
+                        mergedCurrent[canonicalName].count += itemInfo.count;
                     });
                 }
                 if (dep.previous) {
                     Object.entries(dep.previous).forEach(([itemName, itemInfo]) => {
-                        if (!mergedPrevious[itemName]) {
-                            mergedPrevious[itemName] = { count: 0, category: itemInfo.category };
+                        const canonicalName = formatCanonicalItemName(itemName);
+                        if (!mergedPrevious[canonicalName]) {
+                            mergedPrevious[canonicalName] = { count: 0, category: itemInfo.category };
                         }
-                        mergedPrevious[itemName].count += itemInfo.count;
+                        mergedPrevious[canonicalName].count += itemInfo.count;
                     });
                 }
             });
@@ -184,18 +187,20 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 }
                 if (dep.current) {
                     Object.entries(dep.current).forEach(([itemName, itemInfo]) => {
-                        if (!mergedCurrent[itemName]) {
-                            mergedCurrent[itemName] = { count: 0, category: itemInfo.category };
+                        const canonicalName = formatCanonicalItemName(itemName);
+                        if (!mergedCurrent[canonicalName]) {
+                            mergedCurrent[canonicalName] = { count: 0, category: itemInfo.category };
                         }
-                        mergedCurrent[itemName].count += itemInfo.count;
+                        mergedCurrent[canonicalName].count += itemInfo.count;
                     });
                 }
                 if (dep.previous) {
                     Object.entries(dep.previous).forEach(([itemName, itemInfo]) => {
-                        if (!mergedPrevious[itemName]) {
-                            mergedPrevious[itemName] = { count: 0, category: itemInfo.category };
+                        const canonicalName = formatCanonicalItemName(itemName);
+                        if (!mergedPrevious[canonicalName]) {
+                            mergedPrevious[canonicalName] = { count: 0, category: itemInfo.category };
                         }
-                        mergedPrevious[itemName].count += itemInfo.count;
+                        mergedPrevious[canonicalName].count += itemInfo.count;
                     });
                 }
             });
@@ -812,8 +817,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                                 return (
                                     <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={item.name}>
-                                                {item.name}
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                {formatCanonicalItemName(item.name)}
                                             </span>
                                             <span style={{ color: '#10b981', fontWeight: 700 }}>+{item.diff.toLocaleString()}</span>
                                         </div>
@@ -902,8 +907,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                                 return (
                                     <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={item.name}>
-                                                {item.name}
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                {formatCanonicalItemName(item.name)}
                                             </span>
                                             <span style={{ color: '#ef4444', fontWeight: 700 }}>-{item.diff.toLocaleString()}</span>
                                         </div>
@@ -937,8 +942,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                                 return (
                                     <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={item.name}>
-                                                {item.name}
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                {formatCanonicalItemName(item.name)}
                                             </span>
                                             <span style={{ color: '#ef4444', fontWeight: 700 }}>{item.amount.toLocaleString()}</span>
                                         </div>
@@ -972,8 +977,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                                 return (
                                     <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={item.name}>
-                                                {item.name}
+                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                {formatCanonicalItemName(item.name)}
                                             </span>
                                             <span style={{ color: '#10b981', fontWeight: 700 }}>+{item.amount.toLocaleString()}</span>
                                         </div>

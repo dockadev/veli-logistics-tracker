@@ -67,6 +67,8 @@ export interface SupplyRequest {
     createdTime: string;
     status: 'open' | 'completed';
     claimedBy: string[];
+    createdBy?: string;
+    stockpileNames?: string;
 }
 
 export interface SystemNotification {

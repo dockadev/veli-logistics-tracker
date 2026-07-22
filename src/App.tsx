@@ -697,9 +697,9 @@ export const App: React.FC = () => {
         }
     }, [showToast]);
 
-    // Fetch minimum required version on mount
+    // Fetch minimum required version, templates, and region settings on mount
     useEffect(() => {
-        const fetchMinVersion = async () => {
+        const fetchInitialSettings = async () => {
             try {
                 const ver = await dbService.loadMinAppVersion();
                 if (ver) {
@@ -708,8 +708,20 @@ export const App: React.FC = () => {
             } catch (err) {
                 console.error('[App] Failed to load min app version:', err);
             }
+            try {
+                const loadedTemplates = await dbService.loadTemplates();
+                setTemplates(loadedTemplates);
+            } catch (err) {
+                console.error('[App] Failed to load templates:', err);
+            }
+            try {
+                const loadedRegionSettings = await dbService.loadRegionSettings();
+                setRegionSettings(loadedRegionSettings);
+            } catch (err) {
+                console.error('[App] Failed to load region settings:', err);
+            }
         };
-        fetchMinVersion();
+        fetchInitialSettings();
     }, []);
 
     // Effects to decrypt when masterKey is available
@@ -1213,10 +1225,17 @@ export const App: React.FC = () => {
                                 : row.setting_value;
                             if (row.setting_key === 'stockpile_templates') {
                                 const defaults = getDefaultTemplates();
-                                setTemplates({
+                                const merged: StockpileTemplates = {
                                     frontline: { ...defaults.frontline, ...(parsedValue.frontline || {}) },
-                                    backline: { ...defaults.backline, ...(parsedValue.backline || {}) }
+                                    backline: { ...defaults.backline, ...(parsedValue.backline || {}) },
+                                    aircraft: { ...defaults.aircraft, ...(parsedValue.aircraft || {}) }
+                                };
+                                Object.keys(parsedValue || {}).forEach(k => {
+                                    if (k !== 'frontline' && k !== 'backline' && k !== 'aircraft') {
+                                        merged[k] = parsedValue[k];
+                                    }
                                 });
+                                setTemplates(merged);
                             } else if (row.setting_key === 'region_settings') {
                                 setRegionSettings(parsedValue || {});
                             }
@@ -1413,13 +1432,26 @@ export const App: React.FC = () => {
             showToast(t('role_officer_required_create_req'), 'error');
             return;
         }
+        const matchingStockpiles = Object.values(depots)
+            .filter(d => {
+                if (d.name === depotName) return true;
+                const regionPrefix = depotName.split(' - ')[0];
+                return d.name.startsWith(regionPrefix) || d.townName === depotName || d.subregion === depotName;
+            })
+            .map(d => d.customName || d.accessCode || d.name)
+            .filter(Boolean);
+
+        const stockpileNamesList = matchingStockpiles.length > 0 ? Array.from(new Set(matchingStockpiles)).join(', ') : 'Public';
+
         const newRequest: SupplyRequest = {
             id: crypto.randomUUID(),
             depotName,
             items,
             createdTime: new Date().toISOString(),
             status: 'open',
-            claimedBy: []
+            claimedBy: [],
+            createdBy: currentUsername || 'Veli User',
+            stockpileNames: stockpileNamesList
         };
         setSupplyRequests(prev => [newRequest, ...prev]);
         setIsCreateRequestOpen(false);

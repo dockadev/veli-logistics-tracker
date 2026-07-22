@@ -176,22 +176,34 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
 
     const feedbacksTotalPages = Math.ceil(feedbacks.length / 5);
 
+    const [roleFilter, setRoleFilter] = useState<string>('all');
+
     const pendingUsers = useMemo(() => {
         return users.filter(u => u.status === 'pending');
     }, [users]);
 
-    const approvedUsers = useMemo(() => {
-        const approvedList = users.filter(u => u.status === 'approved' || u.status === 'rejected');
-        const term = searchTerm.toLowerCase().trim();
-        if (!term) return approvedList;
-        return approvedList.filter(u => u.username.toLowerCase().includes(term));
-    }, [users, searchTerm]);
+    const filteredUsers = useMemo(() => {
+        let list = users;
+        if (roleFilter === 'pending') {
+            list = list.filter(u => u.status === 'pending');
+        } else if (roleFilter === 'rejected') {
+            list = list.filter(u => u.status === 'rejected');
+        } else if (roleFilter !== 'all') {
+            list = list.filter(u => u.status === 'approved' && u.role === roleFilter);
+        } else {
+            list = list.filter(u => u.status === 'approved' || u.status === 'rejected');
+        }
 
-    const totalPages = Math.ceil(approvedUsers.length / usersPerPage);
+        const term = searchTerm.toLowerCase().trim();
+        if (!term) return list;
+        return list.filter(u => u.username.toLowerCase().includes(term));
+    }, [users, roleFilter, searchTerm]);
+
+    const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
     const paginatedUsers = useMemo(() => {
         const startIndex = (currentPage - 1) * usersPerPage;
-        return approvedUsers.slice(startIndex, startIndex + usersPerPage);
-    }, [approvedUsers, currentPage]);
+        return filteredUsers.slice(startIndex, startIndex + usersPerPage);
+    }, [filteredUsers, currentPage]);
 
     const getRoleClass = (role: string) => {
         switch (role) {
@@ -306,7 +318,7 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                         onClick={() => setActiveSubTab('approvals')}
                     >
                         <ShieldCheck size={14} />
-                        <span>{t('approvals')} ({pendingUsers.length + approvedUsers.length})</span>
+                        <span>{t('approvals')} ({pendingUsers.length + filteredUsers.length})</span>
                     </button>
                     <button
                         className={`dev-subtab-btn ${activeSubTab === 'audit' ? 'active' : ''}`}
@@ -375,7 +387,7 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                     <div className="dev-portal-section-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                             <h4 style={{ margin: 0, fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                {language === 'tr' ? 'SİSTEM KULLANICILARI' : 'ACTIVE USERS LIST'} ({approvedUsers.length})
+                                {language === 'tr' ? 'SİSTEM KULLANICILARI' : 'ACTIVE USERS LIST'} ({filteredUsers.length})
                             </h4>
                             <div style={{ position: 'relative', width: '200px' }}>
                                 <Search size={11} style={{ position: 'absolute', left: '0.5rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -389,7 +401,39 @@ export const DeveloperPortalModal: React.FC<DeveloperPortalTabProps> = React.mem
                             </div>
                         </div>
 
-                        {approvedUsers.length === 0 ? (
+                        {/* Role Filter Pills */}
+                        <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                            {['all', 'pending', 'developer', 'logistics_lead', 'officer', 'member', 'recruit', 'rejected'].map(rKey => {
+                                const count = rKey === 'all'
+                                    ? users.filter(u => u.status === 'approved' || u.status === 'rejected').length
+                                    : rKey === 'pending'
+                                    ? users.filter(u => u.status === 'pending').length
+                                    : rKey === 'rejected'
+                                    ? users.filter(u => u.status === 'rejected').length
+                                    : users.filter(u => u.role === rKey && u.status === 'approved').length;
+
+                                return (
+                                    <button
+                                        key={rKey}
+                                        onClick={() => { setRoleFilter(rKey); setCurrentPage(1); }}
+                                        style={{
+                                            padding: '0.2rem 0.55rem',
+                                            fontSize: '0.62rem',
+                                            fontWeight: 700,
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            background: roleFilter === rKey ? 'var(--accent-color)' : 'rgba(255,255,255,0.03)',
+                                            color: roleFilter === rKey ? '#000000' : 'var(--text-secondary)',
+                                            border: roleFilter === rKey ? 'none' : '1px solid rgba(255,255,255,0.08)'
+                                        }}
+                                    >
+                                        {rKey === 'all' ? (language === 'tr' ? 'HEPSİ' : 'ALL') : (t(`role_${rKey}` as TranslationKey) || rKey.toUpperCase())} ({count})
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        {filteredUsers.length === 0 ? (
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', padding: '0.5rem 0' }}>
                                 No users matched your search criteria.
                             </div>
