@@ -668,15 +668,13 @@ export const dbService = {
 
         // Normalise stored template keys: map straight-quote keys to their
         // curly-quote equivalents so stale Supabase/local data doesn't shadow
-        // the correctly keyed defaults.
         const normalizeKeys = (raw: Record<string, StockpileTemplateRule>): Record<string, StockpileTemplateRule> => {
             const result: Record<string, StockpileTemplateRule> = {};
-            // Build a lookup: straight-quote version of each default key -> original key
             const straightToOriginal: Record<string, string> = {};
             Object.keys(defaults.frontline).forEach(k => {
                 straightToOriginal[k.replace(/[\u201c\u201d]/g, '"')] = k;
             });
-            Object.entries(raw).forEach(([k, v]) => {
+            Object.entries(raw || {}).forEach(([k, v]) => {
                 const mapped = straightToOriginal[k] || straightToOriginal[k.replace(/[\u201c\u201d]/g, '"')] || k;
                 result[mapped] = v;
             });
@@ -738,16 +736,23 @@ export const dbService = {
         return defaults;
     },
 
-
     async saveTemplates(templates: StockpileTemplates): Promise<void> {
-        localStorage.setItem('docka_stockpile_templates', JSON.stringify(templates));
+        const defaults = getDefaultTemplates();
+        const safeTemplates: StockpileTemplates = {
+            ...templates,
+            frontline: templates.frontline || defaults.frontline,
+            backline: templates.backline || defaults.backline,
+            aircraft: templates.aircraft || defaults.aircraft,
+        };
+
+        localStorage.setItem('docka_stockpile_templates', JSON.stringify(safeTemplates));
         if (isSupabaseConfigured && supabase) {
             try {
                 const { error } = await supabase
                     .from('system_settings')
                     .upsert({
                         setting_key: 'stockpile_templates',
-                        setting_value: JSON.stringify(templates),
+                        setting_value: JSON.stringify(safeTemplates),
                         updated_at: new Date().toISOString()
                     }, { onConflict: 'setting_key' });
                 if (error) {
@@ -760,6 +765,7 @@ export const dbService = {
     },
 
     async loadTemplateColors(): Promise<Record<string, string>> {
+        const defaultColors = { frontline: '#ef4444', backline: '#ffffff', aircraft: '#06b6d4' };
         if (isSupabaseConfigured && supabase) {
             try {
                 const { data, error } = await supabase
@@ -771,7 +777,7 @@ export const dbService = {
                     const parsed = typeof data.setting_value === 'string'
                         ? JSON.parse(data.setting_value)
                         : data.setting_value;
-                    return parsed as Record<string, string>;
+                    return { ...defaultColors, ...parsed };
                 }
             } catch (err) {
                 console.warn('[DB Service] Supabase loadTemplateColors failed:', err);
@@ -779,9 +785,9 @@ export const dbService = {
         }
         const local = localStorage.getItem('foxhole_template_colors');
         if (local) {
-            try { return JSON.parse(local); } catch (e) {}
+            try { return { ...defaultColors, ...JSON.parse(local) }; } catch (e) {}
         }
-        return { frontline: '#ef4444', backline: '#ffffff', aircraft: '#06b6d4' };
+        return defaultColors;
     },
 
     async saveTemplateColors(colors: Record<string, string>): Promise<void> {

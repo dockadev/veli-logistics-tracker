@@ -962,11 +962,13 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                 onConfirm={() => {
                     if (templateToDelete) {
                         const key = templateToDelete;
-                        setLocalTemplates(prev => {
-                            const next = { ...prev };
-                            delete next[key];
-                            return next;
-                        });
+                        if (key !== 'frontline' && key !== 'backline' && key !== 'aircraft') {
+                            setLocalTemplates(prev => {
+                                const next = { ...prev };
+                                delete next[key];
+                                return next;
+                            });
+                        }
                         if (activeRole === key) {
                             setActiveRole('frontline');
                         }
