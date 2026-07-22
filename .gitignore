@@ -39,3 +39,11 @@ src_backup/
 scratch/
 *.backup.json
 stockpile_templates_backup.json
+
+# Development Helper Scripts
+audit-css.cjs
+auto-translate-i18n.cjs
+gen_presets.cjs
+
+# Local Agent Workspace Data
+.agents/
