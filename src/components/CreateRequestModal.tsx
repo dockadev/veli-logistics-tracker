@@ -19,8 +19,9 @@ const getDepotTown = (dep: Depot): string | null => {
     if (!town) {
         const parts = dep.name.split(' - ');
         const isDepotType = (str: string) => {
-            const l = str.toLowerCase();
-            return l.includes('seaport') || l.includes('depot') || l.includes('port');
+            const l = str.toLowerCase().trim();
+            if (l === 'sableport') return false;
+            return l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport'));
         };
         if (parts.length >= 3 && !isDepotType(parts[1])) {
             town = parts[1];

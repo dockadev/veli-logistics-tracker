@@ -255,14 +255,16 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
   };
 
   const formatCleanDepotName = (rawName: string, subregion?: string | null) => {
-    const parts = rawName.split(' - ').map(s => s.trim()).filter(Boolean);
-    if (parts.length <= 1) return rawName;
+    let clean = rawName.replace(/^Sableport\s+-\s+Sableport\s+-/i, 'Sableport - Storage Depot -');
+    const parts = clean.split(' - ').map(s => s.trim()).filter(Boolean);
+    if (parts.length <= 1) return clean;
 
     const region = parts[0];
     let structureType = 'Storage Depot';
-    for (const p of parts) {
+    for (let i = 1; i < parts.length; i++) {
+      const p = parts[i];
       const l = p.toLowerCase();
-      if (l.includes('seaport') || l.includes('depot') || l.includes('port')) {
+      if (l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport'))) {
         structureType = p;
         break;
       }

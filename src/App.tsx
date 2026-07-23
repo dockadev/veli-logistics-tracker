@@ -21,7 +21,8 @@ import {
     LogOut,
     Download,
     Database,
-    ShieldCheck
+    ShieldCheck,
+    Pin
 } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
 import { DepotSettingsModal } from './components/DepotSettingsModal';
@@ -64,10 +65,11 @@ function getDepotMatchKey(rawFullName: string): string {
     const parts = fullName.split(/\s+-\s+/).map(p => p.trim());
     const region = parts[0] || '';
     
-    const typePart = parts.find(p => {
+    const typePart = parts.find((p, idx) => {
         const l = p.toLowerCase();
+        if (idx === 0) return false;
         return (
-            l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+            l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport')) ||
             l.includes('seehafen') || l.includes('porto') || l.includes('порт') ||
             l.includes('склад') || l.includes('lager') || l.includes('depósito')
         );
@@ -76,7 +78,7 @@ function getDepotMatchKey(rawFullName: string): string {
     let type = typePart.toLowerCase();
     if (
         type.includes('seaport') || type.includes('seehafen') || 
-        type.includes('porto') || type.includes('порт') || type.includes('port')
+        type.includes('porto') || type.includes('порт') || (type.includes('port') && !type.includes('sableport'))
     ) {
         type = 'seaport';
     } else if (
@@ -318,9 +320,21 @@ export const App: React.FC = () => {
             high: 2,
             normal: 1
         };
+        const now = Date.now();
+
         return notifications
-            .filter(n => n.type === 'announcement' && !dismissedAnnouncements.includes(n.id))
+            .filter(n => {
+                if (n.type !== 'announcement') return false;
+                const isPinned = n.pinnedUntil ? new Date(n.pinnedUntil).getTime() > now : false;
+                if (isPinned) return true;
+                return !dismissedAnnouncements.includes(n.id);
+            })
             .sort((a, b) => {
+                const isPinnedA = a.pinnedUntil ? new Date(a.pinnedUntil).getTime() > now : false;
+                const isPinnedB = b.pinnedUntil ? new Date(b.pinnedUntil).getTime() > now : false;
+                if (isPinnedA !== isPinnedB) {
+                    return isPinnedA ? -1 : 1;
+                }
                 const weightA = severityWeight[a.announcementSeverity || 'normal'] || 1;
                 const weightB = severityWeight[b.announcementSeverity || 'normal'] || 1;
                 if (weightA !== weightB) {
@@ -1154,7 +1168,8 @@ export const App: React.FC = () => {
                             announcementContent: row.content,
                             announcementSeverity: row.severity,
                             announcementAuthor: row.author,
-                            announcementRole: row.role
+                            announcementRole: row.role,
+                            pinnedUntil: row.pinned_until || row.pinnedUntil || null
                         };
                         setNotifications(prev => {
                             const exists = prev.some(n => n.id === newAnn.id);
@@ -1164,6 +1179,25 @@ export const App: React.FC = () => {
                             return next;
                         });
                         showToast(language === 'tr' ? "Yeni bir duyuru paylaşıldı!" : "A new announcement has been published!", "info");
+                    } else if (payload.eventType === 'UPDATE') {
+                        const row = payload.new as any;
+                        setNotifications(prev => {
+                            const next = prev.map(n => {
+                                if (n.id === row.id) {
+                                    const updatedPinned = row.pinned_until !== undefined ? row.pinned_until : row.pinnedUntil !== undefined ? row.pinnedUntil : n.pinnedUntil;
+                                    return {
+                                        ...n,
+                                        announcementTitle: row.title || n.announcementTitle,
+                                        announcementContent: row.content || n.announcementContent,
+                                        announcementSeverity: row.severity || n.announcementSeverity,
+                                        pinnedUntil: updatedPinned || null
+                                    };
+                                }
+                                return n;
+                            });
+                            localStorage.setItem('docka_notifications', JSON.stringify(next));
+                            return next;
+                        });
                     } else if (payload.eventType === 'DELETE') {
                         if (payload.old?.id) {
                             const deletedId = payload.old.id;
@@ -1173,6 +1207,21 @@ export const App: React.FC = () => {
                                 return next;
                             });
                         }
+                    }
+                }
+            )
+            .on(
+                'broadcast',
+                { event: 'announcement_pinned' },
+                (payload) => {
+                    console.log('[Broadcast] Announcement pin changed:', payload);
+                    const { id, pinnedUntil } = payload.payload || {};
+                    if (id !== undefined) {
+                        setNotifications(prev => {
+                            const next = prev.map(n => n.id === id ? { ...n, pinnedUntil } : n);
+                            localStorage.setItem('docka_notifications', JSON.stringify(next));
+                            return next;
+                        });
                     }
                 }
             )
@@ -1228,10 +1277,10 @@ export const App: React.FC = () => {
                                 const merged: StockpileTemplates = {
                                     frontline: { ...defaults.frontline, ...(parsedValue.frontline || {}) },
                                     backline: { ...defaults.backline, ...(parsedValue.backline || {}) },
-                                    aircraft: { ...defaults.aircraft, ...(parsedValue.aircraft || {}) }
+                                    airfield: { ...defaults.airfield, ...(parsedValue.airfield || parsedValue.aircraft || {}) }
                                 };
                                 Object.keys(parsedValue || {}).forEach(k => {
-                                    if (k !== 'frontline' && k !== 'backline' && k !== 'aircraft') {
+                                    if (k !== 'frontline' && k !== 'backline' && k !== 'airfield' && k !== 'aircraft') {
                                         merged[k] = parsedValue[k];
                                     }
                                 });
@@ -1780,7 +1829,7 @@ export const App: React.FC = () => {
         }
     }, []);
 
-    const handlePublishAnnouncement = useCallback((title: string, content: string, severity: 'normal' | 'high' | 'critical') => {
+    const handlePublishAnnouncement = useCallback((title: string, content: string, severity: 'normal' | 'high' | 'critical', pinnedUntil?: string) => {
         // Push notification
         const authorName = currentUsername || (userRole === 'developer' ? 'Developer' : 'Officer');
         const newNotif: SystemNotification = {
@@ -1793,7 +1842,8 @@ export const App: React.FC = () => {
             announcementContent: content,
             announcementSeverity: severity,
             announcementAuthor: authorName,
-            announcementRole: (userRole === 'developer' ? 'developer' : 'officer') as UserRole
+            announcementRole: (userRole === 'developer' ? 'developer' : 'officer') as UserRole,
+            pinnedUntil: pinnedUntil || null
         };
         setNotifications(prev => {
             const exists = prev.some(n => n.id === newNotif.id);
@@ -1809,10 +1859,36 @@ export const App: React.FC = () => {
             });
         }
 
-        logAction(`Published global announcement [${severity}]: ${title} - ${content}`);
+        logAction(`Published global announcement [${severity}]${pinnedUntil ? ' (Pinned)' : ''}: ${title} - ${content}`);
         showToast('Announcement published successfully', 'success');
         setActiveTab('announcements');
     }, [userRole, showToast, logAction, currentUsername]);
+
+    const handlePinAnnouncement = useCallback((id: string, pinnedUntil: string | null) => {
+        setNotifications(prev => {
+            const next = prev.map(n => n.id === id ? { ...n, pinnedUntil } : n);
+            localStorage.setItem('docka_notifications', JSON.stringify(next));
+            return next;
+        });
+
+        if (isSupabaseConfigured && supabase) {
+            dbService.updateAnnouncementPin(id, pinnedUntil).catch(err => {
+                console.error('[App] Failed to update announcement pin in Supabase:', err);
+            });
+            try {
+                supabase.channel('public-announcements').send({
+                    type: 'broadcast',
+                    event: 'announcement_pinned',
+                    payload: { id, pinnedUntil }
+                });
+            } catch (broadcastErr) {
+                console.error('[App] Failed to broadcast announcement pin:', broadcastErr);
+            }
+        }
+
+        logAction(`Updated announcement pin #${id.substring(0, 5)}`);
+        showToast(language === 'tr' ? 'Duyuru pini güncellendi' : 'Announcement pin updated', 'success');
+    }, [showToast, logAction, language]);
 
     const handleDeleteAnnouncement = useCallback((id: string) => {
         if (userRole === 'member' || userRole === 'recruit') {
@@ -2224,9 +2300,10 @@ export const App: React.FC = () => {
             const region = parts[0] || 'Unknown Region';
             
             let structureType = 'Storage Depot';
-            for (const p of parts) {
+            for (let i = 1; i < parts.length; i++) {
+                const p = parts[i];
                 const l = p.toLowerCase();
-                if (l.includes('seaport') || l.includes('depot') || l.includes('port')) {
+                if (l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport'))) {
                     structureType = p;
                     break;
                 }
@@ -2630,84 +2707,116 @@ export const App: React.FC = () => {
                 ) : (
                     <>
                         {/* Top Announcement Banner (Visible at the very top of main view) */}
-                        {activeAnnouncements.slice(0, 1).map(ann => (
-                            <div 
-                                key={ann.id}
-                                className="anim-fade-in"
-                                style={{
-                                    marginBottom: '1.25rem',
-                                    padding: '0.85rem 1.25rem',
-                                    borderRadius: 'var(--radius-sm)',
-                                    background: ann.announcementSeverity === 'critical' ? 'rgba(239, 68, 68, 0.12)' :
-                                                ann.announcementSeverity === 'high' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(59, 130, 246, 0.12)',
-                                    border: '1px solid ' + (ann.announcementSeverity === 'critical' ? 'rgba(239, 68, 68, 0.35)' :
-                                                            ann.announcementSeverity === 'high' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(59, 130, 246, 0.35)'),
-                                    display: 'flex',
-                                    alignItems: 'flex-start',
-                                    justifyContent: 'space-between',
-                                    gap: '1rem'
-                                }}
-                            >
-                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                                    <Megaphone size={20} style={{ 
-                                        color: ann.announcementSeverity === 'critical' ? '#ef4444' :
-                                               ann.announcementSeverity === 'high' ? '#f59e0b' : 'var(--accent-color)',
-                                        marginTop: '2px',
-                                        flexShrink: 0 
-                                    }} />
-                                    <div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                            <span style={{ 
-                                                fontSize: '0.85rem', 
-                                                fontWeight: 800, 
-                                                fontFamily: 'var(--font-heading)',
-                                                color: ann.announcementSeverity === 'critical' ? '#ef4444' :
-                                                       ann.announcementSeverity === 'high' ? '#f59e0b' : 'var(--text-primary)'
-                                            }}>
-                                                {ann.announcementTitle || 'DUYURU / ANNOUNCEMENT'}
-                                            </span>
-                                            <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                                • {getRelativeTimeString(ann.timestamp, language)} ({ann.announcementAuthor || 'Admin'})
-                                            </span>
+                        {activeAnnouncements.slice(0, 1).map(ann => {
+                            const isPinned = ann.pinnedUntil ? new Date(ann.pinnedUntil).getTime() > Date.now() : false;
+
+                            return (
+                                <div 
+                                    key={ann.id}
+                                    className="anim-fade-in"
+                                    style={{
+                                        marginBottom: '1.25rem',
+                                        padding: '0.85rem 1.25rem',
+                                        borderRadius: 'var(--radius-sm)',
+                                        background: isPinned ? 'rgba(245, 158, 11, 0.12)' :
+                                                    ann.announcementSeverity === 'critical' ? 'rgba(239, 68, 68, 0.12)' :
+                                                    ann.announcementSeverity === 'high' ? 'rgba(245, 158, 11, 0.12)' : 'rgba(59, 130, 246, 0.12)',
+                                        border: '1px solid ' + (isPinned ? 'rgba(245, 158, 11, 0.4)' :
+                                                                ann.announcementSeverity === 'critical' ? 'rgba(239, 68, 68, 0.35)' :
+                                                                ann.announcementSeverity === 'high' ? 'rgba(245, 158, 11, 0.35)' : 'rgba(59, 130, 246, 0.35)'),
+                                        display: 'flex',
+                                        alignItems: 'flex-start',
+                                        justifyContent: 'space-between',
+                                        gap: '1rem'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                                        <Megaphone size={20} style={{ 
+                                            color: isPinned ? '#f59e0b' :
+                                                   ann.announcementSeverity === 'critical' ? '#ef4444' :
+                                                   ann.announcementSeverity === 'high' ? '#f59e0b' : 'var(--accent-color)',
+                                            marginTop: '2px',
+                                            flexShrink: 0 
+                                        }} />
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                                <span style={{ 
+                                                    fontSize: '0.85rem', 
+                                                    fontWeight: 800, 
+                                                    fontFamily: 'var(--font-heading)',
+                                                    color: isPinned ? '#f59e0b' :
+                                                           ann.announcementSeverity === 'critical' ? '#ef4444' :
+                                                           ann.announcementSeverity === 'high' ? '#f59e0b' : 'var(--text-primary)'
+                                                }}>
+                                                    {ann.announcementTitle || 'DUYURU / ANNOUNCEMENT'}
+                                                </span>
+                                                {isPinned && (
+                                                    <span 
+                                                        style={{
+                                                            background: 'rgba(245, 158, 11, 0.2)',
+                                                            color: '#f59e0b',
+                                                            border: '1px solid rgba(245, 158, 11, 0.4)',
+                                                            fontSize: '0.6rem',
+                                                            fontWeight: 800,
+                                                            padding: '0.15rem 0.45rem',
+                                                            borderRadius: '4px',
+                                                            textTransform: 'uppercase',
+                                                            letterSpacing: '0.05em',
+                                                            display: 'inline-flex',
+                                                            alignItems: 'center',
+                                                            gap: '0.25rem'
+                                                        }}
+                                                        title={t('pinned_cannot_dismiss')}
+                                                    >
+                                                        <Pin size={11} />
+                                                        <span>{t('pinned_badge')}</span>
+                                                    </span>
+                                                )}
+                                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                                    • {getRelativeTimeString(ann.timestamp, language)} ({ann.announcementAuthor || 'Admin'})
+                                                </span>
+                                            </div>
+                                            <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
+                                                {ann.announcementContent || ann.message}
+                                            </p>
                                         </div>
-                                        <p style={{ margin: '0.35rem 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.45' }}>
-                                            {ann.announcementContent || ann.message}
-                                        </p>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexShrink: 0 }}>
+                                        <button 
+                                            className="btn btn-secondary"
+                                            onClick={() => setActiveTab('announcements')}
+                                            style={{ fontSize: '0.7rem', padding: '0.3rem 0.6rem' }}
+                                        >
+                                            {language === 'tr' ? 'Tümünü Gör' : 'View All'}
+                                        </button>
+                                        {!isPinned && (
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDismissAnnouncement(ann.id)}
+                                                style={{
+                                                    background: 'transparent',
+                                                    border: 'none',
+                                                    cursor: 'pointer',
+                                                    color: 'var(--text-secondary)',
+                                                    padding: '0.25rem',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    borderRadius: '4px',
+                                                    transition: 'all 0.15s',
+                                                    opacity: 0.7
+                                                }}
+                                                onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; }}
+                                                onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.background = 'transparent'; }}
+                                                title={language === 'tr' ? 'Kapat' : 'Dismiss'}
+                                            >
+                                                <X size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', flexShrink: 0 }}>
-                                    <button 
-                                        className="btn btn-secondary"
-                                        onClick={() => setActiveTab('announcements')}
-                                        style={{ fontSize: '0.7rem', padding: '0.3rem 0.6rem' }}
-                                    >
-                                        {language === 'tr' ? 'Tümünü Gör' : 'View All'}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDismissAnnouncement(ann.id)}
-                                        style={{
-                                            background: 'transparent',
-                                            border: 'none',
-                                            cursor: 'pointer',
-                                            color: 'var(--text-secondary)',
-                                            padding: '0.25rem',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            borderRadius: '4px',
-                                            transition: 'all 0.15s',
-                                            opacity: 0.7
-                                        }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.7'; e.currentTarget.style.background = 'transparent'; }}
-                                        title={language === 'tr' ? 'Kapat' : 'Dismiss'}
-                                    >
-                                        <X size={16} />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
 
                         <section className="data-panel" style={{ position: 'relative' }}>
                             {!activeDepot && activeTab === 'inventory' ? (
@@ -2760,7 +2869,7 @@ export const App: React.FC = () => {
                                                          } catch (e) {}
                                                          if (tType === 'frontline') return '#ef4444';
                                                          if (tType === 'backline') return '#ffffff';
-                                                         if (tType === 'aircraft') return '#06b6d4';
+                                                         if (tType === 'airfield') return '#06b6d4';
                                                          return '#10b981';
                                                      };
 
@@ -2768,7 +2877,7 @@ export const App: React.FC = () => {
                                                      const isUnassigned = !type || type === 'unassigned';
                                                      const label = isUnassigned
                                                          ? (language === 'tr' ? 'ŞABLON ATANMADI' : 'TEMPLATE UNASSIGNED')
-                                                         : type === 'aircraft' ? 'AIRCRAFT' : type.toUpperCase();
+                                                         : type === 'airfield' ? 'AIRFIELD' : type.toUpperCase();
 
                                                      return (
                                                          <span style={{
@@ -3054,7 +3163,8 @@ export const App: React.FC = () => {
                                                      author: n.announcementAuthor || 'System',
                                                      role: n.announcementRole || 'member',
                                                      timestamp: n.timestamp,
-                                                     seenBy: n.seenBy || []
+                                                     seenBy: n.seenBy || [],
+                                                     pinnedUntil: n.pinnedUntil || null
                                                  };
                                              }
                                              // Fallback parser for old format
@@ -3085,12 +3195,14 @@ export const App: React.FC = () => {
                                                  author: author,
                                                  role: role as UserRole,
                                                  timestamp: n.timestamp,
-                                                 seenBy: n.seenBy || []
+                                                 seenBy: n.seenBy || [],
+                                                 pinnedUntil: n.pinnedUntil || null
                                              };
                                          })}
                                          onOpenPublishModal={userRole !== 'member' ? () => setIsAnnouncementOpen(true) : undefined}
                                          userRole={userRole}
                                          onDeleteAnnouncement={handleDeleteAnnouncement}
+                                         onPinAnnouncement={handlePinAnnouncement}
                                      />
                                  </ErrorBoundary>
                              )}
@@ -3440,7 +3552,11 @@ export const App: React.FC = () => {
                 <button
                     className={`vertical-nav-btn ${isChatOpen ? 'active' : ''}`}
                     onClick={() => {
-                        setIsChatOpen(!isChatOpen);
+                        const nextState = !isChatOpen;
+                        setIsChatOpen(nextState);
+                        if (nextState) {
+                            setChatUnreadCount(0);
+                        }
                         setIsPersonalizeOpen(false);
                     }}
                     data-tooltip={

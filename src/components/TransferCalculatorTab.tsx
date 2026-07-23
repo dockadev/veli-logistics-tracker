@@ -37,8 +37,9 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
         if (!town) {
             const parts = depName.split(' - ').map(s => s.trim()).filter(Boolean);
             const isDepotType = (str: string) => {
-                const l = str.toLowerCase();
-                return l.includes('seaport') || l.includes('depot') || l.includes('port');
+                const l = str.toLowerCase().trim();
+                if (l === 'sableport') return false;
+                return l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport'));
             };
             if (parts.length >= 3 && !isDepotType(parts[1])) {
                 town = parts[1];
@@ -302,14 +303,14 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                 if (colors[templateType]) return colors[templateType];
             }
         } catch (e) {}
-        return DEFAULT_TEMPLATE_COLORS[templateType] || (templateType === 'frontline' ? '#ef4444' : templateType === 'aircraft' ? '#06b6d4' : '#a855f7');
+        return DEFAULT_TEMPLATE_COLORS[templateType] || (templateType === 'frontline' ? '#ef4444' : templateType === 'airfield' ? '#06b6d4' : '#a855f7');
     };
 
     const getTemplateName = (templateType: string, templateObj?: any): string => {
         if (templateObj?.name && typeof templateObj.name === 'string') return templateObj.name;
         if (templateType === 'frontline') return 'FRONTLINE';
         if (templateType === 'backline') return 'BACKLINE';
-        if (templateType === 'aircraft') return 'AIRCRAFT';
+        if (templateType === 'airfield') return 'AIRFIELD';
         return templateType.toUpperCase();
     };
 

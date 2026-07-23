@@ -418,11 +418,11 @@ export const StockpilePasscodesTab: React.FC<StockpilePasscodesTabProps> = ({
                                                         } catch (e) {}
                                                         if (tType === 'frontline') return '#ef4444';
                                                         if (tType === 'backline') return '#ffffff';
-                                                        if (tType === 'aircraft') return '#06b6d4';
+                                                        if (tType === 'airfield') return '#06b6d4';
                                                         return '#10b981';
                                                     };
+                                                    const label = type === 'airfield' ? 'Airfield' : type.toUpperCase();
                                                     const color = getTemplateColor(type);
-                                                    const label = type === 'aircraft' ? 'Aircraft' : type.toUpperCase();
                                                     return (
                                                         <span style={{
                                                             fontSize: '0.6rem',

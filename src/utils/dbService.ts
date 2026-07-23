@@ -39,9 +39,16 @@ function migrateRequest(req: SupplyRequest): SupplyRequest {
 
 function normalizeDepotName(name: string): string {
     let clean = name.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
+    clean = clean.replace(/^Sableport\s+-\s+Sableport\s+-/i, 'Sableport - Storage Depot -');
     const parts = clean.split(/\s+-\s+/).map(p => p.trim());
     if (parts.length > 0) {
-        if (parts[0] === 'The Blemish') {
+        if (parts[0] === 'Heartlands') {
+            parts[0] = 'The Heartlands';
+        } else if (parts[0] === 'Drowned Vale') {
+            parts[0] = 'The Drowned Vale';
+        } else if (parts[0] === 'Linn of Mercy') {
+            parts[0] = 'The Linn of Mercy';
+        } else if (parts[0] === 'The Blemish') {
             parts[0] = 'Blemish';
         }
         const mappedParts = parts.map((part, index) => {
@@ -94,10 +101,11 @@ function getMatchKey(rawFullName: string): string {
     const parts = fullName.split(/\s+-\s+/).map(p => p.trim());
     const region = parts[0] || '';
     
-    const typePart = parts.find(p => {
+    const typePart = parts.find((p, idx) => {
         const l = p.toLowerCase();
+        if (idx === 0) return false; // Region name is not structure type
         return (
-            l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+            l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport')) ||
             l.includes('seehafen') || l.includes('porto') || l.includes('порт') ||
             l.includes('скlad') || l.includes('скladское') || l.includes('склад') || l.includes('lager') || l.includes('depósito')
         );
@@ -106,7 +114,7 @@ function getMatchKey(rawFullName: string): string {
     let type = typePart.toLowerCase();
     if (
         type.includes('seaport') || type.includes('seehafen') || 
-        type.includes('porto') || type.includes('порт') || type.includes('port')
+        type.includes('porto') || type.includes('порт') || (type.includes('port') && !type.includes('sableport'))
     ) {
         type = 'seaport';
     } else if (
@@ -121,8 +129,8 @@ function getMatchKey(rawFullName: string): string {
         type = 'storage depot';
     }
     
-    let normalizedRegion = region.toLowerCase();
-    if (normalizedRegion === 'the blemish') {
+    let normalizedRegion = region.toLowerCase().replace(/^the\s+/, '').trim();
+    if (normalizedRegion === 'blemish') {
         normalizedRegion = 'blemish';
     }
     const name = parts[parts.length - 1] || '';
@@ -567,7 +575,8 @@ export const dbService = {
                         announcementContent: row.content,
                         announcementSeverity: row.severity,
                         announcementAuthor: row.author,
-                        announcementRole: row.role
+                        announcementRole: row.role,
+                        pinnedUntil: row.pinned_until || row.pinnedUntil || null
                     }));
                 }
             } catch (err) {
@@ -589,13 +598,49 @@ export const dbService = {
                         severity: ann.announcementSeverity || 'normal',
                         author: ann.announcementAuthor || 'Unknown',
                         role: ann.announcementRole || 'member',
-                        created_at: ann.timestamp
+                        created_at: ann.timestamp,
+                        pinned_until: ann.pinnedUntil || null
                     });
                 if (error) {
-                    console.error('[DB Service] Error saving announcement to Supabase:', error);
+                    console.error('[DB Service] Error saving announcement with pinned_until to Supabase:', error);
+                    // Fallback if pinned_until column does not exist in user's Supabase schema yet
+                    const { error: fallbackError } = await supabase
+                        .from('announcements')
+                        .insert({
+                            id: ann.id,
+                            title: ann.announcementTitle || '',
+                            content: ann.announcementContent || '',
+                            severity: ann.announcementSeverity || 'normal',
+                            author: ann.announcementAuthor || 'Unknown',
+                            role: ann.announcementRole || 'member',
+                            created_at: ann.timestamp
+                        });
+                    if (fallbackError) {
+                        console.error('[DB Service] Fallback saveAnnouncement also failed:', fallbackError);
+                    }
                 }
             } catch (err) {
                 console.error('[DB Service] Supabase saveAnnouncement failed:', err);
+            }
+        }
+    },
+
+    async updateAnnouncementPin(id: string, pinnedUntil: string | null): Promise<void> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { error } = await supabase
+                    .from('announcements')
+                    .update({ pinned_until: pinnedUntil })
+                    .eq('id', id);
+                if (error) {
+                    if (error.code === 'PGRST204') {
+                        console.warn('[DB Service] Supabase announcements table lacks "pinned_until" column. Live broadcast was used for active clients. Run SQL: ALTER TABLE announcements ADD COLUMN IF NOT EXISTS pinned_until TIMESTAMPTZ;');
+                    } else {
+                        console.error('[DB Service] Error updating announcement pin in Supabase:', error);
+                    }
+                }
+            } catch (err) {
+                console.error('[DB Service] Supabase updateAnnouncementPin failed:', err);
             }
         }
     },
@@ -696,11 +741,11 @@ export const dbService = {
                     const merged: StockpileTemplates = {
                         frontline: { ...defaults.frontline, ...normalizeKeys(parsed.frontline || {}) },
                         backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) },
-                        aircraft: { ...defaults.aircraft, ...normalizeKeys(parsed.aircraft || {}) }
+                        airfield: { ...defaults.airfield, ...normalizeKeys(parsed.airfield || parsed.aircraft || {}) }
                     };
 
                     Object.keys(parsed).forEach(k => {
-                        if (k !== 'frontline' && k !== 'backline' && k !== 'aircraft') {
+                        if (k !== 'frontline' && k !== 'backline' && k !== 'airfield' && k !== 'aircraft') {
                             merged[k] = normalizeKeys(parsed[k] || {});
                         }
                     });
@@ -719,11 +764,11 @@ export const dbService = {
                 const merged: StockpileTemplates = {
                     frontline: { ...defaults.frontline, ...normalizeKeys(parsed.frontline || {}) },
                     backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) },
-                    aircraft: { ...defaults.aircraft, ...normalizeKeys(parsed.aircraft || {}) }
+                    airfield: { ...defaults.airfield, ...normalizeKeys(parsed.airfield || parsed.aircraft || {}) }
                 };
 
                 Object.keys(parsed).forEach(k => {
-                    if (k !== 'frontline' && k !== 'backline' && k !== 'aircraft') {
+                    if (k !== 'frontline' && k !== 'backline' && k !== 'airfield' && k !== 'aircraft') {
                         merged[k] = normalizeKeys(parsed[k] || {});
                     }
                 });
@@ -742,8 +787,9 @@ export const dbService = {
             ...templates,
             frontline: templates.frontline || defaults.frontline,
             backline: templates.backline || defaults.backline,
-            aircraft: templates.aircraft || defaults.aircraft,
+            airfield: templates.airfield || (templates as any).aircraft || defaults.airfield,
         };
+        delete (safeTemplates as any).aircraft;
 
         localStorage.setItem('docka_stockpile_templates', JSON.stringify(safeTemplates));
         if (isSupabaseConfigured && supabase) {
@@ -765,7 +811,7 @@ export const dbService = {
     },
 
     async loadTemplateColors(): Promise<Record<string, string>> {
-        const defaultColors = { frontline: '#ef4444', backline: '#ffffff', aircraft: '#06b6d4' };
+        const defaultColors = { frontline: '#ef4444', backline: '#ffffff', airfield: '#06b6d4' };
         if (isSupabaseConfigured && supabase) {
             try {
                 const { data, error } = await supabase
@@ -875,7 +921,7 @@ export const dbService = {
                 console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
             }
         }
-        return '0.1.65';
+        return '0.1.66';
     },
 
     async saveMinAppVersion(version: string): Promise<void> {

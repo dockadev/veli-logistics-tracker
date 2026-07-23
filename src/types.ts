@@ -83,6 +83,7 @@ export interface SystemNotification {
     announcementSeverity?: 'normal' | 'high' | 'critical';
     announcementAuthor?: string;
     announcementRole?: UserRole;
+    pinnedUntil?: string | null;
 }
 
 export interface Announcement {
@@ -94,6 +95,7 @@ export interface Announcement {
     severity: 'normal' | 'high' | 'critical';
     timestamp: string;
     seenBy: string[];
+    pinnedUntil?: string | null;
 }
 
 export interface AuditLogEntry {
@@ -160,7 +162,7 @@ export interface TransferPlan {
 
 export interface RegionSetting {
     regionName: string;
-    templateType: string; // 'frontline' | 'backline' | 'aircraft' | 'unassigned' | custom template name
+    templateType: string; // 'frontline' | 'backline' | 'airfield' | 'unassigned' | custom template name
     demandPercentage: number; // 0 to 200
 }
 

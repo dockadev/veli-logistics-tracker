@@ -1,5 +1,5 @@
 import React from 'react';
-import { Megaphone, AlertTriangle, AlertOctagon, Info, Clock, User, Trash2 } from 'lucide-react';
+import { Megaphone, AlertTriangle, AlertOctagon, Info, Clock, User, Trash2, Pin } from 'lucide-react';
 import type { Announcement } from '../types';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 
@@ -8,13 +8,15 @@ interface AnnouncementsTabProps {
     onOpenPublishModal?: () => void;
     userRole: string | null;
     onDeleteAnnouncement?: (id: string) => void;
+    onPinAnnouncement?: (id: string, pinnedUntil: string | null) => void;
 }
 
 export const AnnouncementsTab: React.FC<AnnouncementsTabProps> = React.memo(({
     announcements,
     onOpenPublishModal,
     userRole,
-    onDeleteAnnouncement
+    onDeleteAnnouncement,
+    onPinAnnouncement
 }) => {
     const { t } = useLanguage();
     const [currentPage, setCurrentPage] = React.useState(1);
@@ -97,16 +99,17 @@ export const AnnouncementsTab: React.FC<AnnouncementsTabProps> = React.memo(({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {currentAnnouncements.map(ann => {
                         const styles = getSeverityStyles(ann.severity);
+                        const isPinned = ann.pinnedUntil ? new Date(ann.pinnedUntil).getTime() > Date.now() : false;
                         return (
                             <div 
                                 key={ann.id}
                                 className="panel-card"
                                 style={{
-                                    borderLeft: styles.borderLeft,
-                                    boxShadow: styles.boxShadow,
-                                    borderTop: `1px solid ${styles.borderColor}`,
-                                    borderRight: `1px solid ${styles.borderColor}`,
-                                    borderBottom: `1px solid ${styles.borderColor}`,
+                                    borderLeft: isPinned ? '4px solid #f59e0b' : styles.borderLeft,
+                                    boxShadow: isPinned ? '0 4px 20px rgba(245, 158, 11, 0.12)' : styles.boxShadow,
+                                    borderTop: `1px solid ${isPinned ? 'rgba(245, 158, 11, 0.3)' : styles.borderColor}`,
+                                    borderRight: `1px solid ${isPinned ? 'rgba(245, 158, 11, 0.3)' : styles.borderColor}`,
+                                    borderBottom: `1px solid ${isPinned ? 'rgba(245, 158, 11, 0.3)' : styles.borderColor}`,
                                     padding: '1.5rem',
                                     borderRadius: 'var(--radius-md)',
                                     background: 'var(--bg-card)',
@@ -138,6 +141,30 @@ export const AnnouncementsTab: React.FC<AnnouncementsTabProps> = React.memo(({
                                                 {styles.icon}
                                                 <span>{t(`severity_${ann.severity}` as TranslationKey)}</span>
                                             </span>
+
+                                            {isPinned && (
+                                                <span 
+                                                    style={{
+                                                        background: 'rgba(245, 158, 11, 0.18)',
+                                                        color: '#f59e0b',
+                                                        border: '1px solid rgba(245, 158, 11, 0.4)',
+                                                        fontSize: '0.62rem',
+                                                        fontWeight: 800,
+                                                        padding: '0.2rem 0.5rem',
+                                                        borderRadius: '4px',
+                                                        textTransform: 'uppercase',
+                                                        letterSpacing: '0.05em',
+                                                        display: 'inline-flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem'
+                                                    }}
+                                                    title={t('pinned_cannot_dismiss')}
+                                                >
+                                                    <Pin size={11} />
+                                                    <span>{t('pinned_badge')}</span>
+                                                </span>
+                                            )}
+
                                             <h4 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
                                                 {ann.title}
                                             </h4>
@@ -153,6 +180,54 @@ export const AnnouncementsTab: React.FC<AnnouncementsTabProps> = React.memo(({
                                             </span>
                                         </div>
                                     </div>
+
+                                    {/* Officer Quick Pin Controls */}
+                                    {userRole !== 'member' && onPinAnnouncement && (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                            {isPinned ? (
+                                                <button
+                                                    type="button"
+                                                    className="btn btn-secondary"
+                                                    onClick={() => onPinAnnouncement(ann.id, null)}
+                                                    style={{ fontSize: '0.68rem', padding: '0.25rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)' }}
+                                                    title="Unpin announcement"
+                                                >
+                                                    <Pin size={11} /> Unpin
+                                                </button>
+                                            ) : (
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(0,0,0,0.2)', padding: '0.2rem', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginLeft: '0.2rem', marginRight: '0.1rem', fontWeight: 600 }}>Pin:</span>
+                                                    {(['6h', '12h', '1d', '2d', '3d', '1w'] as const).map(dur => {
+                                                        const ms = dur === '6h' ? 21600000
+                                                                 : dur === '12h' ? 43200000
+                                                                 : dur === '1d' ? 86400000
+                                                                 : dur === '2d' ? 172800000
+                                                                 : dur === '3d' ? 259200000
+                                                                 : 604800000;
+                                                        return (
+                                                            <button
+                                                                key={dur}
+                                                                type="button"
+                                                                onClick={() => onPinAnnouncement(ann.id, new Date(Date.now() + ms).toISOString())}
+                                                                style={{
+                                                                    background: 'rgba(245, 158, 11, 0.1)',
+                                                                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                                                                    color: '#f59e0b',
+                                                                    fontSize: '0.65rem',
+                                                                    fontWeight: 700,
+                                                                    padding: '0.15rem 0.35rem',
+                                                                    borderRadius: '4px',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                {dur}
+                                                            </button>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Card Body */}

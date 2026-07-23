@@ -187,8 +187,9 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         if (!town) {
             const parts = depName.split(' - ').map(s => s.trim()).filter(Boolean);
             const isDepotType = (str: string) => {
-                const l = str.toLowerCase();
-                return l.includes('seaport') || l.includes('depot') || l.includes('port');
+                const l = str.toLowerCase().trim();
+                if (l === 'sableport') return false;
+                return l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport'));
             };
             if (parts.length >= 3 && !isDepotType(parts[1])) {
                 town = parts[1];
@@ -221,8 +222,41 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         
         return groups;
     }, [depots]);
+    // 1b. Canonical list of items for demand tracking (matching StockpileTemplatesTab)
+    const allDemandItems = useMemo(() => {
+        const itemsMap = new Map<string, OfficialCategory>();
+        COLONIAL_NEUTRAL_ITEMS.forEach(rawName => {
+            const cat = ITEM_CATEGORY_MAP[rawName] || getItemOfficialCategory(rawName);
+            
+            if (cat === 'vehicles' || cat === 'shippables') {
+                itemsMap.set(rawName, cat);
+                const crateCat = (cat === 'vehicles' ? 'vehicle_crates' : 'shippable_crates') as OfficialCategory;
+                itemsMap.set(`${rawName} (Crate)`, crateCat);
+            } else {
+                const crateName = rawName.endsWith('(Crate)') ? rawName : `${rawName} (Crate)`;
+                itemsMap.set(crateName, cat);
+            }
+        });
+        return Array.from(itemsMap.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    }, []);
 
-    // 2. Compute Target, Available, and Needed for ALL items across ALL town groups (skipping single vehicles and shippables)
+    const getItemAvailable = (depotsList: Depot[], itemName: string, category: OfficialCategory): number => {
+        const cleanName = itemName.replace(/\s*\(Crate\)$/i, '').trim();
+        const crateName = itemName.endsWith('(Crate)') ? itemName : `${itemName} (Crate)`;
+        
+        return depotsList.reduce((sum, d) => {
+            if (!d.current) return sum;
+            if (category === 'vehicles' || category === 'shippables' || category === 'vehicle_crates' || category === 'shippable_crates') {
+                return sum + (d.current[itemName]?.count || 0);
+            }
+            if (crateName === cleanName) {
+                return sum + (d.current[itemName]?.count || 0);
+            }
+            return sum + (d.current[crateName]?.count || 0) + (d.current[cleanName]?.count || 0);
+        }, 0);
+    };
+
+    // 2. Compute Target, Available, and Needed for ALL items across ALL town groups
     const demandItems = useMemo(() => {
         const itemsList: {
             name: string;
@@ -235,10 +269,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
             citiesNeeded: { cityName: string; target: number; available: number; needed: number; surplus: number }[];
         }[] = [];
 
-        Array.from(COLONIAL_NEUTRAL_ITEMS).forEach(itemName => {
-            const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
-            
-
+        allDemandItems.forEach(([itemName, category]) => {
             let totalTarget = 0;
             Object.keys(townGroups).forEach(subregionName => {
                 const setting = regionSettings[subregionName] || { 
@@ -259,10 +290,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                 totalTarget += targetVal;
             });
 
-            const totalAvailable = Object.values(depots).reduce(
-                (sum, d) => sum + (d.current?.[itemName]?.count || 0), 
-                0
-            );
+            const totalAvailable = getItemAvailable(Object.values(depots), itemName, category);
 
             let hasCriticalShortage = false;
             const citiesNeeded: { cityName: string; target: number; available: number; needed: number; surplus: number }[] = [];
@@ -287,7 +315,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                     ? 0 
                     : Math.round(rule.max * (setting.demandPercentage / 100));
                 
-                const availableVal = groupData.depots.reduce((sum, d) => sum + (d.current?.[itemName]?.count || 0), 0);
+                const availableVal = getItemAvailable(groupData.depots, itemName, category);
                 const neededVal = Math.max(0, maxVal - availableVal);
                 const surplusVal = Math.max(0, availableVal - maxVal);
                 if (availableVal < minVal) {
@@ -324,9 +352,9 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         });
 
         return itemsList;
-    }, [townGroups, templates, regionSettings]);
+    }, [allDemandItems, townGroups, templates, regionSettings, depots]);
 
-    // 3. Compute stats for each Town Group (City View) (skipping single vehicles and shippables)
+    // 3. Compute stats for each Town Group (City View)
     const demandCities = useMemo(() => {
         const citiesList: {
             name: string;
@@ -346,12 +374,10 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
             let citySurplus = 0;
             const itemsNeeded: { name: string; target: number; available: number; needed: number; surplus: number }[] = [];
 
-            Array.from(COLONIAL_NEUTRAL_ITEMS).forEach(itemName => {
-                const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
+            allDemandItems.forEach(([itemName, category]) => {
                 if (disabledCategories.has(category)) {
                     return;
                 }
-                
 
                 const setting = regionSettings[groupName] || { 
                     regionName: groupName, 
@@ -369,7 +395,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                     ? 0 
                     : Math.round(rule.max * (setting.demandPercentage / 100));
                 
-                const availableVal = groupData.depots.reduce((sum, d) => sum + (d.current?.[itemName]?.count || 0), 0);
+                const availableVal = getItemAvailable(groupData.depots, itemName, category);
                 const neededVal = Math.max(0, maxVal - availableVal);
                 const surplusVal = Math.max(0, availableVal - maxVal);
 
@@ -762,74 +788,91 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                                 return (
                                     <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                                             {displayedItems.map(item => {
                                                 const percent = item.target > 0 ? Math.min(100, (item.available / item.target) * 100) : 0;
-                                                const surplus = Math.max(0, item.available - item.target);
                                                 const itemIcon = getItemIconUrl(item.name);
+                                                const citiesWithStatus = item.citiesNeeded.filter(c => c.needed > 0 || c.surplus > 0);
+
                                                 return (
-                                                    <div key={item.name} className="panel-card needed-demand-card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                            {itemIcon ? (
-                                                                <img src={itemIcon} alt={item.name} style={{ width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0 }} />
-                                                            ) : (
-                                                                <Package size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
-                                                            )}
-                                                            <strong style={{ fontSize: '0.75rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={item.name}>
-                                                                {item.name}
-                                                            </strong>
+                                                    <div key={item.name} className="panel-card needed-demand-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                                                        {/* Header: Icon & Item Name */}
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                {itemIcon ? (
+                                                                    <img src={itemIcon} alt={item.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                                                                ) : (
+                                                                    <Package size={16} style={{ color: '#ef4444' }} />
+                                                                )}
+                                                            </div>
+                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)', display: 'block', wordBreak: 'break-word', lineHeight: 1.25 }} title={item.name}>
+                                                                    {item.name}
+                                                                </strong>
+                                                            </div>
                                                         </div>
 
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)', padding: '0.4rem', borderRadius: '4px' }}>
+                                                        {/* 3-Stat Numbers Box */}
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.target.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{item.target.toLocaleString()}</div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.15rem', flexWrap: 'wrap' }}>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
                                                                     {item.available.toLocaleString()}
-                                                                    {surplus > 0 && (
-                                                                        <span style={{ fontSize: '0.55rem', color: '#10b981', fontWeight: 600 }}>
-                                                                            (+{surplus})
-                                                                        </span>
-                                                                    )}
                                                                 </div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_needed')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ef4444' }}>{item.needed.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_needed')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ef4444', marginTop: '0.1rem' }}>{item.needed.toLocaleString()}</div>
                                                             </div>
                                                         </div>
 
+                                                        {/* Progress Bar */}
                                                         <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.15rem' }}>
-                                                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: getFulfillColor(percent) }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                                                    {t('demand_fulfilled')}
+                                                                </span>
+                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: getFulfillColor(percent) }}>
                                                                     {percent.toFixed(0)}%
                                                                 </span>
-                                                                <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
-                                                                    {t('demand_fulfilled').toLowerCase()}
-                                                                </span>
                                                             </div>
-                                                            <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: getFulfillColor(percent), borderRadius: '2px' }} />
+                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                <div style={{ height: '100%', width: `${percent}%`, background: getFulfillColor(percent), borderRadius: '3px', transition: 'width 0.3s ease' }} />
                                                             </div>
                                                         </div>
 
-                                                        {item.citiesNeeded.filter(c => c.needed > 0 || c.surplus > 0).length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                <div style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-                                                                    {language === 'tr' ? 'Şehirlerdeki Durum:' : 'Status in Cities:'}
+                                                        {/* Status in Cities (Spacious, Clear Rows) */}
+                                                        {citiesWithStatus.length > 0 && (
+                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <span>{language === 'tr' ? 'Şehirlerdeki Durum' : 'Status in Cities'}</span>
+                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({citiesWithStatus.length})</span>
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '60px', overflowY: 'auto' }}>
-                                                                    {item.citiesNeeded.filter(c => c.needed > 0 || c.surplus > 0).map(city => {
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
+                                                                    {citiesWithStatus.map(city => {
                                                                         const isNeeded = city.needed > 0;
                                                                         const valueText = isNeeded ? `-${city.needed.toLocaleString()}` : `+${city.surplus.toLocaleString()}`;
-                                                                        const valueColor = isNeeded ? '#ef4444' : '#10b981';
+                                                                        const badgeBg = isNeeded ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)';
+                                                                        const badgeBorder = isNeeded ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)';
+                                                                        const valueColor = isNeeded ? '#f87171' : '#34d399';
+
                                                                         return (
-                                                                            <div key={city.cityName} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', padding: '0.05rem 0.2rem', background: 'rgba(255,255,255,0.01)' }}>
-                                                                                <span style={{ color: 'var(--text-primary)' }}>{city.cityName}</span>
-                                                                                <span style={{ color: valueColor, fontWeight: 600 }}>{valueText}</span>
+                                                                            <div key={city.cityName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                                <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={city.cityName}>
+                                                                                    {city.cityName}
+                                                                                </span>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                                                    <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
+                                                                                        {city.available} / {city.target}
+                                                                                    </span>
+                                                                                    <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: badgeBg, border: `1px solid ${badgeBorder}`, color: valueColor, fontWeight: 700, fontSize: '0.68rem' }}>
+                                                                                        {valueText}
+                                                                                    </span>
+                                                                                </div>
                                                                             </div>
                                                                         );
                                                                     })}
@@ -876,59 +919,66 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                                 return (
                                     <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                                             {displayedCities.map(city => {
                                                 const percent = city.target > 0 ? Math.min(100, (city.available / city.target) * 100) : 0;
+                                                const itemsWithDeficit = city.itemsNeeded.filter(i => i.needed > 0);
+
                                                 return (
-                                                    <div key={city.name} className="panel-card needed-demand-card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                            <MapPin size={14} style={{ color: '#ef4444', flexShrink: 0 }} />
-                                                            <strong style={{ fontSize: '0.75rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={city.name}>
+                                                    <div key={city.name} className="panel-card needed-demand-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                                                                <MapPin size={16} style={{ color: '#ef4444' }} />
+                                                            </div>
+                                                            <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={city.name}>
                                                                 {city.name}
                                                             </strong>
                                                         </div>
 
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)', padding: '0.4rem', borderRadius: '4px' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{city.target.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{city.target.toLocaleString()}</div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{city.available.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>{city.available.toLocaleString()}</div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_needed')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ef4444' }}>{city.needed.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_needed')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ef4444', marginTop: '0.1rem' }}>{city.needed.toLocaleString()}</div>
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.15rem' }}>
-                                                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: getFulfillColor(percent) }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                                                    {t('demand_fulfilled')}
+                                                                </span>
+                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: getFulfillColor(percent) }}>
                                                                     {percent.toFixed(0)}%
                                                                 </span>
-                                                                <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
-                                                                    {t('demand_fulfilled').toLowerCase()}
-                                                                </span>
                                                             </div>
-                                                            <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: getFulfillColor(percent), borderRadius: '2px' }} />
+                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                <div style={{ height: '100%', width: `${percent}%`, background: getFulfillColor(percent), borderRadius: '3px', transition: 'width 0.3s ease' }} />
                                                             </div>
                                                         </div>
 
-                                                        {city.itemsNeeded.length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                <div style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-                                                                    {t('needed_items')}
+                                                        {itemsWithDeficit.length > 0 && (
+                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <span>{t('needed_items')}</span>
+                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({itemsWithDeficit.length})</span>
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '90px', overflowY: 'auto' }}>
-                                                                    {city.itemsNeeded.filter(i => i.needed > 0).map(item => (
-                                                                        <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', padding: '0.05rem 0.2rem', background: 'rgba(255,255,255,0.01)' }}>
-                                                                            <span style={{ color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }} title={item.name}>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
+                                                                    {itemsWithDeficit.map(item => (
+                                                                        <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                            <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={item.name}>
                                                                                 {item.name}
                                                                             </span>
-                                                                            <span style={{ color: '#ef4444', fontWeight: 600 }}>{item.needed.toLocaleString()}</span>
+                                                                            <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.68rem' }}>
+                                                                                -{item.needed.toLocaleString()}
+                                                                            </span>
                                                                         </div>
                                                                     ))}
                                                                 </div>
@@ -999,66 +1049,84 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                                 return (
                                     <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                                             {displayedItems.map(item => {
                                                 const surplus = item.available - item.target;
                                                 const percent = 100;
+                                                const itemIcon = getItemIconUrl(item.name);
+                                                const citiesWithStatus = item.citiesNeeded.filter(c => c.needed > 0 || c.surplus > 0);
+
                                                 return (
-                                                    <div key={item.name} className="panel-card surplus-stock-card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                            {getItemIconUrl(item.name) ? (
-                                                                <img src={getItemIconUrl(item.name) || undefined} alt={item.name} style={{ width: '22px', height: '22px', objectFit: 'contain', flexShrink: 0 }} />
-                                                            ) : (
-                                                                <Package size={14} style={{ color: '#10b981', flexShrink: 0 }} />
-                                                            )}
-                                                            <strong style={{ fontSize: '0.75rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={item.name}>
+                                                    <div key={item.name} className="panel-card surplus-stock-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                                {itemIcon ? (
+                                                                    <img src={itemIcon} alt={item.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                                                                ) : (
+                                                                    <Package size={16} style={{ color: '#10b981' }} />
+                                                                )}
+                                                            </div>
+                                                            <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)', wordBreak: 'break-word', lineHeight: 1.25, flex: 1 }} title={item.name}>
                                                                 {item.name}
                                                             </strong>
                                                         </div>
 
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)', padding: '0.4rem', borderRadius: '4px' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.target.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{item.target.toLocaleString()}</div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.available.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{item.available.toLocaleString()}</div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{language === 'tr' ? 'Fazla' : 'Surplus'}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>+{surplus.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{language === 'tr' ? 'Fazla' : 'Surplus'}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>+{surplus.toLocaleString()}</div>
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.15rem' }}>
-                                                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                                                    {t('demand_fulfilled')}
+                                                                </span>
+                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
                                                                     {percent.toFixed(0)}%
                                                                 </span>
-                                                                <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
-                                                                    {t('demand_fulfilled').toLowerCase()}
-                                                                </span>
                                                             </div>
-                                                            <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: '#10b981', borderRadius: '2px' }} />
+                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                <div style={{ height: '100%', width: `${percent}%`, background: '#10b981', borderRadius: '3px' }} />
                                                             </div>
                                                         </div>
 
-                                                        {item.citiesNeeded.length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                <div style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-                                                                    {language === 'tr' ? 'Şehirlerdeki Durum:' : 'Status in Cities:'}
+                                                        {citiesWithStatus.length > 0 && (
+                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <span>{language === 'tr' ? 'Şehirlerdeki Durum' : 'Status in Cities'}</span>
+                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({citiesWithStatus.length})</span>
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '60px', overflowY: 'auto' }}>
-                                                                    {item.citiesNeeded.filter(c => c.needed > 0 || c.surplus > 0).map(city => {
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
+                                                                    {citiesWithStatus.map(city => {
                                                                         const isNeeded = city.needed > 0;
                                                                         const valueText = isNeeded ? `-${city.needed.toLocaleString()}` : `+${city.surplus.toLocaleString()}`;
-                                                                        const valueColor = isNeeded ? '#ef4444' : '#10b981';
+                                                                        const badgeBg = isNeeded ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)';
+                                                                        const badgeBorder = isNeeded ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)';
+                                                                        const valueColor = isNeeded ? '#f87171' : '#34d399';
+
                                                                         return (
-                                                                            <div key={city.cityName} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', padding: '0.05rem 0.2rem', background: 'rgba(255,255,255,0.01)' }}>
-                                                                                <span style={{ color: 'var(--text-primary)' }}>{city.cityName}</span>
-                                                                                <span style={{ color: valueColor, fontWeight: 600 }}>{valueText}</span>
+                                                                            <div key={city.cityName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                                <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={city.cityName}>
+                                                                                    {city.cityName}
+                                                                                </span>
+                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                                                    <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
+                                                                                        {city.available} / {city.target}
+                                                                                    </span>
+                                                                                    <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: badgeBg, border: `1px solid ${badgeBorder}`, color: valueColor, fontWeight: 700, fontSize: '0.68rem' }}>
+                                                                                        {valueText}
+                                                                                    </span>
+                                                                                </div>
                                                                             </div>
                                                                         );
                                                                     })}
@@ -1105,59 +1173,66 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                                 return (
                                     <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '1rem' }}>
+                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
                                             {displayedCities.map(city => {
                                                 const percent = 100;
+                                                const itemsSurplusList = city.itemsNeeded.filter(i => i.surplus > 0);
+
                                                 return (
-                                                    <div key={city.name} className="panel-card surplus-stock-card" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                            <MapPin size={14} style={{ color: '#10b981', flexShrink: 0 }} />
-                                                            <strong style={{ fontSize: '0.75rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={city.name}>
+                                                    <div key={city.name} className="panel-card surplus-stock-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                                <MapPin size={16} style={{ color: '#10b981' }} />
+                                                            </div>
+                                                            <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={city.name}>
                                                                 {city.name}
                                                             </strong>
                                                         </div>
 
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.35rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)', padding: '0.4rem', borderRadius: '4px' }}>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{city.target.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{city.target.toLocaleString()}</div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>{city.available.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{city.available.toLocaleString()}</div>
                                                             </div>
                                                             <div>
-                                                                <div style={{ fontSize: '0.58rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>{language === 'tr' ? 'Fazla' : 'Surplus'}</div>
-                                                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#10b981' }}>+{city.surplus.toLocaleString()}</div>
+                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{language === 'tr' ? 'Fazla' : 'Surplus'}</div>
+                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>+{city.surplus.toLocaleString()}</div>
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '0.15rem' }}>
-                                                                <span style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981' }}>
+                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                                                    {t('demand_fulfilled')}
+                                                                </span>
+                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
                                                                     {percent.toFixed(0)}%
                                                                 </span>
-                                                                <span style={{ fontSize: '0.6rem', color: 'var(--text-secondary)' }}>
-                                                                    {t('demand_fulfilled').toLowerCase()}
-                                                                </span>
                                                             </div>
-                                                            <div style={{ height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: '#10b981', borderRadius: '2px' }} />
+                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                                                <div style={{ height: '100%', width: `${percent}%`, background: '#10b981', borderRadius: '3px' }} />
                                                             </div>
                                                         </div>
 
-                                                        {city.itemsNeeded.length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.4rem', borderTop: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                <div style={{ fontSize: '0.62rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.2rem' }}>
-                                                                    {language === 'tr' ? 'Fazla Stoklu Malzemeler:' : 'Surplus Items:'}
+                                                        {itemsSurplusList.length > 0 && (
+                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <span>{language === 'tr' ? 'Fazla Stoklu Malzemeler' : 'Surplus Items'}</span>
+                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({itemsSurplusList.length})</span>
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', maxHeight: '90px', overflowY: 'auto' }}>
-                                                                    {city.itemsNeeded.filter(i => i.surplus > 0).map(item => (
-                                                                        <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6rem', padding: '0.05rem 0.2rem', background: 'rgba(255,255,255,0.01)' }}>
-                                                                            <span style={{ color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '140px' }} title={item.name}>
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
+                                                                    {itemsSurplusList.map(item => (
+                                                                        <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
+                                                                            <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={item.name}>
                                                                                 {item.name}
                                                                             </span>
-                                                                            <span style={{ color: '#10b981', fontWeight: 600 }}>+{item.surplus.toLocaleString()}</span>
+                                                                            <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontWeight: 700, fontSize: '0.68rem' }}>
+                                                                                +{item.surplus.toLocaleString()}
+                                                                            </span>
                                                                         </div>
                                                                     ))}
                                                                 </div>

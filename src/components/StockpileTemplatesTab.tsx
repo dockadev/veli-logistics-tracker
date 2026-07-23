@@ -116,13 +116,14 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
             const safeTemplatesToExport: StockpileTemplates = {
                 frontline: localTemplates.frontline || defaults.frontline,
                 backline: localTemplates.backline || defaults.backline,
-                aircraft: localTemplates.aircraft || defaults.aircraft,
+                airfield: localTemplates.airfield || (localTemplates as any).aircraft || defaults.airfield,
                 ...localTemplates
             };
+            delete (safeTemplatesToExport as any).aircraft;
 
             const exportData = {
                 _app: "Veli Logistics Tracker",
-                _version: "0.1.65",
+                _version: "0.1.66",
                 _exportedAt: new Date().toISOString(),
                 _activeRole: activeRole,
                 templateColors,
@@ -195,9 +196,10 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                 const mergedTemplates: StockpileTemplates = {
                     frontline: importedTemplates.frontline || defaults.frontline,
                     backline: importedTemplates.backline || defaults.backline,
-                    aircraft: importedTemplates.aircraft || defaults.aircraft,
+                    airfield: importedTemplates.airfield || importedTemplates.aircraft || defaults.airfield,
                     ...importedTemplates
                 };
+                delete (mergedTemplates as any).aircraft;
 
                 setLocalTemplates(mergedTemplates);
                 await dbService.saveTemplates(mergedTemplates);
@@ -229,9 +231,12 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         const safe: StockpileTemplates = {
             frontline: templates?.frontline || defaults.frontline,
             backline: templates?.backline || defaults.backline,
-            aircraft: templates?.aircraft || defaults.aircraft,
+            airfield: templates?.airfield || (templates as any)?.aircraft || defaults.airfield,
             ...(templates || {})
         };
+        if ((safe as any).aircraft) {
+            delete (safe as any).aircraft;
+        }
         setLocalTemplates(safe);
     }, [templates]);
 
@@ -257,8 +262,9 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         if (!town) {
             const parts = depName.split(' - ').map(s => s.trim()).filter(Boolean);
             const isDepotType = (str: string) => {
-                const l = str.toLowerCase();
-                return l.includes('seaport') || l.includes('depot') || l.includes('port');
+                const l = str.toLowerCase().trim();
+                if (l === 'sableport') return false;
+                return l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport'));
             };
             if (parts.length >= 3 && !isDepotType(parts[1])) {
                 town = parts[1];
@@ -366,9 +372,10 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
             const safeTemplatesToSave: StockpileTemplates = {
                 frontline: localTemplates.frontline || defaults.frontline,
                 backline: localTemplates.backline || defaults.backline,
-                aircraft: localTemplates.aircraft || defaults.aircraft,
+                airfield: localTemplates.airfield || (localTemplates as any).aircraft || defaults.airfield,
                 ...localTemplates
             };
+            delete (safeTemplatesToSave as any).aircraft;
 
             await dbService.saveTemplateColors(templateColors);
             await onSaveTemplates(safeTemplatesToSave);
@@ -602,7 +609,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                                                             { value: 'unassigned', label: language === 'tr' ? 'Şablon Seçin...' : 'Select Template...' },
                                                                             ...Object.keys(localTemplates).map(tKey => ({
                                                                                 value: tKey,
-                                                                                label: tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey === 'aircraft' ? 'Aircraft' : tKey
+                                                                                label: tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey === 'airfield' ? 'Airfield' : tKey
                                                                             }))
                                                                         ]}
                                                                         value={setting.templateType || 'unassigned'}
@@ -786,9 +793,9 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
                         {Object.keys(localTemplates).map(tKey => {
                             const isActive = activeRole === tKey;
-                            const isSystem = tKey === 'frontline' || tKey === 'backline' || tKey === 'aircraft';
+                            const isSystem = tKey === 'frontline' || tKey === 'backline' || tKey === 'airfield';
                             
-                            const assignedColor = templateColors[tKey] || (tKey === 'frontline' ? '#ef4444' : tKey === 'backline' ? '#ffffff' : tKey === 'aircraft' ? '#06b6d4' : '#10b981');
+                            const assignedColor = templateColors[tKey] || (tKey === 'frontline' ? '#ef4444' : tKey === 'backline' ? '#ffffff' : tKey === 'airfield' ? '#06b6d4' : '#10b981');
                             
                             return (
                                 <div key={tKey} style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
@@ -816,7 +823,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                             minHeight: '34px'
                                         }}
                                     >
-                                        {tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey === 'aircraft' ? 'Aircraft' : tKey}
+                                        {tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey === 'airfield' ? 'Airfield' : tKey}
                                     </button>
                                     
                                     {/* Delete button for custom templates */}
@@ -872,7 +879,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                 onClick={() => {
                                     const rules = localTemplates[activeRole] || {};
                                     setCopiedBuffer(JSON.parse(JSON.stringify(rules)));
-                                    const dispName = activeRole === 'frontline' ? t('frontline') : activeRole === 'backline' ? t('backline') : activeRole === 'aircraft' ? 'Aircraft' : activeRole;
+                                    const dispName = activeRole === 'frontline' ? t('frontline') : activeRole === 'backline' ? t('backline') : activeRole === 'airfield' ? 'Airfield' : activeRole;
                                     setCopiedName(dispName);
                                     setCopyToast(language === 'tr' ? `"${dispName}" kopyalandı` : `Copied "${dispName}"`);
                                     setTimeout(() => setCopyToast(null), 2500);
@@ -906,7 +913,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                         ...prev,
                                         [activeRole]: JSON.parse(JSON.stringify(copiedBuffer))
                                     }));
-                                    const dispName = activeRole === 'frontline' ? t('frontline') : activeRole === 'backline' ? t('backline') : activeRole === 'aircraft' ? 'Aircraft' : activeRole;
+                                    const dispName = activeRole === 'frontline' ? t('frontline') : activeRole === 'backline' ? t('backline') : activeRole === 'airfield' ? 'Airfield' : activeRole;
                                     setCopyToast(language === 'tr' ? `"${copiedName}" kuralları "${dispName}" şablonuna yapıştırıldı` : `Pasted into "${dispName}"`);
                                     setTimeout(() => setCopyToast(null), 2500);
                                 }}
@@ -946,7 +953,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                             </span>
                             <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
                                 {PRESET_COLORS.map(c => {
-                                    const activeColorVal = templateColors[activeRole] || (activeRole === 'frontline' ? '#ef4444' : activeRole === 'backline' ? '#ffffff' : activeRole === 'aircraft' ? '#06b6d4' : '#10b981');
+                                    const activeColorVal = templateColors[activeRole] || (activeRole === 'frontline' ? '#ef4444' : activeRole === 'backline' ? '#ffffff' : activeRole === 'airfield' ? '#06b6d4' : '#10b981');
                                     const isSelected = activeColorVal === c;
                                     return (
                                         <button
@@ -1387,7 +1394,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                 onConfirm={() => {
                     if (templateToDelete) {
                         const key = templateToDelete;
-                        if (key !== 'frontline' && key !== 'backline' && key !== 'aircraft') {
+                        if (key !== 'frontline' && key !== 'backline' && key !== 'airfield') {
                             setLocalTemplates(prev => {
                                 const next = { ...prev };
                                 delete next[key];

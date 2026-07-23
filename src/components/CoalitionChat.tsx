@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, X, MessageCircle, Trash2 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
+import { playChimeSound } from '../utils/helpers';
 
 interface ChatMessage {
     id: string;
@@ -36,6 +37,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
         if (isChatOpen) {
             setUnreadCount(0);
             if (onUnreadChange) onUnreadChange(0);
+            localStorage.setItem('docka_chat_last_read', new Date().toISOString());
             scrollToBottom();
         }
     }, [isChatOpen, onUnreadChange]);
@@ -145,6 +147,17 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                     console.error('[Chat] Failed to load messages:', error);
                 } else if (data) {
                     setMessages(data);
+                    const lastRead = localStorage.getItem('docka_chat_last_read');
+                    if (lastRead && !isChatOpenRef.current) {
+                        const lastReadMs = new Date(lastRead).getTime();
+                        const unread = data.filter(m => 
+                            new Date(m.created_at).getTime() > lastReadMs && 
+                            (!currentUsername || m.username.toLowerCase() !== currentUsername.toLowerCase())
+                        ).length;
+                        if (unread > 0) {
+                            setUnreadCount(unread);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error('[Chat] Load error:', err);
@@ -152,7 +165,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
         };
 
         fetchMessages();
-    }, []);
+    }, [currentUsername]);
 
     // Subscribe to real-time chat messages
     useEffect(() => {
@@ -173,9 +186,15 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         return [...prev, newMsg];
                     });
 
-                    // Increment unread count if chat panel is closed
-                    if (!isChatOpenRef.current) {
+                    // Increment unread count if chat panel is closed and message is from another user
+                    const isSelf = currentUsername && newMsg.username ? newMsg.username.toLowerCase() === currentUsername.toLowerCase() : false;
+                    if (!isChatOpenRef.current && !isSelf) {
                         setUnreadCount(prev => prev + 1);
+                        try {
+                            playChimeSound();
+                        } catch (e) {}
+                    } else if (isChatOpenRef.current) {
+                        localStorage.setItem('docka_chat_last_read', new Date().toISOString());
                     }
                 }
             )

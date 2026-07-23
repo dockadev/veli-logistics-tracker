@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Square, RefreshCw, Volume2, VolumeX, Database, Terminal, FileCode, CheckCircle, AlertTriangle, Trash2, FlaskConical, FolderOpen } from 'lucide-react';
+import { Play, Square, RefreshCw, Volume2, VolumeX, Database, Terminal, FileCode, CheckCircle, AlertTriangle, Trash2, FolderOpen, HelpCircle } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import { parseSavFile, type ParsedStockpile } from '../utils/savParser';
 import { playChimeSound } from '../utils/helpers';
@@ -131,62 +131,6 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
     }
   };
 
-  const handleTestScanLog = () => {
-    const mockStockpiles: ParsedStockpile[] = [
-      {
-        location: 'Westgate - Storage Depot - VELI-KNG-C',
-        region: 'Westgate',
-        townName: null,
-        timestamp: new Date().toISOString(),
-        items: { 'Argenti r.II Rifle': 120, 'Argenti r.II Rifle (Crate)': 45, '7.62mm': 500 }
-      },
-      {
-        location: 'Westgate - Storage Depot - VELI-KNG-B',
-        region: 'Westgate',
-        townName: null,
-        timestamp: new Date().toISOString(),
-        items: { 'Argenti r.II Rifle': 30, '7.62mm': 150 }
-      },
-      {
-        location: 'Heartlands - Storage Depot - VELI-BLE-C',
-        region: 'Heartlands',
-        townName: null,
-        timestamp: new Date().toISOString(),
-        items: { 'Blood Plasma': 80, 'Bandages': 300 }
-      },
-      {
-        location: 'Ash Fields - Storage Depot - VELI-ASH-C',
-        region: 'Ash Fields',
-        townName: null,
-        timestamp: new Date().toISOString(),
-        items: { 'Maintenance Supplies': 1000, '120mm (Crate)': 20 }
-      }
-    ];
-
-    onSyncStockpiles(mockStockpiles);
-    if (!isMuted) playChimeSound();
-    addLog(`Test SAV Scan Executed: Scanned ${mockStockpiles.length} simulated structures.`, 'success');
-
-    const groupedByRegion: Record<string, typeof mockStockpiles> = {};
-    mockStockpiles.forEach(p => {
-      const reg = p.region || 'Unknown Region';
-      if (!groupedByRegion[reg]) groupedByRegion[reg] = [];
-      groupedByRegion[reg].push(p);
-    });
-
-    Object.entries(groupedByRegion).forEach(([regionName, itemsList]) => {
-      addLog(`[${regionName}] (${itemsList.length} stockpiles synced)`, 'success');
-      itemsList.forEach(p => {
-        const itemCount = Object.values(p.items).reduce((a, b) => a + b, 0);
-        const parts = p.location.split(' - ');
-        const tagLabel = parts.slice(1).join(' - ') || p.location;
-        addLog(`  ↳ ${tagLabel} (${itemCount} items)`, 'info');
-      });
-    });
-
-    setLastScanCount(mockStockpiles.length);
-  };
-
   const handleToggleCapture = async () => {
     if (isCapturing) {
       // Stop capturing
@@ -204,23 +148,20 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
         return;
       }
       
-      addLog(`SAV Capture started. Watching save file: ${savPath}`, 'info');
+      addLog(`SAV Capture STARTED. Watching save file: ${savPath} (Interval: ${scanInterval}s)`, 'info');
       setIsCapturing(true);
       setPulseState('active');
       
-      // Perform initial scan
+      // Store initial savegame metadata baseline without immediate scan
       try {
         const [size, mtime] = await invoke<[number, string]>('get_sav_metadata', { path: savPath });
         lastFileSize.current = size;
         lastFileMtime.current = mtime;
-        addLog('Performing initial save game scan...', 'info');
-        await parseAndSyncFile(savPath);
       } catch (e: any) {
-        addLog(`Initial scan failed: ${e.toString()}`, 'error');
-        setPulseState('error');
+        console.warn('Initial metadata check error:', e);
       }
 
-      // Start interval to check for changes
+      // Start interval watcher
       timerRef.current = window.setInterval(async () => {
         try {
           const [size, mtime] = await invoke<[number, string]>('get_sav_metadata', { path: savPath });
@@ -237,7 +178,6 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
       }, scanInterval * 1000);
     }
   };
-
 
   const handleClearLogs = () => {
     setLogs([]);
@@ -411,6 +351,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
             )}
           </button>
 
+          {/* Interval Dropdown */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
               {t('scan_interval')}
@@ -435,15 +376,6 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
           </div>
 
           <button
-            onClick={handleTestScanLog}
-            className="btn btn-secondary"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-            title="Simulate a .sav scan log without reading from file"
-          >
-            <FlaskConical size={16} style={{ color: 'var(--accent-color)' }} /> {t('test_scan_log')}
-          </button>
-
-          <button
             type="button"
             onClick={() => {
               const nextMute = !isMuted;
@@ -466,13 +398,66 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
           >
             {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}
           </button>
+        </div>
+      </div>
 
-          {isCapturing && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-              <span className="pulse-dot" style={{ background: '#10B981' }} />
-              Active Scan Interval: 1s
-            </div>
-          )}
+      {/* How Direct SAV Sync Works Explanation Card */}
+      <div style={{
+        background: 'rgba(16, 185, 129, 0.04)',
+        border: '1px solid rgba(16, 185, 129, 0.2)',
+        borderRadius: '12px',
+        padding: '1.1rem 1.35rem',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '0.85rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <HelpCircle size={18} style={{ color: '#10b981' }} />
+            <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, letterSpacing: '0.02em', color: 'var(--text-primary)' }}>
+              {t('how_direct_sync_works_title')}
+            </h3>
+          </div>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.4)',
+            color: '#ef4444',
+            padding: '0.25rem 0.65rem',
+            borderRadius: '20px',
+            fontSize: '0.72rem',
+            fontWeight: 800,
+            letterSpacing: '0.04em',
+            boxShadow: '0 0 10px rgba(239, 68, 68, 0.2)'
+          }}>
+            <AlertTriangle size={13} />
+            {t('please_read_first')}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.85rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+          <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+            <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
+              {t('how_direct_sync_step1_title')}
+            </strong>
+            {t('how_direct_sync_step1_desc')}
+          </div>
+
+          <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
+            <strong style={{ color: '#10b981', display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
+              {t('how_direct_sync_step2_title')}
+            </strong>
+            {t('how_direct_sync_step2_desc')}
+          </div>
+
+          <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+            <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
+              {t('how_direct_sync_step3_title')}
+            </strong>
+            {t('how_direct_sync_step3_desc')}
+          </div>
         </div>
       </div>
 

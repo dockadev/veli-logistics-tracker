@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
     TrendingUp, TrendingDown, 
     Package, Truck, Warehouse, Info,
-    BarChart3, AlertTriangle, CheckCircle
+    BarChart3, AlertTriangle, CheckCircle,
+    ChevronDown, ChevronUp, Copy, Check
 } from 'lucide-react';
+import { toBlob } from 'html-to-image';
 import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
@@ -51,6 +53,52 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
     const [showDetailHealthInfo, setShowDetailHealthInfo] = useState(false);
     const [tooltipState, setTooltipState] = useState<{ visible: boolean; content: string; x: number; y: number }>({ visible: false, content: '', x: 0, y: 0 });
     const [healthViewMode, setHealthViewMode] = useState<'category' | 'region'>('category');
+
+    // Demand Overview Grid State
+    const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
+    const [isCopying, setIsCopying] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
+    const overviewGridRef = useRef<HTMLDivElement>(null);
+
+    const handleCopyOverviewImage = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!overviewGridRef.current || isCopying) return;
+        setIsCopying(true);
+        setCopySuccess(false);
+
+        try {
+            const el = overviewGridRef.current;
+            const fullWidth = el.scrollWidth;
+            const fullHeight = el.scrollHeight;
+
+            const blob = await toBlob(el, {
+                width: fullWidth,
+                height: fullHeight,
+                canvasWidth: fullWidth,
+                canvasHeight: fullHeight,
+                pixelRatio: 1.5,
+                backgroundColor: '#121912',
+                style: {
+                    width: `${fullWidth}px`,
+                    height: `${fullHeight}px`,
+                    overflow: 'visible',
+                    background: '#121912'
+                }
+            });
+
+            if (blob) {
+                await navigator.clipboard.write([
+                    new ClipboardItem({ 'image/png': blob })
+                ]);
+                setCopySuccess(true);
+                setTimeout(() => setCopySuccess(false), 3000);
+            }
+        } catch (err) {
+            console.error('[Analytics] Failed to copy grid image to clipboard:', err);
+        } finally {
+            setIsCopying(false);
+        }
+    };
 
     const getFulfillColor = (percent: number) => {
         const hue = Math.min(120, (percent / 100) * 120);
@@ -298,9 +346,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         if (!town) {
             const parts = depName.split(' - ').map(s => s.trim()).filter(Boolean);
             const isDepotType = (str: string) => {
-                const l = str.toLowerCase();
+                const l = str.toLowerCase().trim();
+                if (l === 'sableport') return false;
                 return (
-                    l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+                    l.includes('seaport') || l.includes('depot') || (l.includes('port') && !l.includes('sableport')) ||
                     l.includes('seehafen') || l.includes('lagerdepot') || l.includes('porto') ||
                     l.includes('depósito') || l.includes('порт') || l.includes('склад') ||
                     l.includes('dépôt')
@@ -334,6 +383,23 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         });
         return groups;
     }, [depots]);
+
+    // Canonical list of items for analytics (matching StockpileTemplatesTab & DemandTab)
+    const canonicalItems = useMemo(() => {
+        const itemsMap = new Map<string, OfficialCategory>();
+        COLONIAL_NEUTRAL_ITEMS.forEach(rawName => {
+            const cat = ITEM_CATEGORY_MAP[rawName] || getItemOfficialCategory(rawName);
+            if (cat === 'vehicles' || cat === 'shippables') {
+                itemsMap.set(rawName, cat);
+                const crateCat = (cat === 'vehicles' ? 'vehicle_crates' : 'shippable_crates') as OfficialCategory;
+                itemsMap.set(`${rawName} (Crate)`, crateCat);
+            } else {
+                const crateName = rawName.endsWith('(Crate)') ? rawName : `${rawName} (Crate)`;
+                itemsMap.set(crateName, cat);
+            }
+        });
+        return Array.from(itemsMap.entries());
+    }, []);
 
     // Top Surplus and Shortage items for the selected targetDepot (YENİLİK 4)
     const { topSurplus, topShortage } = useMemo(() => {
@@ -378,9 +444,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             }
         }
 
-        Array.from(COLONIAL_NEUTRAL_ITEMS).forEach(itemName => {
-            const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
-
+        canonicalItems.forEach(([itemName, category]) => {
             let targetMax = 0;
 
             subregionsToSum.forEach(subregionName => {
@@ -390,7 +454,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                     demandPercentage: 100 
                 };
                 const template = templates[setting.templateType] || {};
-                let rule = template[itemName];
+                const cleanName = itemName.replace(/\s*\(Crate\)$/i, '').trim();
+                const rule = template[itemName] || (cleanName !== itemName ? template[cleanName] : undefined);
                 if (!rule) {
                     return;
                 }
@@ -398,12 +463,16 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 targetMax += Math.round(rule.max * (setting.demandPercentage / 100));
             });
 
-            const available = targetDepot.current?.[itemName]?.count || 0;
+            const cleanName = itemName.replace(/\s*\(Crate\)$/i, '').trim();
+            const available = (targetDepot.current?.[itemName]?.count || 0) +
+                (category !== 'vehicles' && category !== 'shippables' && category !== 'vehicle_crates' && category !== 'shippable_crates' && cleanName !== itemName
+                    ? (targetDepot.current?.[cleanName]?.count || 0)
+                    : 0);
 
             const shortageVal = Math.max(0, targetMax - available);
             const surplusVal = Math.max(0, available - targetMax);
 
-            if (shortageVal > 0) {
+            if (shortageVal > 0 && targetMax > 0) {
                 shortageList.push({ name: itemName, amount: shortageVal, category });
             }
             if (surplusVal > 0) {
@@ -418,7 +487,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             topSurplus: surplusList.slice(0, 15),
             topShortage: shortageList.slice(0, 15)
         };
-    }, [selectedDepotName, depots, townGroups, regionSettings, templates, targetDepot]);
+    }, [selectedDepotName, depots, townGroups, regionSettings, templates, targetDepot, canonicalItems]);
 
     const maxSurplus = topSurplus.length > 0 ? topSurplus[0].amount : 1;
     const maxShortage = topShortage.length > 0 ? topShortage[0].amount : 1;
@@ -446,10 +515,9 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             };
             const template = templates[setting.templateType] || {};
 
-            Array.from(COLONIAL_NEUTRAL_ITEMS).forEach(itemName => {
-                const category = ITEM_CATEGORY_MAP[itemName] || getItemOfficialCategory(itemName);
-
-                let rule = template[itemName];
+            canonicalItems.forEach(([itemName, category]) => {
+                const cleanName = itemName.replace(/\s*\(Crate\)$/i, '').trim();
+                const rule = template[itemName] || (cleanName !== itemName ? template[cleanName] : undefined);
                 if (!rule) {
                     return;
                 }
@@ -461,7 +529,13 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
 
                 const targetMin = Math.round(rule.min * (setting.demandPercentage / 100));
                 const targetMax = Math.round(rule.max * (setting.demandPercentage / 100));
-                const available = groupData.depots.reduce((sum, d) => sum + (d.current?.[itemName]?.count || 0), 0);
+                const available = groupData.depots.reduce((sum, d) => {
+                    const cCount = d.current?.[itemName]?.count || 0;
+                    const rCount = (category !== 'vehicles' && category !== 'shippables' && category !== 'vehicle_crates' && category !== 'shippable_crates' && cleanName !== itemName)
+                        ? (d.current?.[cleanName]?.count || 0)
+                        : 0;
+                    return sum + cCount + rCount;
+                }, 0);
                 const healthPercent = targetMax === 0 ? 100 : Math.min(100, (available / targetMax) * 100);
 
                 list.push({
@@ -480,7 +554,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         });
 
         return list;
-    }, [townGroups, templates, regionSettings]);
+    }, [townGroups, templates, regionSettings, canonicalItems]);
 
     // Priority Items Health (Öncelikli Malzeme Sağlığı)
     const priorityStats = useMemo(() => {
@@ -653,7 +727,249 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
         return { grid, maxCount };
     }, [auditLogs]);
 
+    const getOverviewItemStatus = (available: number, targetMax: number) => {
+        if (targetMax === 0) {
+            return {
+                bg: 'rgba(255, 255, 255, 0.03)',
+                border: 'rgba(255, 255, 255, 0.08)',
+                text: '#94a3b8',
+                progressBg: 'rgba(255, 255, 255, 0.05)',
+                percent: 100,
+                isCritical: false,
+                sortPriority: 5
+            };
+        }
+        const pct = Math.round((available / targetMax) * 100);
+        if (pct <= 33) {
+            return {
+                bg: 'rgba(239, 68, 68, 0.15)',
+                border: 'rgba(239, 68, 68, 0.4)',
+                text: '#fca5a5',
+                progressBg: 'rgba(239, 68, 68, 0.35)',
+                percent: pct,
+                isCritical: true,
+                sortPriority: 1
+            };
+        }
+        if (pct <= 66) {
+            return {
+                bg: 'rgba(249, 115, 22, 0.15)',
+                border: 'rgba(249, 115, 22, 0.4)',
+                text: '#fdba74',
+                progressBg: 'rgba(249, 115, 22, 0.35)',
+                percent: pct,
+                isCritical: false,
+                sortPriority: 2
+            };
+        }
+        if (pct <= 99) {
+            return {
+                bg: 'rgba(234, 179, 8, 0.15)',
+                border: 'rgba(234, 179, 8, 0.4)',
+                text: '#fde047',
+                progressBg: 'rgba(234, 179, 8, 0.35)',
+                percent: pct,
+                isCritical: false,
+                sortPriority: 3
+            };
+        }
+        return {
+            bg: 'rgba(16, 185, 129, 0.15)',
+            border: 'rgba(16, 185, 129, 0.4)',
+            text: '#6ee7b7',
+            progressBg: 'rgba(16, 185, 129, 0.35)',
+            percent: pct,
+            isCritical: false,
+            sortPriority: 4
+        };
+    };
 
+    const overviewTitle = useMemo(() => {
+        if (selectedDepotName === 'all') {
+            return language === 'tr' ? 'Demand Overview - All Cities (Tüm Şehirler)' : 'Demand Overview - All Cities';
+        }
+        if (selectedDepotName.startsWith('town:')) {
+            return `Demand Overview - ${selectedDepotName.substring(5)}`;
+        }
+        const dep = depots[selectedDepotName];
+        if (dep) {
+            return `Demand Overview - ${dep.name}`;
+        }
+        return `Demand Overview - ${selectedDepotName}`;
+    }, [selectedDepotName, depots, language]);
+
+    const overviewDataByColumn = useMemo(() => {
+        const subregionsToSum: string[] = [];
+        let activeDepotList: Depot[] = [];
+
+        if (selectedDepotName === 'all') {
+            subregionsToSum.push(...Object.keys(townGroups));
+            activeDepotList = Object.values(depots);
+        } else if (selectedDepotName.startsWith('town:')) {
+            const townName = selectedDepotName.substring(5);
+            subregionsToSum.push(townName);
+            activeDepotList = townGroups[townName]?.depots || [];
+        } else {
+            const dep = depots[selectedDepotName];
+            if (dep) {
+                activeDepotList = [dep];
+                const region = dep.name.split(' - ')[0].trim();
+                let town = dep.townName || null;
+                if (!town) {
+                    const parts = dep.name.split(' - ').map(s => s.trim()).filter(Boolean);
+                    const isDepotType = (str: string) => {
+                        const l = str.toLowerCase();
+                        return (
+                            l.includes('seaport') || l.includes('depot') || l.includes('port') ||
+                            l.includes('seehafen') || l.includes('lagerdepot') || l.includes('porto') ||
+                            l.includes('depósito') || l.includes('порт') || l.includes('склад') ||
+                            l.includes('dépôt')
+                        );
+                    };
+                    if (parts.length >= 3 && !isDepotType(parts[1])) {
+                        town = parts[1];
+                    }
+                }
+                if (town) {
+                    const trimmed = town.trim();
+                    if (trimmed === 'Glimmerhaven') town = "Light's End";
+                    else if (trimmed === 'Loftmire' || trimmed === 'The Blemish') town = 'Blemish';
+                    else if (trimmed === 'Rising Loom') town = 'Therizo';
+                }
+                const townVal = town || 'General';
+                subregionsToSum.push(`${region} - ${townVal}`);
+            } else {
+                subregionsToSum.push(...Object.keys(townGroups));
+                activeDepotList = Object.values(depots);
+            }
+        }
+        const columnsDef = [
+            {
+                id: 'col_small_arms',
+                sections: [
+                    { title: 'Small Arms Crates', cats: ['small_arms'] }
+                ]
+            },
+            {
+                id: 'col_heavy_arms',
+                sections: [
+                    { title: 'Heavy Arms Crates', cats: ['heavy_arms'] }
+                ]
+            },
+            {
+                id: 'col_heavy_ammunition',
+                sections: [
+                    { title: 'Heavy Ammo Crates', cats: ['heavy_ammunition'] }
+                ]
+            },
+            {
+                id: 'col_utility',
+                sections: [
+                    { title: 'Utility Crates', cats: ['utility'] }
+                ]
+            },
+            {
+                id: 'col_med_res_uni',
+                sections: [
+                    { title: 'Medical Crates', cats: ['medical'] },
+                    { title: 'Resource Crates', cats: ['materials', 'aircraft_parts'] },
+                    { title: 'Uniform Crates', cats: ['uniforms'] }
+                ]
+            },
+            {
+                id: 'col_veh',
+                sections: [
+                    { title: 'Vehicle Crates', cats: ['vehicle_crates'] },
+                    { title: 'Vehicle', cats: ['vehicles'] }
+                ]
+            },
+            {
+                id: 'col_ship',
+                sections: [
+                    { title: 'Shippable Crates', cats: ['shippable_crates'] },
+                    { title: 'Shippables', cats: ['shippables'] }
+                ]
+            }
+        ];
+
+        return columnsDef.map(col => {
+            const sections = col.sections.map(sec => {
+                const secItems: {
+                    name: string;
+                    category: OfficialCategory;
+                    available: number;
+                    targetMax: number;
+                    status: ReturnType<typeof getOverviewItemStatus>;
+                }[] = [];
+
+                canonicalItems.forEach(([itemName, category]) => {
+                    if (!sec.cats.includes(category)) return;
+
+                    let targetMax = 0;
+                    subregionsToSum.forEach(subregionName => {
+                        const setting = regionSettings[subregionName] || {
+                            regionName: subregionName,
+                            templateType: 'backline',
+                            demandPercentage: 100
+                        };
+                        const template = templates[setting.templateType] || {};
+                        const cleanName = itemName.replace(/\s*\(Crate\)$/i, '').trim();
+                        const rule = template[itemName] || (cleanName !== itemName ? template[cleanName] : undefined);
+                        if (rule) {
+                            targetMax += Math.round(rule.max * (setting.demandPercentage / 100));
+                        }
+                    });
+
+                    const cleanName = itemName.replace(/\s*\(Crate\)$/i, '').trim();
+                    const available = activeDepotList.reduce((sum, d) => {
+                        const cCount = d.current?.[itemName]?.count || 0;
+                        const rCount = (category !== 'vehicles' && category !== 'shippables' && category !== 'vehicle_crates' && category !== 'shippable_crates' && cleanName !== itemName)
+                            ? (d.current?.[cleanName]?.count || 0)
+                            : 0;
+                        return sum + cCount + rCount;
+                    }, 0);
+
+                    if (targetMax === 0) return;
+
+                    const status = getOverviewItemStatus(available, targetMax);
+                    secItems.push({
+                        name: itemName,
+                        category,
+                        available,
+                        targetMax,
+                        status
+                    });
+                });
+
+                secItems.sort((a, b) => {
+                    const isExtremeA = a.targetMax > 0 && (a.available / a.targetMax) >= 1.75;
+                    const isExtremeB = b.targetMax > 0 && (b.available / b.targetMax) >= 1.75;
+                    if (isExtremeA !== isExtremeB) {
+                        return isExtremeA ? -1 : 1;
+                    }
+                    if (a.status.sortPriority !== b.status.sortPriority) {
+                        return b.status.sortPriority - a.status.sortPriority;
+                    }
+                    const pctA = a.targetMax > 0 ? a.available / a.targetMax : 0;
+                    const pctB = b.targetMax > 0 ? b.available / b.targetMax : 0;
+                    if (pctA !== pctB) {
+                        return pctB - pctA;
+                    }
+                    return a.name.localeCompare(b.name);
+                });
+
+                return {
+                    title: sec.title,
+                    items: secItems
+                };
+            });
+
+            return {
+                id: col.id,
+                sections
+            };
+        });
+    }, [selectedDepotName, townGroups, canonicalItems, regionSettings, templates, depots]);
 
     return (
         <div className="anim-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.5rem' }}>
@@ -664,6 +980,245 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                 <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 800, letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
                     {t('analytics_title')}
                 </h2>
+            </div>
+
+            {/* Region/Town Selector & Expanded Content */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+                {/* Main Collapsible Overview Card */}
+                <div style={{ background: 'var(--bg-card)', borderRadius: '8px', border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                    {/* Header */}
+                    <div 
+                        onClick={() => setIsOverviewExpanded(!isOverviewExpanded)}
+                        style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'space-between', 
+                            padding: '0.75rem 1rem', 
+                            cursor: 'pointer',
+                            background: 'rgba(255, 255, 255, 0.02)',
+                            userSelect: 'none'
+                        }}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <Package size={18} style={{ color: 'var(--accent-color)' }} />
+                            <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
+                                {overviewTitle}
+                            </span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {/* Copy Image Button */}
+                            {isOverviewExpanded && (
+                                <button
+                                    onClick={handleCopyOverviewImage}
+                                    disabled={isCopying}
+                                    style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.35rem',
+                                        padding: '0.35rem 0.65rem',
+                                        fontSize: '0.75rem',
+                                        fontWeight: 600,
+                                        background: copySuccess ? 'rgba(52, 211, 153, 0.15)' : 'rgba(59, 130, 246, 0.15)',
+                                        color: copySuccess ? '#34d399' : '#60a5fa',
+                                        border: `1px solid ${copySuccess ? 'rgba(52, 211, 153, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                                        borderRadius: '4px',
+                                        cursor: isCopying ? 'not-allowed' : 'pointer',
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                    title={language === 'tr' ? 'Görseli panoya kopyala (Ctrl+V ile Discord\'a yapıştırabilirsiniz)' : 'Copy image to clipboard'}
+                                >
+                                    {copySuccess ? (
+                                        <>
+                                            <Check size={14} style={{ color: '#34d399' }} />
+                                            <span>{language === 'tr' ? 'Kopyalandı!' : 'Copied!'}</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy size={14} />
+                                            <span>{isCopying ? (language === 'tr' ? 'Hazırlanıyor...' : 'Processing...') : (language === 'tr' ? 'Görseli Kopyala' : 'Copy Image')}</span>
+                                        </>
+                                    )}
+                                </button>
+                            )}
+
+                            {isOverviewExpanded ? <ChevronUp size={18} style={{ color: 'var(--text-secondary)' }} /> : <ChevronDown size={18} style={{ color: 'var(--text-secondary)' }} />}
+                        </div>
+                    </div>
+
+                    {/* Body Grid */}
+                    {isOverviewExpanded && (
+                        <div style={{ padding: '1rem', background: '#121912', overflowX: 'auto' }}>
+                            {/* Captured Container */}
+                            <div ref={overviewGridRef} style={{ background: '#121912', padding: '1rem', borderRadius: '6px', minWidth: '1200px' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '0.5rem' }}>
+                                    <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
+                                        {overviewTitle}
+                                    </h3>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
+                                        {new Date().toLocaleString()}
+                                    </span>
+                                </div>
+
+                                {/* 7 Columns Grid Container */}
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '0.65rem', alignItems: 'start' }}>
+                                    {overviewDataByColumn.map(col => (
+                                        <div key={col.id} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                            {col.sections.map((sec, secIdx) => (
+                                                <div key={sec.title} style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginTop: secIdx > 0 ? '1.1rem' : 0 }}>
+                                                    {/* Section Header */}
+                                                    <div style={{
+                                                        padding: '0.4rem 0.25rem',
+                                                        textAlign: 'center',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 900,
+                                                        color: '#f1f5f9',
+                                                        fontFamily: 'var(--font-heading)',
+                                                        letterSpacing: '0.04em',
+                                                        borderBottom: '2px solid rgba(255, 255, 255, 0.18)',
+                                                        whiteSpace: 'nowrap',
+                                                        overflow: 'hidden',
+                                                        textOverflow: 'ellipsis',
+                                                        textTransform: 'uppercase'
+                                                    }} title={sec.title}>
+                                                        {sec.title}
+                                                    </div>
+
+                                                    {/* Section Items */}
+                                                    {sec.items.length === 0 ? (
+                                                        <div style={{ padding: '0.5rem 0.25rem', fontSize: '0.65rem', color: '#64748b', textAlign: 'center' }}>
+                                                            -
+                                                        </div>
+                                                    ) : (
+                                                        sec.items.map(item => (
+                                                            <div 
+                                                                key={item.name} 
+                                                                style={{
+                                                                    position: 'relative',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'space-between',
+                                                                    padding: '0.25rem 0.4rem',
+                                                                    borderRadius: '3px',
+                                                                    background: item.status.bg,
+                                                                    border: `1px solid ${item.status.border}`,
+                                                                    fontSize: '0.65rem',
+                                                                    gap: '0.3rem',
+                                                                    overflow: 'hidden'
+                                                                }}
+                                                            >
+                                                                {/* Progress Bar Fill Background */}
+                                                                {item.targetMax > 0 && (
+                                                                    <div style={{
+                                                                        position: 'absolute',
+                                                                        top: 0,
+                                                                        left: 0,
+                                                                        bottom: 0,
+                                                                        width: `${Math.min(100, item.status.percent)}%`,
+                                                                        background: item.status.progressBg,
+                                                                        zIndex: 0,
+                                                                        pointerEvents: 'none'
+                                                                    }} />
+                                                                )}
+
+                                                                {/* Left Side: Indicator & Item Name */}
+                                                                {(() => {
+                                                                    const isExcess = item.targetMax > 0 && (item.available / item.targetMax) >= 1.75;
+                                                                    return (
+                                                                        <div style={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center', gap: '0.25rem', overflow: 'hidden', minWidth: 0 }}>
+                                                                            {item.status.isCritical && (
+                                                                                <AlertTriangle size={11} strokeWidth={2.5} style={{ color: '#ef4444', flexShrink: 0 }} />
+                                                                            )}
+                                                                            {isExcess && (
+                                                                                <AlertTriangle size={11} strokeWidth={2.5} style={{ color: '#ef4444', flexShrink: 0 }} />
+                                                                            )}
+                                                                            <span style={{
+                                                                                fontWeight: isExcess ? 800 : 600,
+                                                                                color: isExcess ? '#f87171' : '#f8fafc',
+                                                                                whiteSpace: 'nowrap',
+                                                                                overflow: 'hidden',
+                                                                                textOverflow: 'ellipsis'
+                                                                            }} title={formatCanonicalItemName(item.name)}>
+                                                                                {formatCanonicalItemName(item.name)}
+                                                                            </span>
+                                                                        </div>
+                                                                    );
+                                                                })()}
+
+                                                                {/* Right Side: Stock Ratio & Surplus Badge */}
+                                                                <div style={{ position: 'relative', zIndex: 1, fontWeight: 700, color: item.status.text, whiteSpace: 'nowrap', fontSize: '0.62rem', display: 'flex', alignItems: 'center', gap: '0.2rem', flexShrink: 0 }}>
+                                                                    <span>{item.available.toLocaleString()} / {item.targetMax.toLocaleString()}</span>
+                                                                    {item.available > item.targetMax && item.targetMax > 0 && (
+                                                                        <span 
+                                                                            style={{ 
+                                                                                color: '#ffffff', 
+                                                                                fontSize: '0.64rem', 
+                                                                                fontWeight: 900,
+                                                                                background: '#dc2626',
+                                                                                borderRadius: '3px',
+                                                                                border: '1px solid #f87171',
+                                                                                boxShadow: '0 0 8px rgba(220, 38, 38, 0.7)',
+                                                                                letterSpacing: '0.01em',
+                                                                                display: 'inline-flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '0.2rem'
+                                                                            }} 
+                                                                            title={language === 'tr' ? `İsraf / Fazla Üretim: +${(item.available - item.targetMax).toLocaleString()}` : `Surplus / Overproduced: +${(item.available - item.targetMax).toLocaleString()}`}
+                                                                        >
+                                                                            +{(item.available - item.targetMax).toLocaleString()}
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Bottom Legend Footer */}
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '1.25rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', fontSize: '0.68rem', color: '#94a3b8' }}>
+                                    <span style={{ fontWeight: 700, color: '#e2e8f0' }}>
+                                        {language === 'tr' ? 'Açıklama:' : 'Legend:'}
+                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#ef4444', display: 'inline-block' }} />
+                                        <span>0-33% {language === 'tr' ? 'dolu (Kritik)' : 'full (Critical)'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#f97316', display: 'inline-block' }} />
+                                        <span>34-66% {language === 'tr' ? 'dolu' : 'full'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#eab308', display: 'inline-block' }} />
+                                        <span>67-99% {language === 'tr' ? 'dolu' : 'full'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <span style={{ width: '10px', height: '10px', borderRadius: '2px', background: '#10b981', display: 'inline-block' }} />
+                                        <span>100%+ {language === 'tr' ? 'dolu' : 'full'}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                        <span style={{ 
+                                            color: '#ffffff', 
+                                            fontSize: '0.64rem', 
+                                            fontWeight: 900, 
+                                            background: '#dc2626', 
+                                            padding: '0.05rem 0.35rem', 
+                                            borderRadius: '3px', 
+                                            border: '1px solid #f87171',
+                                            boxShadow: '0 0 8px rgba(220, 38, 38, 0.7)',
+                                            lineHeight: 1.2
+                                        }}>+X</span>
+                                        <span>{language === 'tr' ? 'İsraf / Fazla Üretim' : 'Surplus / Overproduced'}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
 
 

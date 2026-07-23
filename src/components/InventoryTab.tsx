@@ -697,7 +697,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                         }
                                     }
 
-                                    const isCrate = item.name.endsWith('(Crate)');
                                     const displayName = item.name;
                                     const canExpandRow = canExpand && getDepotDistribution(item.name).length > 0;
                                     const iconUrl = getItemIconUrl(item.name);
@@ -722,9 +721,6 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                                                                 style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} 
                                                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
                                                             />
-                                                        )}
-                                                        {isCrate && (
-                                                            <Package size={12} style={{ color: 'var(--accent-color)', opacity: 0.8, flexShrink: 0 }} />
                                                         )}
                                                         <span style={{ wordBreak: 'break-word' }}>{displayName}</span>
                                                         {canExpandRow && (

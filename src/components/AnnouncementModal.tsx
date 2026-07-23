@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Megaphone, X, Send } from 'lucide-react';
+import { Megaphone, X, Send, Pin } from 'lucide-react';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
+
+export type PinDurationType = 'none' | '6h' | '12h' | '1d' | '2d' | '3d' | '1w';
 
 interface AnnouncementModalProps {
     isOpen: boolean;
-    onPublish: (title: string, content: string, severity: 'normal' | 'high' | 'critical') => void;
+    onPublish: (title: string, content: string, severity: 'normal' | 'high' | 'critical', pinnedUntil?: string) => void;
     onClose: () => void;
 }
 
@@ -17,6 +19,7 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
     const [severity, setSeverity] = useState<'normal' | 'high' | 'critical'>('normal');
+    const [pinDuration, setPinDuration] = useState<PinDurationType>('none');
 
     if (!isOpen) return null;
 
@@ -24,10 +27,28 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
         const text = content.trim();
         const header = title.trim();
         if (!text || !header) return;
-        onPublish(header, text, severity);
+
+        let pinnedUntil: string | undefined = undefined;
+        if (pinDuration !== 'none') {
+            const now = Date.now();
+            let durationMs = 0;
+            if (pinDuration === '6h') durationMs = 6 * 60 * 60 * 1000;
+            else if (pinDuration === '12h') durationMs = 12 * 60 * 60 * 1000;
+            else if (pinDuration === '1d') durationMs = 24 * 60 * 60 * 1000;
+            else if (pinDuration === '2d') durationMs = 48 * 60 * 60 * 1000;
+            else if (pinDuration === '3d') durationMs = 72 * 60 * 60 * 1000;
+            else if (pinDuration === '1w') durationMs = 7 * 24 * 60 * 60 * 1000;
+            
+            if (durationMs > 0) {
+                pinnedUntil = new Date(now + durationMs).toISOString();
+            }
+        }
+
+        onPublish(header, text, severity, pinnedUntil);
         setTitle('');
         setContent('');
         setSeverity('normal');
+        setPinDuration('none');
         onClose();
     };
 
@@ -38,7 +59,7 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
                 <div 
                     className="modal-container"
                     onClick={(e) => e.stopPropagation()}
-                    style={{ maxWidth: '480px', width: '95%' }}
+                    style={{ maxWidth: '500px', width: '95%' }}
                 >
                     <div className="modal-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -102,6 +123,44 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
                                         }}
                                     >
                                         {t(`severity_${level}` as TranslationKey)}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Pin Duration Selector */}
+                        <div className="form-group" style={{ marginBottom: '1rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
+                                <Pin size={14} style={{ color: pinDuration !== 'none' ? '#f59e0b' : 'var(--text-secondary)' }} />
+                                <span>{t('pin_duration')}</span>
+                            </label>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem' }}>
+                                {(['none', '6h', '12h', '1d', '2d', '3d', '1w'] as const).map((dur) => (
+                                    <button
+                                        key={dur}
+                                        type="button"
+                                        onClick={() => setPinDuration(dur)}
+                                        style={{
+                                            padding: '0.4rem 0.25rem',
+                                            borderRadius: 'var(--radius-sm)',
+                                            fontSize: '0.72rem',
+                                            fontWeight: 700,
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s',
+                                            textAlign: 'center',
+                                            whiteSpace: 'nowrap',
+                                            border: pinDuration === dur
+                                                ? '1px solid #f59e0b'
+                                                : '1px solid var(--border-color)',
+                                            background: pinDuration === dur
+                                                ? 'rgba(245, 158, 11, 0.2)'
+                                                : 'rgba(255, 255, 255, 0.02)',
+                                            color: pinDuration === dur
+                                                ? '#f59e0b'
+                                                : 'var(--text-secondary)'
+                                        }}
+                                    >
+                                        {t(`pin_${dur}` as TranslationKey)}
                                     </button>
                                 ))}
                             </div>
