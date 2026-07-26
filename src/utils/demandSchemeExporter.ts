@@ -22,7 +22,7 @@ export async function exportDemandOverviewPNG(elementId: string = 'demand-overvi
 
         if (isSupabaseConfigured && supabase) {
             const fileName = 'demand_overview.png';
-            const { data, error } = await supabase.storage
+            const { error } = await supabase.storage
                 .from('public-assets')
                 .upload(fileName, blob, {
                     contentType: 'image/png',

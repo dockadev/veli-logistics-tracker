@@ -6,7 +6,7 @@ import { CustomSelect } from './CustomSelect';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import { STANDARD_ITEMS } from '../utils/standardItems';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
-import { getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
+import { getItemOfficialCategory } from '../utils/itemCategories';
 import { toCanonicalItemName } from '../utils/canonicalResolver';
 import { getItemIconUrl } from '../utils/itemIcons';
 
@@ -73,7 +73,7 @@ export const CreateRequestModal: React.FC<CreateRequestModalProps> = React.memo(
     depotsHistory = [],
     onSave,
     onClose,
-    showToast,
+    showToast: _showToast,
 }) => {
     const { t, language } = useLanguage();
     const [depotName, setDepotName] = useState('');

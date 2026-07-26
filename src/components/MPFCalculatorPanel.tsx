@@ -507,25 +507,25 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', flex: 1, alignItems: 'center' }}>
                         {/* Bmats */}
                         <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
-                            <img src={getItemIconUrl('Basic Materials')} alt="Bmats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
+                            <img src={getItemIconUrl('Basic Materials') || undefined} alt="Bmats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
                             <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Bmats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#fbbf24' }}>{totals.bmats.toLocaleString('en-US')}</span>
                         </div>
                         {/* Rmats */}
                         <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
-                            <img src={getItemIconUrl('Refined Materials')} alt="Rmats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
+                            <img src={getItemIconUrl('Refined Materials') || undefined} alt="Rmats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
                             <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Rmats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#38bdf8' }}>{totals.rmats.toLocaleString('en-US')}</span>
                         </div>
                         {/* Emats */}
                         <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
-                            <img src={getItemIconUrl('Explosive Powder')} alt="Emats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
+                            <img src={getItemIconUrl('Explosive Powder') || undefined} alt="Emats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
                             <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Emats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f87171' }}>{totals.emats.toLocaleString('en-US')}</span>
                         </div>
                         {/* Hemats */}
                         <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
-                            <img src={getItemIconUrl('Heavy Explosive Powder')} alt="Hemats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
+                            <img src={getItemIconUrl('Heavy Explosive Powder') || undefined} alt="Hemats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
                             <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Hemats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#c084fc' }}>{totals.hemats.toLocaleString('en-US')}</span>
                         </div>
@@ -731,7 +731,7 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
                                                     }}
                                                 >
                                                     <img
-                                                        src={getItemIconUrl(topItem.itemName)}
+                                                        src={getItemIconUrl(topItem.itemName) || undefined}
                                                         alt={topItem.itemName}
                                                         style={{ width: '32px', height: '32px', objectFit: 'contain' }}
                                                         onError={e => { (e.target as HTMLElement).style.display = 'none'; }}

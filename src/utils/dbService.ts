@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import type { Depot, SupplyRequest, DepotHistoryEntry, SystemNotification, AuditLogEntry, StockpileTemplates, StockpileTemplateRule, RegionSettings } from '../types';
+import type { Depot, SupplyRequest, DepotHistoryEntry, SystemNotification, AuditLogEntry, StockpileTemplates, RegionSettings } from '../types';
 import { getItemOfficialCategory } from './itemCategories';
 import { getDefaultTemplates } from './defaultTemplates';
 import { canonicalizeTemplateRole } from './canonicalResolver';

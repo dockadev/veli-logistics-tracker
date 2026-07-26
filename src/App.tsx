@@ -55,7 +55,6 @@ import { getItemOfficialCategory } from './utils/itemCategories';
 import type { Depot, UserRole, SupplyRequest, RequestItem, SystemNotification, AuditLogEntry, PortalUser, ItemInfo, DepotHistoryEntry, StockpileTemplates, RegionSettings } from './types';
 import { useLanguage, type Language } from './context/LanguageContext';
 import { dbService } from './utils/dbService';
-import { syncOrderToDiscord } from './utils/discordOrderSync';
 import { getDefaultTemplates } from './utils/defaultTemplates';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import { getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor, resolveTemplateSetting } from './utils/helpers';
@@ -179,7 +178,7 @@ export const App: React.FC = () => {
         return localStorage.getItem('docka_user_clan');
     });
 
-    const [showProductionBoardInfo, setShowProductionBoardInfo] = useState(false);
+    const [_showProductionBoardInfo, setShowProductionBoardInfo] = useState(false);
     const [isRefreshingRequests, setIsRefreshingRequests] = useState(false);
 
     useEffect(() => {

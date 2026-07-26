@@ -1,3 +1,6 @@
+import type { RegionSettings, RegionSetting } from '../types';
+import type { Language } from '../context/LanguageContext';
+
 export function normalizeItemKey(name: string): string {
   if (!name) return '';
   return name.toLowerCase().replace(/[^a-z0-9]/g, '');

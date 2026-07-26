@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Truck, Copy, Package, ArrowRight, CheckCircle2, Info, Trash2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Send, XCircle } from 'lucide-react';
+import { Truck, Package, ArrowRight, CheckCircle2, Info, Trash2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Send, XCircle } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import type { Depot, StockpileTemplates, StockpileTemplateRule, VehicleType, PackedContainer, PackedContainerItem, TransferPlan, RegionSettings, UserRole, SupplyRequest } from '../types';
 import { getDepotDisplayName, resolveTemplateSetting } from '../utils/helpers';
@@ -16,7 +16,7 @@ interface TransferCalculatorTabProps {
     userRole?: UserRole;
     onCopyToast?: () => void;
     onSaveRequest?: (request: SupplyRequest) => void;
-    currentUsername?: string;
+    currentUsername?: string | null;
 }
 
 export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React.memo(({
@@ -24,7 +24,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
     templates = getDefaultTemplates(),
     regionSettings = {},
     userRole,
-    onCopyToast,
+    onCopyToast: _onCopyToast,
     onSaveRequest,
     currentUsername
 }) => {
@@ -81,7 +81,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
     const [targetRegion, setTargetRegion] = useState<string>('');
     const [vehicleType, setVehicleType] = useState<VehicleType>('flatbed');
     const [trainCars, setTrainCars] = useState<number>(10);
-    const [copiedManifest, setCopiedManifest] = useState<boolean>(false);
+    const [_copiedManifest, _setCopiedManifest] = useState<boolean>(false);
     const [showTransferInfo, setShowTransferInfo] = useState<boolean>(false);
     const [showComparisonInfo, setShowComparisonInfo] = useState<boolean>(false);
     const [containers, setContainers] = useState<PackedContainer[]>([]);
@@ -724,6 +724,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
         const reqItems = Object.entries(flattenedItemsMap).map(([itemName, count]) => ({
             itemName,
+            itemCategory: getItemOfficialCategory(itemName),
             quantityRequired: count,
             quantityDelivered: 0
         }));
@@ -747,40 +748,6 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
         onSaveRequest(newTransportRequest);
         setIsSendingDiscord(false);
-    };
-
-    // Copy formatted shipping plan to clipboard without emojis
-    const handleCopyManifest = () => {
-        if (!transferPlan || containers.length === 0) return;
-
-        const isTr = language === 'tr';
-        const titleText = isTr ? 'Lojistik Sevkiyat Planı' : 'Logistics Shipping Plan';
-        const vehicleLabel = isTr ? 'Araç' : 'Vehicle';
-        const totalLabel = isTr ? 'Toplam' : 'Total';
-        const cratesLabel = isTr ? 'kasa' : 'crates';
-        const containerLabel = isTr ? 'konteyner' : 'container(s)';
-        const containerHeader = isTr ? 'Konteyner' : 'Container';
-
-        const totalCrates = containers.reduce((acc, c) => acc + c.totalCrates, 0);
-
-        const lines = [
-            `## ${titleText} [${transferPlan.sourceDepotName} -> ${transferPlan.targetDepotName}]`,
-            `${vehicleLabel}: ${transferPlan.vehicleType.toUpperCase()} | ${totalLabel}: ${totalCrates} ${cratesLabel} (${containers.length} ${containerLabel})\n`
-        ];
-
-        containers.forEach(c => {
-            lines.push(`### ${containerHeader} #${c.containerIndex} (${c.totalCrates}/60 ${cratesLabel}):`);
-            c.items.forEach(it => {
-                const critTag = it.isCriticalNeed ? (isTr ? ' [Kritik]' : ' [Critical]') : '';
-                lines.push(`- ${it.count}x ${it.itemName}${critTag}`);
-            });
-            lines.push('');
-        });
-
-        navigator.clipboard.writeText(lines.join('\n').trim());
-        setCopiedManifest(true);
-        if (onCopyToast) onCopyToast();
-        setTimeout(() => setCopiedManifest(false), 2500);
     };
 
     return (

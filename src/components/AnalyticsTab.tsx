@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { toBlob } from 'html-to-image';
 import { useLanguage } from '../context/LanguageContext';
+import { supabase, isSupabaseConfigured } from '../utils/supabaseClient';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
 import type { Depot, SupplyRequest, AuditLogEntry, RegionSettings, StockpileTemplates, ItemInfo } from '../types';
@@ -92,7 +93,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                         contentType: 'image/png',
                         cacheControl: '60',
                         upsert: true
-                    }).catch(err => console.error('[AnalyticsTab] Storage upload error:', err));
+                    }).catch((err: unknown) => console.error('[AnalyticsTab] Storage upload error:', err));
                 }
 
                 await navigator.clipboard.write([

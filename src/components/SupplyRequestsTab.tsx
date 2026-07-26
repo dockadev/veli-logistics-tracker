@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Plus, Check, Clock, Trash2, Truck, ChevronDown, ChevronUp, MapPin, RefreshCw, ShoppingBag, Sparkles } from 'lucide-react';
-import type { SupplyRequest, UserRole, Depot } from '../types';
+import type { SupplyRequest, UserRole, Depot, StockpileTemplates, RegionSettings } from '../types';
 import { getCategoryClass, getDepotDisplayName } from '../utils/helpers';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import { getItemIconUrl } from '../utils/itemIcons';
@@ -10,6 +10,8 @@ interface SupplyRequestsTabProps {
     requests: SupplyRequest[];
     userRole: UserRole;
     depots: Record<string, Depot>;
+    templates?: StockpileTemplates;
+    regionSettings?: RegionSettings;
     onOpenCreateModal: () => void;
     onUpdateProgress: (requestId: string, itemIndex: number, amount: number) => void;
     onToggleCompleteItem: (requestId: string, itemIndex: number) => void;
