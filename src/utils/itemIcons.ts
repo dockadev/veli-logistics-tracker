@@ -1,15 +1,25 @@
 import { ITEM_CODENAMES } from './itemCodenames';
 
+// Helper to normalize quote variations for robust icon matching
+function normalizeIconKey(str: string): string {
+  return str.replace(/[“”"'’`]/g, '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
 // Build a reverse mapping from DisplayName to CodeName
 const REVERSE_CODENAMES_MAP: Record<string, string> = {};
 
 Object.entries(ITEM_CODENAMES).forEach(([code, displayName]) => {
   if (displayName) {
-    const key = displayName.toLowerCase();
+    const rawKey = displayName.toLowerCase();
+    const normKey = normalizeIconKey(displayName);
     const cleanCode = code.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     const cleanDisplay = displayName.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    if (!REVERSE_CODENAMES_MAP[key] || cleanCode === cleanDisplay) {
-      REVERSE_CODENAMES_MAP[key] = code;
+
+    if (!REVERSE_CODENAMES_MAP[rawKey] || cleanCode === cleanDisplay) {
+      REVERSE_CODENAMES_MAP[rawKey] = code;
+    }
+    if (!REVERSE_CODENAMES_MAP[normKey] || cleanCode === cleanDisplay) {
+      REVERSE_CODENAMES_MAP[normKey] = code;
     }
   }
 });
@@ -32,8 +42,11 @@ export function getItemIconUrl(itemName?: string | null): string | null {
     return `/item-icons/${cleanName}.png`;
   }
 
-  // Lookup by display name (case-insensitive)
-  const codeName = REVERSE_CODENAMES_MAP[cleanName.toLowerCase()];
+  // Lookup by raw or normalized display name
+  const rawKey = cleanName.toLowerCase();
+  const normKey = normalizeIconKey(cleanName);
+
+  const codeName = REVERSE_CODENAMES_MAP[rawKey] || REVERSE_CODENAMES_MAP[normKey];
   if (codeName) {
     return `/item-icons/${codeName}.png`;
   }

@@ -55,6 +55,7 @@ import { getItemOfficialCategory } from './utils/itemCategories';
 import type { Depot, UserRole, SupplyRequest, RequestItem, SystemNotification, AuditLogEntry, PortalUser, ItemInfo, DepotHistoryEntry, StockpileTemplates, RegionSettings } from './types';
 import { useLanguage, type Language } from './context/LanguageContext';
 import { dbService } from './utils/dbService';
+import { syncOrderToDiscord } from './utils/discordOrderSync';
 import { getDefaultTemplates } from './utils/defaultTemplates';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
 import { getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor, resolveTemplateSetting } from './utils/helpers';
@@ -114,7 +115,7 @@ function getDepotMatchKey(rawFullName: string): string {
 
 const IS_TAURI = typeof window !== 'undefined' && !!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
-const APP_VERSION = '0.1.66';
+const APP_VERSION = '0.1.70';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);
@@ -179,6 +180,7 @@ export const App: React.FC = () => {
     });
 
     const [showProductionBoardInfo, setShowProductionBoardInfo] = useState(false);
+    const [isRefreshingRequests, setIsRefreshingRequests] = useState(false);
 
     useEffect(() => {
         const handleOutsideClick = (e: MouseEvent) => {
@@ -980,6 +982,21 @@ export const App: React.FC = () => {
         showToast(t('session_terminated'), 'info');
     }, [showToast, t]);
 
+    const handleRefreshRequests = useCallback(async () => {
+        if (!masterKey) return;
+        try {
+            setIsRefreshingRequests(true);
+            const fresh = await dbService.loadRequests(masterKey);
+            isRemoteRequestsUpdateRef.current = true;
+            setSupplyRequests(fresh);
+            showToast(language === 'tr' ? 'Sipariş listesi veritabanından güncellendi.' : 'Supply requests refreshed from database.', 'info');
+        } catch (e) {
+            console.error('Failed to refresh supply requests:', e);
+        } finally {
+            setTimeout(() => setIsRefreshingRequests(false), 500);
+        }
+    }, [masterKey, language, showToast]);
+
     // Real-time Supabase Subscriptions
     useEffect(() => {
         if (!isSupabaseConfigured || !supabase || !masterKey) return;
@@ -1083,13 +1100,19 @@ export const App: React.FC = () => {
                             return [requestItem, ...prev];
                         });
                     } else if (payload.eventType === 'DELETE') {
-                        if (payload.old?.id) {
-                            const oldId = payload.old.id;
+                        console.log('[Real-time] DELETE payload received:', payload);
+                        const oldId = payload.old?.id;
+                        isRemoteRequestsUpdateRef.current = true;
+                        if (oldId) {
                             setSupplyRequests(prev => {
-                                const exists = prev.some(r => r.id === oldId);
-                                if (!exists) return prev;
+                                const next = prev.filter(r => r.id !== oldId);
+                                try { localStorage.setItem('docka_supply_requests', JSON.stringify(next)); } catch (e) {}
+                                return next;
+                            });
+                        } else {
+                            dbService.loadRequests(masterKey).then(updatedReqs => {
                                 isRemoteRequestsUpdateRef.current = true;
-                                return prev.filter(r => r.id !== oldId);
+                                setSupplyRequests(updatedReqs);
                             });
                         }
                     }
@@ -1723,21 +1746,20 @@ export const App: React.FC = () => {
             showToast(t('role_officer_required_delete'), 'error');
             return;
         }
+        const targetReq = supplyRequests.find(r => r.id === requestId);
         setConfirmModal({
             isOpen: true,
             title: t('delete_request_confirm_title'),
             message: t('delete_request_confirm_msg'),
             onConfirm: () => {
                 setSupplyRequests(prev => prev.filter(req => req.id !== requestId));
-                if (isSupabaseConfigured && supabase) {
-                    dbService.deleteRequest(requestId);
-                }
+                dbService.deleteRequest(requestId, targetReq?.discordChannelId);
                 setConfirmModal(null);
                 showToast(t('request_removed'), 'info');
                 logAction(`Deleted supply request #${requestId.substring(0, 5).toUpperCase()}.`);
             }
         });
-    }, [userRole, showToast, t, logAction]);
+    }, [userRole, showToast, t, logAction, supplyRequests]);
 
     const handleResetLeaderboard = useCallback(async () => {
         if (userRole !== 'developer') {
@@ -3038,69 +3060,7 @@ export const App: React.FC = () => {
 
 
 
-                            {activeTab === 'requests' && (
-                                <div className="depot-interface-header">
-                                    <div className="depot-title-group">
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                                            <h2 style={{ margin: 0 }}>{t('supply_request_board')}</h2>
-                                            <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }} onClick={(e) => e.stopPropagation()}>
-                                                <button
-                                                    type="button"
-                                                    className="popover-trigger"
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setShowProductionBoardInfo(!showProductionBoardInfo);
-                                                    }}
-                                                    style={{
-                                                        background: 'transparent',
-                                                        border: 'none',
-                                                        color: showProductionBoardInfo ? 'var(--accent-color)' : 'var(--text-secondary)',
-                                                        cursor: 'pointer',
-                                                        padding: '2px',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        transition: 'color 0.15s'
-                                                    }}
-                                                >
-                                                    <Info size={14} />
-                                                </button>
-                                                {showProductionBoardInfo && (
-                                                    <div className="popover-card" style={{
-                                                        position: 'absolute',
-                                                        top: '100%',
-                                                        left: 0,
-                                                        zIndex: 99999,
-                                                        width: '320px',
-                                                        background: 'rgba(20, 20, 23, 0.96)',
-                                                        backdropFilter: 'blur(8px)',
-                                                        border: '1px solid var(--border-color)',
-                                                        borderRadius: '8px',
-                                                        padding: '0.85rem',
-                                                        marginTop: '0.35rem',
-                                                        fontSize: '0.72rem',
-                                                        color: 'var(--text-secondary)',
-                                                        lineHeight: '1.45',
-                                                        boxShadow: '0 10px 20px rgba(0,0,0,0.6)',
-                                                        textTransform: 'none',
-                                                        fontWeight: 'normal',
-                                                        letterSpacing: 'normal',
-                                                        textAlign: 'left'
-                                                    }}>
-                                                        <strong style={{ color: 'var(--accent-color)', display: 'block', marginBottom: '0.35rem', fontSize: '0.75rem' }}>
-                                                            {t('info_production_board_title')}
-                                                        </strong>
-                                                        <ul style={{ margin: 0, paddingLeft: '1rem', display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                                            <li>{t('info_production_board_bullet1')}</li>
-                                                            <li>{t('info_production_board_bullet2')}</li>
-                                                        </ul>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                        <p>{t('supply_request_board_desc')}</p>
-                                    </div>
-                                </div>
-                            )}
+
 
 
 
@@ -3142,11 +3102,15 @@ export const App: React.FC = () => {
                                         requests={supplyRequests}
                                         userRole={userRole}
                                         depots={depots}
+                                        templates={templates}
+                                        regionSettings={regionSettings}
                                         onOpenCreateModal={() => setIsCreateRequestOpen(true)}
                                         onUpdateProgress={handleUpdateProgress}
                                         onToggleCompleteItem={handleToggleCompleteItem}
                                         onDeleteRequest={handleDeleteRequest}
                                         onToggleRequestStatus={handleToggleComplete}
+                                        onRefresh={handleRefreshRequests}
+                                        isRefreshing={isRefreshingRequests}
                                     />
                                 </ErrorBoundary>
                             )}
@@ -3252,7 +3216,11 @@ export const App: React.FC = () => {
                                              templates={templates}
                                              regionSettings={regionSettings}
                                              userRole={userRole}
-                                             onCopyToast={() => showToast(t('manifest_copied'), 'success')}
+                                             onSaveRequest={(req) => {
+                                                 setSupplyRequests(prev => [req, ...prev]);
+                                                 showToast(language === 'tr' ? "Sevkiyat planı Discord'a gönderildi!" : "Transport shipping plan sent to Discord!", 'success');
+                                             }}
+                                             currentUsername={currentUsername}
                                         />
                                    </ErrorBoundary>
                               )}

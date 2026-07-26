@@ -63,12 +63,21 @@ export interface RequestItem {
 export interface SupplyRequest {
     id: string;
     depotName: string;
+    sourceDepotName?: string;
+    requestType?: 'order' | 'transport';
+    transportContainers?: {
+        containerIndex: number;
+        items: { itemName: string; count: number; priority?: string }[];
+        totalCrates: number;
+    }[];
     items: RequestItem[];
     createdTime: string;
     status: 'open' | 'completed';
     claimedBy: string[];
     createdBy?: string;
     stockpileNames?: string;
+    discordMessageId?: string;
+    discordChannelId?: string;
 }
 
 export interface SystemNotification {

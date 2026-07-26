@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Truck, Copy, Package, ArrowRight, CheckCircle2, Info, Trash2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Truck, Copy, Package, ArrowRight, CheckCircle2, Info, Trash2, RotateCcw, ArrowUpDown, ArrowUp, ArrowDown, Send, XCircle } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
-import type { Depot, StockpileTemplates, StockpileTemplateRule, VehicleType, PackedContainer, PackedContainerItem, TransferPlan, RegionSettings, UserRole } from '../types';
+import type { Depot, StockpileTemplates, StockpileTemplateRule, VehicleType, PackedContainer, PackedContainerItem, TransferPlan, RegionSettings, UserRole, SupplyRequest } from '../types';
 import { getDepotDisplayName, resolveTemplateSetting } from '../utils/helpers';
 import { getDefaultRuleForCategory, getDefaultTemplates, DEFAULT_TEMPLATE_COLORS } from '../utils/defaultTemplates';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory } from '../utils/itemCategories';
@@ -15,14 +15,18 @@ interface TransferCalculatorTabProps {
     regionSettings?: RegionSettings;
     userRole?: UserRole;
     onCopyToast?: () => void;
+    onSaveRequest?: (request: SupplyRequest) => void;
+    currentUsername?: string;
 }
 
 export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React.memo(({
     depots = {},
     templates = getDefaultTemplates(),
     regionSettings = {},
-    userRole: _userRole,
-    onCopyToast
+    userRole,
+    onCopyToast,
+    onSaveRequest,
+    currentUsername
 }) => {
     const { t, language } = useLanguage();
 
@@ -696,8 +700,53 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
         }
     }, [transferPlan]);
 
+    const [isConfirmingInlineSend, setIsConfirmingInlineSend] = useState(false);
+    const [isSendingDiscord, setIsSendingDiscord] = useState(false);
+
     const handleRefreshPlan = () => {
         setRefreshTrigger(prev => prev + 1);
+    };
+
+    const handleSendToDiscordConfirm = () => {
+        if (!transferPlan || containers.length === 0 || !onSaveRequest) return;
+
+        setIsSendingDiscord(true);
+        setIsConfirmingInlineSend(false);
+
+        // Flatten items from containers
+        const flattenedItemsMap: Record<string, number> = {};
+        containers.forEach(c => {
+            c.items.forEach(it => {
+                const name = it.itemName;
+                flattenedItemsMap[name] = (flattenedItemsMap[name] || 0) + it.count;
+            });
+        });
+
+        const reqItems = Object.entries(flattenedItemsMap).map(([itemName, count]) => ({
+            itemName,
+            quantityRequired: count,
+            quantityDelivered: 0
+        }));
+
+        const newTransportRequest: SupplyRequest = {
+            id: crypto.randomUUID(),
+            requestType: 'transport',
+            sourceDepotName: transferPlan.sourceDepotName,
+            depotName: transferPlan.targetDepotName,
+            transportContainers: containers.map(c => ({
+                containerIndex: c.containerIndex,
+                items: c.items.map(it => ({ itemName: it.itemName, count: it.count })),
+                totalCrates: c.totalCrates
+            })),
+            items: reqItems,
+            createdTime: new Date().toISOString(),
+            status: 'open',
+            claimedBy: [],
+            createdBy: currentUsername || 'Veli Logistics Member'
+        };
+
+        onSaveRequest(newTransportRequest);
+        setIsSendingDiscord(false);
     };
 
     // Copy formatted shipping plan to clipboard without emojis
@@ -1053,15 +1102,52 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                     <RotateCcw size={14} />
                                     <span>{language === 'tr' ? 'Planı Yenile' : 'Refresh Plan'}</span>
                                 </button>
-                                <button
-                                    type="button"
-                                    className="btn btn-primary"
-                                    onClick={handleCopyManifest}
-                                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', fontWeight: 800 }}
-                                >
-                                    {copiedManifest ? <CheckCircle2 size={14} style={{ color: '#10b981' }} /> : <Copy size={14} />}
-                                    <span>{copiedManifest ? t('manifest_copied') : t('copy_manifest')}</span>
-                                </button>
+                                {!(userRole === 'officer' || userRole === 'logistics_lead' || userRole === 'developer') ? (
+                                    <button
+                                        type="button"
+                                        className="btn btn-secondary"
+                                        disabled={true}
+                                        title={language === 'tr' ? "Discord'a sevkiyat planı gönderme yetkisi sadece Subay (Officer) ve üzeri roller içindir." : "Only Officers, Logistics Leads, and Developers can send transport plans to Discord."}
+                                        style={{ opacity: 0.5, cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', fontWeight: 800 }}
+                                    >
+                                        <Send size={14} />
+                                        <span>{language === 'tr' ? "Discord'a Gönder (Yetki Yetersiz)" : 'Send to Discord (Restricted)'}</span>
+                                    </button>
+                                ) : isConfirmingInlineSend ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(var(--accent-color-rgb), 0.15)', border: '1px solid var(--accent-color)', borderRadius: '6px', padding: '0.2rem 0.5rem' }}>
+                                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                                            {language === 'tr' ? 'Emin misiniz?' : 'Are you sure?'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            title={language === 'tr' ? 'Onayla' : 'Confirm'}
+                                            onClick={handleSendToDiscordConfirm}
+                                            disabled={isSendingDiscord}
+                                            style={{ background: '#10b981', border: 'none', borderRadius: '4px', padding: '0.25rem 0.45rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#fff' }}
+                                        >
+                                            <CheckCircle2 size={14} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            title={language === 'tr' ? 'İptal' : 'Cancel'}
+                                            onClick={() => setIsConfirmingInlineSend(false)}
+                                            style={{ background: '#ef4444', border: 'none', borderRadius: '4px', padding: '0.25rem 0.45rem', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#fff' }}
+                                        >
+                                            <XCircle size={14} />
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        className="btn btn-primary"
+                                        onClick={() => setIsConfirmingInlineSend(true)}
+                                        disabled={isSendingDiscord}
+                                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', fontWeight: 800 }}
+                                    >
+                                        <Send size={14} />
+                                        <span>{language === 'tr' ? "Discord'a Gönder" : 'Send to Discord'}</span>
+                                    </button>
+                                )}
                             </div>
                         </div>
 

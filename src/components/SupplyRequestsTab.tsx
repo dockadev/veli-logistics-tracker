@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Plus, Check, Clock, Trash2, Truck, ChevronDown, ChevronUp, MapPin } from 'lucide-react';
+import { Plus, Check, Clock, Trash2, Truck, ChevronDown, ChevronUp, MapPin, RefreshCw, ShoppingBag, Sparkles } from 'lucide-react';
 import type { SupplyRequest, UserRole, Depot } from '../types';
 import { getCategoryClass, getDepotDisplayName } from '../utils/helpers';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import { getItemIconUrl } from '../utils/itemIcons';
+import { MPFCalculatorPanel } from './MPFCalculatorPanel';
 
 interface SupplyRequestsTabProps {
     requests: SupplyRequest[];
@@ -14,6 +15,8 @@ interface SupplyRequestsTabProps {
     onToggleCompleteItem: (requestId: string, itemIndex: number) => void;
     onDeleteRequest: (requestId: string) => void;
     onToggleRequestStatus: (requestId: string) => void;
+    onRefresh?: () => void;
+    isRefreshing?: boolean;
 }
 
 export interface RequestCardProps {
@@ -302,7 +305,6 @@ export const RequestCard: React.FC<RequestCardProps> = React.memo(({
                                 className="btn btn-secondary text-negative"
                                 onClick={() => onDeleteRequest(req.id)}
                                 style={{ fontSize: '0.75rem', padding: '0.4rem 0.65rem' }}
-                                title={t('delete_request_order')}
                             >
                                 <Trash2 size={14} />
                             </button>
@@ -320,20 +322,24 @@ export const SupplyRequestsTab: React.FC<SupplyRequestsTabProps> = React.memo(({
     requests,
     userRole,
     depots,
+    templates,
+    regionSettings,
     onOpenCreateModal,
     onUpdateProgress,
     onToggleCompleteItem,
     onDeleteRequest,
     onToggleRequestStatus,
+    onRefresh,
+    isRefreshing,
 }) => {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
+    const [viewMode, setViewMode] = useState<'orders' | 'mpf'>('orders');
     const [statusFilter, setStatusFilter] = useState<'open' | 'completed'>('open');
 
-    // Filter requests - memoized for performance optimization
     const filteredRequests = useMemo(() => {
-        return requests
+        return (requests || [])
             .filter(req => {
-                const matchesStatus = 
+                const matchesStatus =
                     (statusFilter === 'open' && req.status === 'open') ||
                     (statusFilter === 'completed' && req.status === 'completed');
                 return matchesStatus;
@@ -347,61 +353,118 @@ export const SupplyRequestsTab: React.FC<SupplyRequestsTabProps> = React.memo(({
     }, [requests, statusFilter]);
 
     return (
-        <div className="requests-tab-container">
+        <div className="requests-tab-container space-y-4">
             {/* Header controls inside the tab */}
-            <div className="requests-header-panel">
-                <div className="requests-filter-group-wrapper">
-                    {/* Status filter */}
-                    <div className="requests-filter-group">
-                        <button 
-                            className={`tab-btn requests-tab-btn-mini ${statusFilter === 'open' ? 'active' : ''}`}
-                            onClick={() => setStatusFilter('open')}
+            <div className="requests-header-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                {/* Left: Status Filter */}
+                <div className="requests-filter-group-wrapper" style={{ flex: 1, minWidth: '180px' }}>
+                    {viewMode === 'orders' ? (
+                        <div className="requests-filter-group">
+                            <button
+                                className={`tab-btn requests-tab-btn-mini ${statusFilter === 'open' ? 'active' : ''}`}
+                                onClick={() => setStatusFilter('open')}
+                            >
+                                {t('status_open')}
+                            </button>
+                            <button
+                                className={`tab-btn requests-tab-btn-mini ${statusFilter === 'completed' ? 'active' : ''}`}
+                                onClick={() => setStatusFilter('completed')}
+                            >
+                                {t('completed')}
+                            </button>
+                        </div>
+                    ) : <div />}
+                </div>
+
+                {/* Center: Sub-tab Switcher (Title Case, Centered) */}
+                <div style={{ display: 'flex', justifyContent: 'center', flex: 2, minWidth: '320px' }}>
+                    <div className="requests-filter-group" style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                        <button
+                            onClick={() => setViewMode('orders')}
+                            className={`tab-btn ${viewMode === 'orders' ? 'active' : ''}`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', fontSize: '0.85rem', textTransform: 'none' }}
                         >
-                            {t('status_open')}
+                            <ShoppingBag size={15} />
+                            <span>Production Orders</span>
                         </button>
-                        <button 
-                            className={`tab-btn requests-tab-btn-mini ${statusFilter === 'completed' ? 'active' : ''}`}
-                            onClick={() => setStatusFilter('completed')}
+
+                        <button
+                            onClick={() => setViewMode('mpf')}
+                            className={`tab-btn ${viewMode === 'mpf' ? 'active' : ''}`}
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', fontSize: '0.85rem', textTransform: 'none' }}
                         >
-                            {t('completed')}
+                            <Sparkles size={15} style={{ color: '#f59e0b' }} />
+                            <span>VELI AI MPF Recommendations</span>
                         </button>
                     </div>
                 </div>
 
-                {userRole !== 'member' && (
-                    <button 
-                        className="btn btn-primary" 
-                        onClick={onOpenCreateModal}
-                    >
-                        <Plus size={14} />
-                        <span>{t('open_supply_request')}</span>
-                    </button>
-                )}
+                {/* Right: Action Buttons (Only shown for Production Orders) */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', flex: 1, minWidth: '220px' }}>
+                    {viewMode === 'orders' && (
+                        <>
+                            {onRefresh && (
+                                <button
+                                    className="btn btn-secondary"
+                                    onClick={onRefresh}
+                                    disabled={isRefreshing}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.75rem', fontSize: '0.8rem' }}
+                                    title={language === 'tr' ? 'Siparişleri Veritabanından Yenile' : 'Refresh Orders from Database'}
+                                >
+                                    <RefreshCw size={14} style={{ animation: isRefreshing ? 'spin 1s linear infinite' : 'none' }} />
+                                    <span>{language === 'tr' ? 'Yenile' : 'Refresh'}</span>
+                                </button>
+                            )}
+
+                            {userRole !== 'member' && (
+                                <button
+                                    className="btn btn-primary"
+                                    onClick={onOpenCreateModal}
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.45rem 0.85rem', fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                                >
+                                    <Plus size={14} />
+                                    <span>{t('open_supply_request')}</span>
+                                </button>
+                            )}
+                        </>
+                    )}
+                </div>
             </div>
 
-            {/* Grid / List of Supply Request Cards */}
-            {filteredRequests.length === 0 ? (
-                <div className="table-container requests-empty-state-card">
-                    <div className="empty-row">
-                        <Truck size={36} className="requests-empty-state-icon" />
-                        <p>{t('no_matching_requests')}</p>
-                    </div>
-                </div>
+            {viewMode === 'mpf' ? (
+                <MPFCalculatorPanel
+                    depots={depots}
+                    templates={templates}
+                    regionSettings={regionSettings}
+                />
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', width: '100%' }}>
-                    {filteredRequests.map(req => (
-                        <RequestCard
-                            key={req.id}
-                            req={req}
-                            depots={depots}
-                            userRole={userRole}
-                            onUpdateProgress={onUpdateProgress}
-                            onToggleCompleteItem={onToggleCompleteItem}
-                            onDeleteRequest={onDeleteRequest}
-                            onToggleRequestStatus={onToggleRequestStatus}
-                        />
-                    ))}
-                </div>
+                <>
+                    {/* Grid / List of Supply Request Cards */}
+
+                    {filteredRequests.length === 0 ? (
+                        <div className="table-container requests-empty-state-card">
+                            <div className="empty-row">
+                                <Truck size={36} className="requests-empty-state-icon" />
+                                <p>{t('no_matching_requests')}</p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', alignItems: 'start', gap: '1rem', width: '100%' }}>
+                            {filteredRequests.map(req => (
+                                <RequestCard
+                                    key={req.id}
+                                    req={req}
+                                    depots={depots}
+                                    userRole={userRole}
+                                    onUpdateProgress={onUpdateProgress}
+                                    onToggleCompleteItem={onToggleCompleteItem}
+                                    onDeleteRequest={onDeleteRequest}
+                                    onToggleRequestStatus={onToggleRequestStatus}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );

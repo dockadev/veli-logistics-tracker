@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured } from './supabaseClient';
 import type { Depot, SupplyRequest, DepotHistoryEntry, SystemNotification, AuditLogEntry, StockpileTemplates, StockpileTemplateRule, RegionSettings } from '../types';
 import { getItemOfficialCategory } from './itemCategories';
 import { getDefaultTemplates } from './defaultTemplates';
+import { canonicalizeTemplateRole } from './canonicalResolver';
+import { syncOrderToDiscord, deleteDiscordChannel } from './discordOrderSync';
 
 function migrateDepot(depot: Depot): Depot {
     if (!depot) return depot;
@@ -399,29 +401,30 @@ export const dbService = {
     async loadRequests(_masterKey: string): Promise<SupplyRequest[]> {
         if (isSupabaseConfigured && supabase) {
             try {
-                const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    const { data, error } = await supabase
-                        .from('supply_requests')
-                        .select('*');
-                    if (error) {
-                        console.error('[DB Service] Error loading requests from Supabase:', error);
-                    } else if (data) {
-                        return data.map((row: { id: string; data: string | SupplyRequest; status: 'open' | 'completed' }) => {
-                            const parsedData = typeof row.data === 'string' && (row.data.startsWith('{') || row.data.startsWith('['))
-                                ? JSON.parse(row.data)
-                                : row.data;
-                            const migrated = migrateRequest({
-                                ...parsedData,
-                                id: row.id,
-                                status: row.status
-                            } as SupplyRequest);
-                            return migrated;
-                        });
-                    }
+                const { data, error } = await supabase
+                    .from('supply_requests')
+                    .select('*');
+                if (error) {
+                    console.error('[DB Service] Error loading requests from Supabase:', error);
+                } else if (data) {
+                    const requests = data.map((row: { id: string; data: string | SupplyRequest; status: 'open' | 'completed' }) => {
+                        const parsedData = typeof row.data === 'string' && (row.data.startsWith('{') || row.data.startsWith('['))
+                            ? JSON.parse(row.data)
+                            : row.data;
+                        const migrated = migrateRequest({
+                            ...parsedData,
+                            id: row.id,
+                            status: row.status
+                        } as SupplyRequest);
+                        return migrated;
+                    });
+                    try {
+                        localStorage.setItem('docka_supply_requests', JSON.stringify(requests));
+                    } catch (e) {}
+                    return requests;
                 }
             } catch (err) {
-                console.error('[DB Service] Supabase session fetch failed for requests:', err);
+                console.error('[DB Service] Supabase fetch failed for requests:', err);
             }
         }
 
@@ -442,27 +445,57 @@ export const dbService = {
         if (!skipSupabase && isSupabaseConfigured && supabase) {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
-                if (session) {
-                    // Save to Supabase (bulk upsert all requests at once)
-                    const rows = requests.map(req => ({
-                        id: req.id,
-                        data: JSON.stringify(req),
-                        status: req.status,
-                        updated_by: session.user.id,
-                        updated_at: new Date().toISOString()
-                    }));
-                    if (rows.length > 0) {
-                        const { error } = await supabase
-                            .from('supply_requests')
-                            .upsert(rows, { onConflict: 'id' });
-                        if (error) {
-                            console.error('[DB Service] Error saving requests to Supabase:', error);
-                        }
+                
+                // STEP 1: ALWAYS SAVE TO SUPABASE & LOCALSTORAGE FIRST!
+                const rows = requests.map(req => ({
+                    id: req.id,
+                    data: JSON.stringify(req),
+                    status: req.status,
+                    updated_by: session?.user?.id || null,
+                    updated_at: new Date().toISOString()
+                }));
+                if (rows.length > 0) {
+                    const { error } = await supabase
+                        .from('supply_requests')
+                        .upsert(rows, { onConflict: 'id' });
+                    if (error) {
+                        console.error('[DB Service] Error saving requests to Supabase:', error);
                     }
-                    return;
                 }
+
+                // STEP 2: SYNC DISCORD CHANNELS FOR OPEN REQUESTS IN BACKGROUND
+                for (const req of requests) {
+                    if (req.status !== 'open') continue;
+
+                    try {
+                        const res = await syncOrderToDiscord(req);
+                        if (res.messageId && res.channelId) {
+                            if (req.discordMessageId !== res.messageId || req.discordChannelId !== res.channelId) {
+                                req.discordMessageId = res.messageId;
+                                req.discordChannelId = res.channelId;
+                                // Update row in Supabase with new Discord channel and message IDs
+                                await supabase.from('supply_requests').upsert({
+                                    id: req.id,
+                                    data: JSON.stringify(req),
+                                    status: req.status,
+                                    updated_by: session?.user?.id || null,
+                                    updated_at: new Date().toISOString()
+                                }, { onConflict: 'id' });
+                            }
+                        }
+                    } catch (err) {
+                        console.error('[DB Service] Discord sync failed for request:', req.id, err);
+                    }
+                }
+
+                try {
+                    localStorage.setItem('docka_local_requests', JSON.stringify(requests));
+                    localStorage.setItem('docka_supply_requests', JSON.stringify(requests));
+                } catch (e) {}
+
+                return;
             } catch (err) {
-                console.error('[DB Service] Supabase session fetch failed for saveRequests:', err);
+                console.error('[DB Service] Supabase request save failed:', err);
             }
         }
 
@@ -470,7 +503,10 @@ export const dbService = {
         localStorage.setItem('docka_local_requests', JSON.stringify(requests));
     },
 
-    async deleteRequest(id: string): Promise<void> {
+    async deleteRequest(id: string, discordChannelId?: string): Promise<void> {
+        if (discordChannelId) {
+            deleteDiscordChannel(discordChannelId).catch(err => console.error('[DB Service] Discord channel deletion failed:', err));
+        }
         if (isSupabaseConfigured && supabase) {
             try {
                 const { error } = await supabase
@@ -711,21 +747,6 @@ export const dbService = {
     async loadTemplates(): Promise<StockpileTemplates> {
         const defaults = getDefaultTemplates();
 
-        // Normalise stored template keys: map straight-quote keys to their
-        // curly-quote equivalents so stale Supabase/local data doesn't shadow
-        const normalizeKeys = (raw: Record<string, StockpileTemplateRule>): Record<string, StockpileTemplateRule> => {
-            const result: Record<string, StockpileTemplateRule> = {};
-            const straightToOriginal: Record<string, string> = {};
-            Object.keys(defaults.frontline).forEach(k => {
-                straightToOriginal[k.replace(/[\u201c\u201d]/g, '"')] = k;
-            });
-            Object.entries(raw || {}).forEach(([k, v]) => {
-                const mapped = straightToOriginal[k] || straightToOriginal[k.replace(/[\u201c\u201d]/g, '"')] || k;
-                result[mapped] = v;
-            });
-            return result;
-        };
-
         if (isSupabaseConfigured && supabase) {
             try {
                 const { data, error } = await supabase
@@ -739,14 +760,14 @@ export const dbService = {
                         : data.setting_value;
                     
                     const merged: StockpileTemplates = {
-                        frontline: { ...defaults.frontline, ...normalizeKeys(parsed.frontline || {}) },
-                        backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) },
-                        airfield: { ...defaults.airfield, ...normalizeKeys(parsed.airfield || parsed.aircraft || {}) }
+                        frontline: canonicalizeTemplateRole(parsed.frontline || {}),
+                        backline: canonicalizeTemplateRole(parsed.backline || {}),
+                        airfield: canonicalizeTemplateRole(parsed.airfield || parsed.aircraft || {})
                     };
 
                     Object.keys(parsed).forEach(k => {
                         if (k !== 'frontline' && k !== 'backline' && k !== 'airfield' && k !== 'aircraft') {
-                            merged[k] = normalizeKeys(parsed[k] || {});
+                            merged[k] = canonicalizeTemplateRole(parsed[k] || {});
                         }
                     });
 
@@ -762,14 +783,14 @@ export const dbService = {
             try {
                 const parsed = JSON.parse(local);
                 const merged: StockpileTemplates = {
-                    frontline: { ...defaults.frontline, ...normalizeKeys(parsed.frontline || {}) },
-                    backline: { ...defaults.backline, ...normalizeKeys(parsed.backline || {}) },
-                    airfield: { ...defaults.airfield, ...normalizeKeys(parsed.airfield || parsed.aircraft || {}) }
+                    frontline: canonicalizeTemplateRole(parsed.frontline || {}),
+                    backline: canonicalizeTemplateRole(parsed.backline || {}),
+                    airfield: canonicalizeTemplateRole(parsed.airfield || parsed.aircraft || {})
                 };
 
                 Object.keys(parsed).forEach(k => {
                     if (k !== 'frontline' && k !== 'backline' && k !== 'airfield' && k !== 'aircraft') {
-                        merged[k] = normalizeKeys(parsed[k] || {});
+                        merged[k] = canonicalizeTemplateRole(parsed[k] || {});
                     }
                 });
 
@@ -785,9 +806,9 @@ export const dbService = {
         const defaults = getDefaultTemplates();
         const safeTemplates: StockpileTemplates = {
             ...templates,
-            frontline: templates.frontline || defaults.frontline,
-            backline: templates.backline || defaults.backline,
-            airfield: templates.airfield || (templates as any).aircraft || defaults.airfield,
+            frontline: canonicalizeTemplateRole(templates.frontline || defaults.frontline),
+            backline: canonicalizeTemplateRole(templates.backline || defaults.backline),
+            airfield: canonicalizeTemplateRole(templates.airfield || (templates as any).aircraft || defaults.airfield),
         };
         delete (safeTemplates as any).aircraft;
 
@@ -921,7 +942,7 @@ export const dbService = {
                 console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
             }
         }
-        return '0.1.66';
+        return '0.1.70';
     },
 
     async saveMinAppVersion(version: string): Promise<void> {

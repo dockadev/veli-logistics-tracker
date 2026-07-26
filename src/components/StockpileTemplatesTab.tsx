@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Save, Search, Sliders, CheckCircle2, ChevronDown, ChevronUp, Info, Trash2, Copy, ClipboardPaste, Eye, EyeOff, Star, Download, Upload } from 'lucide-react';
+import { Save, Search, Sliders, CheckCircle2, ChevronDown, ChevronUp, Info, Trash2, Copy, ClipboardPaste, Eye, EyeOff, Star, Download, Upload, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { StockpileTemplates, UserRole, Depot, RegionSettings } from '../types';
 import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
@@ -54,6 +54,33 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     const [disabledCategories, setDisabledCategories] = useState<Set<string>>(new Set());
     const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
     const [showOnlyPriority, setShowOnlyPriority] = useState(false);
+
+    // Column sorting state
+    const [sortField, setSortField] = useState<'name' | 'category' | 'min' | 'max' | 'priority' | null>(null);
+    const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+    const toggleSort = (field: 'name' | 'category' | 'min' | 'max' | 'priority') => {
+        if (sortField !== field) {
+            setSortField(field);
+            setSortDirection(field === 'name' || field === 'category' ? 'asc' : 'desc');
+        } else {
+            if (sortDirection === 'desc') {
+                setSortDirection('asc');
+            } else {
+                setSortField(null);
+            }
+        }
+    };
+
+    const renderSortIcon = (field: 'name' | 'category' | 'min' | 'max' | 'priority') => {
+        if (sortField !== field) {
+            return <ArrowUpDown size={14} style={{ opacity: 0.35, marginLeft: '6px' }} />;
+        }
+        if (sortDirection === 'asc') {
+            return <ArrowUp size={14} style={{ color: 'var(--accent-color)', marginLeft: '6px' }} />;
+        }
+        return <ArrowDown size={14} style={{ color: 'var(--accent-color)', marginLeft: '6px' }} />;
+    };
 
     const toggleCategory = (cat: string) => {
         setDisabledCategories(prev => {
@@ -123,7 +150,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
 
             const exportData = {
                 _app: "Veli Logistics Tracker",
-                _version: "0.1.66",
+                _version: "0.1.70",
                 _exportedAt: new Date().toISOString(),
                 _activeRole: activeRole,
                 templateColors,
@@ -423,6 +450,49 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
 
         return isCategoryEnabled && matchesSearch;
     });
+
+    const activeRulesSnapshot = useRef(activeRules);
+
+    useEffect(() => {
+        activeRulesSnapshot.current = localTemplates[activeRole] || {};
+    }, [sortField, sortDirection, activeRole, search, disabledCategories, showOnlyPriority]);
+
+    const sortedFilteredItems = useMemo(() => {
+        const list = [...filteredItems];
+        if (!sortField) return list;
+
+        const rulesSnap = activeRulesSnapshot.current;
+
+        return list.sort(([nameA, catA], [nameB, catB]) => {
+            const ruleA = rulesSnap[nameA] || getDefaultRuleForCategory(catA, activeRole);
+            const ruleB = rulesSnap[nameB] || getDefaultRuleForCategory(catB, activeRole);
+
+            let valA: any = 0;
+            let valB: any = 0;
+
+            if (sortField === 'name') {
+                valA = nameA;
+                valB = nameB;
+            } else if (sortField === 'category') {
+                valA = catA;
+                valB = catB;
+            } else if (sortField === 'min') {
+                valA = ruleA.min || 0;
+                valB = ruleB.min || 0;
+            } else if (sortField === 'max') {
+                valA = ruleA.max || 0;
+                valB = ruleB.max || 0;
+            } else if (sortField === 'priority') {
+                valA = ruleA.isPriority ? 1 : 0;
+                valB = ruleB.isPriority ? 1 : 0;
+            }
+
+            if (typeof valA === 'string') {
+                return sortDirection === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+            return sortDirection === 'asc' ? valA - valB : valB - valA;
+        });
+    }, [filteredItems, sortField, sortDirection, activeRole]);
 
     const templateStats = useMemo(() => {
         const rules = localTemplates[activeRole] || {};
@@ -1264,15 +1334,40 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                     <table className="data-table">
                         <thead>
                             <tr>
-                                <th>{language === 'tr' ? 'Malzeme Adı' : 'Item Name'}</th>
-                                <th>{language === 'tr' ? 'Kategori' : 'Category'}</th>
-                                <th style={{ width: '130px' }}>{t('min_critical_label')}</th>
-                                <th style={{ width: '130px' }}>{t('max_surplus_label')}</th>
-                                <th style={{ width: '110px', textAlign: 'center' }}>{language === 'tr' ? 'Öncelik' : 'Priority'}</th>
+                                <th onClick={() => toggleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                        <span>{language === 'tr' ? 'Malzeme Adı' : 'Item Name'}</span>
+                                        {renderSortIcon('name')}
+                                    </div>
+                                </th>
+                                <th onClick={() => toggleSort('category')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                        <span>{language === 'tr' ? 'Kategori' : 'Category'}</span>
+                                        {renderSortIcon('category')}
+                                    </div>
+                                </th>
+                                <th onClick={() => toggleSort('min')} style={{ width: '130px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                        <span>Min</span>
+                                        {renderSortIcon('min')}
+                                    </div>
+                                </th>
+                                <th onClick={() => toggleSort('max')} style={{ width: '130px', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                                        <span>Max</span>
+                                        {renderSortIcon('max')}
+                                    </div>
+                                </th>
+                                <th onClick={() => toggleSort('priority')} style={{ width: '110px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                                        <span>{language === 'tr' ? 'Öncelik' : 'Priority'}</span>
+                                        {renderSortIcon('priority')}
+                                    </div>
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {filteredItems.map(([itemName, category]) => {
+                            {sortedFilteredItems.map(([itemName, category]) => {
                                 const rule = activeRules[itemName] || getDefaultRuleForCategory(category, activeRole);
                                 return (
                                     <tr key={itemName}>

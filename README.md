@@ -1,4 +1,4 @@
-# Veli Logistics Tracker (v0.1.1)
+# Veli Logistics Tracker (v0.1.70)
 
 An advanced, high-performance desktop application for tracking Foxhole stockpiles, inventory, and logistics requests.
 

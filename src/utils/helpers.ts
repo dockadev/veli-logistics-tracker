@@ -1,5 +1,12 @@
-import type { Language } from './localization';
-import type { RegionSettings, RegionSetting } from '../types';
+export function normalizeItemKey(name: string): string {
+  if (!name) return '';
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+export function getDepotRegion(dep: any): string {
+  if (!dep || typeof dep.name !== 'string') return '';
+  return dep.name.split(' - ')[0].trim();
+}
 
 export function resolveTemplateSetting(
   regionName?: string | null,

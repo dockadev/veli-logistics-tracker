@@ -36,7 +36,7 @@ export const en = {
 
     tab_inventory: "Inventory",
     tab_cross_search: "Cross-Search",
-    tab_supply_requests: "Production Orders",
+    tab_supply_requests: "Orders & MPF Calculator",
     tab_passcodes: "Passcodes",
     tab_transfer_calculator: "Transfer Calculator",
     tab_demand: "Demand",

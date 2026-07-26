@@ -30,7 +30,7 @@ export const tr: Partial<Record<keyof typeof en, string>> = {
     supply_request_board_desc: "Aktif tesisler ve bölgeler arasındaki üretim siparişlerini koordine edin.",
     tab_inventory: "Envanter",
     tab_cross_search: "Çapraz Arama",
-    tab_supply_requests: "Siparişler",
+    tab_supply_requests: "Orders & MPF Calculator",
     tab_passcodes: "Parolalar",
     tab_transfer_calculator: "Taşıma Hesaplayıcı",
     tab_demand: "Talep Analizi",

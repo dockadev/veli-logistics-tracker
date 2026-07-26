@@ -47,3 +47,8 @@ gen_presets.cjs
 
 # Local Agent Workspace Data
 .agents/
+
+# Discord Bot Worker (Deploys via Wrangler locally)
+worker/
+.wrangler/
+

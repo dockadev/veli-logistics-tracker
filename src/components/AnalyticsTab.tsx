@@ -87,6 +87,14 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
             });
 
             if (blob) {
+                if (isSupabaseConfigured && supabase) {
+                    supabase.storage.from('public-assets').upload('demand_overview.png', blob, {
+                        contentType: 'image/png',
+                        cacheControl: '60',
+                        upsert: true
+                    }).catch(err => console.error('[AnalyticsTab] Storage upload error:', err));
+                }
+
                 await navigator.clipboard.write([
                     new ClipboardItem({ 'image/png': blob })
                 ]);
@@ -1051,7 +1059,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                     {isOverviewExpanded && (
                         <div style={{ padding: '1rem', background: '#121912', overflowX: 'auto' }}>
                             {/* Captured Container */}
-                            <div ref={overviewGridRef} style={{ background: '#121912', padding: '1rem', borderRadius: '6px', minWidth: '1200px' }}>
+                            <div id="demand-overview-all-cities" ref={overviewGridRef} style={{ background: '#121912', padding: '1rem', borderRadius: '6px', minWidth: '1200px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '0.5rem' }}>
                                     <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 800, color: '#ffffff', letterSpacing: '0.05em' }}>
                                         {overviewTitle}
