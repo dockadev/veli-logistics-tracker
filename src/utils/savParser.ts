@@ -334,18 +334,21 @@ export function parseSavFile(fileBuffer: Uint8Array): ParsedStockpile[] {
           info.Structures?.forEach((e: any) => processEntry(e, false));
           info.StructureCrates?.forEach((e: any) => processEntry(e, true));
 
-          if (Object.keys(items).length > 0) {
+          if (tag) {
             const locationKey = `${mapId} - ${structureType} - ${tag}`;
             // Avoid adding duplicates from multiple detail sources if location already present
             const existingIdx = result.findIndex(r => r.location === locationKey);
             if (existingIdx !== -1) {
-              result[existingIdx] = {
-                location: locationKey,
-                region: mapId,
-                townName: null,
-                timestamp,
-                items
-              };
+              // Update with newest items if existing entry is empty or has fewer items
+              if (Object.keys(items).length > 0 || Object.keys(result[existingIdx].items).length === 0) {
+                result[existingIdx] = {
+                  location: locationKey,
+                  region: mapId,
+                  townName: null,
+                  timestamp,
+                  items
+                };
+              }
             } else {
               result.push({
                 location: locationKey,
