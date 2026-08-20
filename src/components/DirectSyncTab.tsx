@@ -325,23 +325,25 @@ return (
             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
               {t('scan_interval')}
             </span>
-            <CustomSelect
-              value={String(scanInterval)}
-              disabled={isCapturing}
-              onChange={(val) => {
-                const numVal = Number(val);
-                setScanInterval(numVal);
-                cachedScanInterval = numVal;
-              }}
-              options={[
-                { value: '1', label: '1 Second (Realtime)' },
-                { value: '3', label: '3 Seconds' },
-                { value: '5', label: '5 Seconds (Recommended)' },
-                { value: '10', label: '10 Seconds' },
-                { value: '30', label: '30 Seconds' },
-                { value: '60', label: '60 Seconds' }
-              ]}
-            />
+            <div style={{ width: '225px', flexShrink: 0 }}>
+              <CustomSelect
+                value={String(scanInterval)}
+                disabled={isCapturing}
+                onChange={(val) => {
+                  const numVal = Number(val);
+                  setScanInterval(numVal);
+                  cachedScanInterval = numVal;
+                }}
+                options={[
+                  { value: '1', label: '1 Second (Realtime)' },
+                  { value: '3', label: '3 Seconds' },
+                  { value: '5', label: '5 Seconds (Recommended)' },
+                  { value: '10', label: '10 Seconds' },
+                  { value: '30', label: '30 Seconds' },
+                  { value: '60', label: '60 Seconds' }
+                ]}
+              />
+            </div>
           </div>
 
           <button
