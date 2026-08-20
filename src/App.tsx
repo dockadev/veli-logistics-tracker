@@ -104,7 +104,7 @@ function getDepotMatchKey(rawFullName: string): string {
 
 const IS_TAURI = typeof window !== 'undefined' && !!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
-const APP_VERSION = '0.2.01';
+const APP_VERSION = '0.2.1';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);
