@@ -284,19 +284,20 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.25rem', width: '100%', boxSizing: 'border-box' }}>
+    <div className="anim-row-in" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', padding: '0.25rem', width: '100%', boxSizing: 'border-box' }}>
       
       {/* Header Bar */}
-      <div style={{
+      <div className="anim-row-in" style={{
         background: 'rgba(28, 38, 28, 0.4)',
         border: '1px solid var(--border-color)',
-        borderRadius: '8px',
+        borderRadius: '6px',
         padding: '0.85rem 1.25rem',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
         flexWrap: 'wrap',
-        gap: '0.5rem'
+        gap: '0.5rem',
+        transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <ShieldCheck size={20} style={{ color: 'var(--accent-color)' }} />
@@ -329,12 +330,13 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
       </div>
 
       {/* Stacked Section 1: Pending Integration Queue (Collapsible Accordion) */}
-      <div style={{
+      <div className="anim-row-in" style={{
         background: 'rgba(20, 28, 20, 0.3)',
         border: pendingDepots.length > 0 ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--border-color)',
-        borderRadius: '8px',
+        borderRadius: '6px',
         overflow: 'visible',
-        position: 'relative'
+        position: 'relative',
+        animationDelay: '60ms'
       }}>
         {/* Accordion Header */}
         <div 
@@ -402,6 +404,7 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
                   return (
                     <div
                       key={depotKey}
+                      className="anim-row-in"
                       style={{
                         position: 'relative',
                         zIndex: pendingDepots.length - index,
@@ -411,8 +414,12 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
                         padding: '0.6rem 0.85rem',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '0.4rem'
+                        gap: '0.4rem',
+                        animationDelay: `${index * 50}ms`,
+                        transition: 'border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease'
                       }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.borderColor = hasErr ? '#ef4444' : 'rgba(var(--accent-color-rgb), 0.4)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = hasErr ? '#ef4444' : 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
                     >
                       {hasErr && (
                         <div style={{ fontSize: '0.73rem', color: '#ef4444', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
@@ -529,12 +536,13 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
       </div>
 
       {/* Stacked Section 2: Integrated Depots Catalog (Collapsible Accordion Grouped by Region) */}
-      <div style={{
+      <div className="anim-row-in" style={{
         background: 'rgba(20, 28, 20, 0.3)',
         border: '1px solid var(--border-color)',
-        borderRadius: '8px',
+        borderRadius: '6px',
         overflow: 'visible',
-        position: 'relative'
+        position: 'relative',
+        animationDelay: '120ms'
       }}>
         {/* Accordion Header */}
         <div 
@@ -576,18 +584,21 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {Object.entries(groupedIntegratedByRegion).map(([regionName, subregionsMap]) => (
+                {Object.entries(groupedIntegratedByRegion).map(([regionName, subregionsMap], regionIdx) => (
                   /* Region Card separated by prominent WHITE BORDER */
                   <div
                     key={regionName}
+                    className="anim-row-in"
                     style={{
                       background: 'rgba(18, 26, 18, 0.7)',
                       border: '1px solid rgba(255, 255, 255, 0.35)',
-                      borderRadius: '8px',
+                      borderRadius: '6px',
                       padding: '1rem',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '0.85rem'
+                      gap: '0.85rem',
+                      animationDelay: `${regionIdx * 60}ms`,
+                      transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
                     }}
                   >
                     {/* Region Header */}
@@ -625,12 +636,12 @@ export const RegionManagementTab: React.FC<RegionManagementTabProps> = ({
                                 </tr>
                               </thead>
                               <tbody>
-                                {sortedItems.map(([depotKey, dep]) => {
+                                {sortedItems.map(([depotKey, dep], rowIdx) => {
                                   const isRevealed = !!revealedIntegratedCodes[depotKey];
                                   const isEditing = editingDepotKey === depotKey;
 
                                   return (
-                                    <tr key={depotKey} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                    <tr key={depotKey} className="anim-row-in" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', animationDelay: `${Math.min(rowIdx, 20) * 30}ms`, transition: 'background 0.15s ease' }} onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--accent-color-rgb), 0.04)'; }} onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}>
                                       <td style={{ padding: '0.4rem 0.6rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                         {dep.customName || formatCleanDepotName(dep.name, dep.subregion)}
                                       </td>

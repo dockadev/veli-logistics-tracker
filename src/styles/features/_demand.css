@@ -1,0 +1,442 @@
+/* ============================================================
+   DEMAND ANALYSIS - matte theme, 6px corners (matches passcodes)
+   ============================================================ */
+
+.demand-tab {
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    padding: 0 0.5rem 2rem;
+    animation: fadeIn 0.25s ease-out;
+}
+
+/* Section cards (overview, needed, surplus) */
+.demand-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 1.25rem;
+    transition: box-shadow 0.2s ease;
+}
+.demand-section:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.25);
+}
+.demand-section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0 0 1rem 0;
+}
+.demand-section-header h2 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+/* Collapsible section titles */
+.demand-collapse-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+}
+.demand-collapse-header h3 {
+    margin: 0;
+    font-family: var(--font-heading);
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+}
+
+/* Stats grid (target/available/needed) */
+.demand-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+}
+.demand-stat {
+    padding: 1rem 1.1rem;
+    background: var(--card-header-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    transition: transform 0.2s ease;
+}
+.demand-stat:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.4);
+    transform: translateY(-1px);
+}
+.demand-stat-label {
+    font-size: 0.62rem;
+    color: var(--text-secondary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+.demand-stat-value {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-family: var(--font-heading);
+}
+
+/* Progress bar */
+.demand-progress-track {
+    height: 8px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.demand-progress-fill {
+    height: 100%;
+    width: 100%;
+    transform-origin: left;
+    transform: scaleX(0);
+    border-radius: 4px;
+}
+.demand-progress-label {
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 0.25rem;
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+}
+
+/* View toggle (removed — items only) */
+
+/* Category filter chips */
+.demand-chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.35rem;
+    margin-bottom: 1.1rem;
+}
+.demand-chip {
+    padding: 0.25rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    user-select: none;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    color: var(--text-primary);
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.demand-chip:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.55);
+    color: var(--text-primary);
+    background: rgba(var(--accent-color-rgb), 0.08);
+    transform: translateY(-1px);
+}
+.demand-chip.disabled {
+    background: rgba(255, 255, 255, 0.01);
+    border-color: rgba(255, 255, 255, 0.07);
+    color: var(--text-muted);
+    opacity: 0.55;
+}
+
+/* Cards grid — 6 cards per row on wide screens */
+.demand-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+    gap: 0.75rem;
+}
+
+/* Demand item/city card — vertical layout */
+.demand-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    transition: box-shadow 0.2s ease;
+}
+.demand-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.demand-card.needed:hover {
+    border-color: rgba(239, 68, 68, 0.55);
+    box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.15), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.demand-card.surplus:hover {
+    border-color: rgba(16, 185, 129, 0.55);
+    box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.15), 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.demand-card-main {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    min-width: 0;
+}
+/* City panel (below main content, vertical) */
+.demand-city-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    min-width: 0;
+    border-top: 1px solid var(--border-color);
+    padding-top: 0.6rem;
+}
+.demand-card.needed {
+    border-left: 3px solid rgba(239, 68, 68, 0.6);
+}
+.demand-card.surplus {
+    border-left: 3px solid rgba(16, 185, 129, 0.6);
+}
+.demand-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+}
+.demand-card-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 6px;
+    background: var(--card-header-bg);
+    border: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.demand-card-title {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    word-break: break-word;
+    line-height: 1.25;
+}
+
+/* 3-stat box */
+.demand-stat-box {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.4rem;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 0.55rem 0.4rem;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
+}
+.demand-stat-box-label {
+    font-size: 0.58rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+}
+.demand-stat-box-value {
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-top: 0.1rem;
+    transition: color 0.3s ease;
+}
+
+/* Thin progress */
+.demand-progress-thin-track {
+    height: 5px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+}
+.demand-progress-thin-fill {
+    height: 100%;
+    width: 100%;
+    transform-origin: left;
+    transform: scaleX(0);
+    border-radius: 3px;
+    transition: transform 0.3s ease;
+}
+
+/* City status rows (legacy — removed) */
+
+.demand-rows-title {
+    font-size: 0.66rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.35rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Empty state */
+.demand-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    background: var(--card-header-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+
+/* ============================================================
+   NEEDED DEMANDS — modernized chips + spring entrance
+   ============================================================ */
+
+/* Chip wrap (replaces vertical row list for needed section) */
+.demand-city-chip-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    align-items: center;
+    max-height: 88px;
+    overflow-y: auto;
+    padding-right: 0.15rem;
+}
+.demand-city-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.22rem 0.55rem;
+    font-size: 0.7rem;
+    background: var(--card-header-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    max-width: 180px;
+    animation: demandChipIn 0.24s cubic-bezier(0.34, 1.45, 0.64, 1) backwards;
+    animation-delay: calc(var(--chip-index, 0) * 22ms);
+    transition: opacity 0.18s ease, transform 0.18s ease, background 0.18s ease;
+}
+.demand-city-chip:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.35);
+    background: var(--bg-card-hover);
+}
+.demand-city-chip-name {
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.demand-city-chip-badge {
+    font-weight: 700;
+    font-size: 0.62rem;
+    padding: 0.05rem 0.32rem;
+    border-radius: 999px;
+    line-height: 1.3;
+}
+.demand-city-chip-badge.negative {
+    background: var(--color-negative-bg);
+    border: 1px solid var(--color-negative-border);
+    color: var(--color-negative);
+}
+.demand-city-chip-badge.positive {
+    background: var(--color-positive-bg);
+    border: 1px solid var(--color-positive-border);
+    color: var(--color-positive);
+}
+
+/* Expand / collapse chip flow control */
+.demand-show-more {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+    padding: 0.3rem 0.6rem;
+    background: rgba(var(--accent-color-rgb), 0.08);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.demand-show-more:hover {
+    background: rgba(var(--accent-color-rgb), 0.16);
+}
+.demand-show-more:active {
+    transform: scale(0.96);
+}
+.demand-show-more-icon {
+    transition: transform 0.2s ease;
+}
+.demand-show-more[data-expanded="true"] .demand-show-more-icon {
+    transform: rotate(180deg);
+}
+
+/* Show-more bubble count */
+.demand-show-more-count {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Chip entrance (cascade driven by inline --chip-index) */
+@keyframes demandChipIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+/* Spring card entrance (overrides anim-row-in for needed section) */
+@keyframes demandCardIn {
+    from { opacity: 0; transform: translateY(10px) scale(0.96); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.demand-card.is-spring-in {
+    animation: demandCardIn 0.42s cubic-bezier(0.34, 1.45, 0.64, 1) backwards;
+}
+
+/* Progress bar shimmer after card settles */
+@keyframes demandProgressShimmer {
+    0% { background-position: -120px 0; }
+    100% { background-position: 120px 0; }
+}
+.demand-progress-thin-fill::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--accent-bg), transparent);
+    background-size: 240px 100%;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+.demand-card.is-spring-in .demand-progress-thin-fill {
+    position: relative;
+    overflow: hidden;
+}
+.demand-card.is-spring-in .demand-progress-thin-fill::after {
+    opacity: 1;
+    animation: demandProgressShimmer 1.1s ease-out 0.35s 1;
+}
+
+/* Count-up numeric transition (smooths value updates between data refreshes) */
+
+/* Reduced motion fallback */
+@media (prefers-reduced-motion: reduce) {
+    .demand-city-chip,
+    .demand-show-more,
+    .demand-show-more-icon,
+    .demand-card.is-spring-in,
+    .demand-card .demand-progress-thin-fill::after {
+        animation: none !important;
+        transition: none !important;
+    }
+}

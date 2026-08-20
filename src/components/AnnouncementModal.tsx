@@ -10,6 +10,15 @@ interface AnnouncementModalProps {
     onClose: () => void;
 }
 
+const PIN_MS: Record<string, number> = {
+    '6h': 21600000,
+    '12h': 43200000,
+    '1d': 86400000,
+    '2d': 172800000,
+    '3d': 259200000,
+    '1w': 604800000
+};
+
 export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
     isOpen,
     onPublish,
@@ -29,19 +38,8 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
         if (!text || !header) return;
 
         let pinnedUntil: string | undefined = undefined;
-        if (pinDuration !== 'none') {
-            const now = Date.now();
-            let durationMs = 0;
-            if (pinDuration === '6h') durationMs = 6 * 60 * 60 * 1000;
-            else if (pinDuration === '12h') durationMs = 12 * 60 * 60 * 1000;
-            else if (pinDuration === '1d') durationMs = 24 * 60 * 60 * 1000;
-            else if (pinDuration === '2d') durationMs = 48 * 60 * 60 * 1000;
-            else if (pinDuration === '3d') durationMs = 72 * 60 * 60 * 1000;
-            else if (pinDuration === '1w') durationMs = 7 * 24 * 60 * 60 * 1000;
-            
-            if (durationMs > 0) {
-                pinnedUntil = new Date(now + durationMs).toISOString();
-            }
+        if (pinDuration !== 'none' && PIN_MS[pinDuration]) {
+            pinnedUntil = new Date(Date.now() + PIN_MS[pinDuration]).toISOString();
         }
 
         onPublish(header, text, severity, pinnedUntil);
@@ -52,14 +50,26 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
         onClose();
     };
 
+    const fieldStyle: React.CSSProperties = {
+        width: '100%',
+        padding: '0.55rem 0.75rem',
+        background: 'var(--input-bg)',
+        border: '1px solid var(--border-color)',
+        borderRadius: '6px',
+        color: 'var(--text-primary)',
+        outline: 'none',
+        fontSize: '0.82rem',
+        transition: 'border-color 0.15s ease, background 0.15s ease'
+    };
+
     return (
         <>
             <div className="modal-backdrop-blur" onClick={onClose} />
             <div className="modal-wrapper" onClick={onClose}>
-                <div 
+                <div
                     className="modal-container"
                     onClick={(e) => e.stopPropagation()}
-                    style={{ maxWidth: '500px', width: '95%' }}
+                    style={{ maxWidth: '520px', width: '95%', borderRadius: '6px' }}
                 >
                     <div className="modal-header">
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -80,89 +90,63 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
                                 placeholder={t('announcement_title_placeholder')}
                                 value={title}
                                 onChange={(e) => setTitle(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    padding: '0.6rem 0.75rem',
-                                    background: 'rgba(0,0,0,0.25)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    color: '#fff',
-                                    outline: 'none',
-                                    fontSize: '0.85rem',
-                                    marginBottom: '1rem'
-                                }}
+                                style={fieldStyle}
                             />
                         </div>
 
                         <div className="form-group" style={{ marginBottom: '1rem' }}>
                             <label style={{ display: 'block', marginBottom: '0.5rem' }}>{t('severity')}</label>
                             <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                {(['normal', 'high', 'critical'] as const).map((level) => (
-                                    <button
-                                        key={level}
-                                        type="button"
-                                        onClick={() => setSeverity(level)}
-                                        style={{
-                                            flex: 1,
-                                            padding: '0.45rem 0.5rem',
-                                            borderRadius: 'var(--radius-sm)',
-                                            fontSize: '0.75rem',
-                                            fontWeight: 700,
-                                            textTransform: 'uppercase',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            border: severity === level 
-                                                ? level === 'critical' ? '1px solid #ef4444' : level === 'high' ? '1px solid #f97316' : '1px solid var(--accent-color)'
-                                                : '1px solid var(--border-color)',
-                                            background: severity === level
-                                                ? level === 'critical' ? 'rgba(239, 68, 68, 0.15)' : level === 'high' ? 'rgba(249, 115, 22, 0.15)' : 'var(--accent-bg)'
-                                                : 'rgba(255, 255, 255, 0.02)',
-                                            color: severity === level
-                                                ? level === 'critical' ? '#ef4444' : level === 'high' ? '#f97316' : 'var(--accent-color)'
-                                                : 'var(--text-secondary)'
-                                        }}
-                                    >
-                                        {t(`severity_${level}` as TranslationKey)}
-                                    </button>
-                                ))}
+                                {(['normal', 'high', 'critical'] as const).map((level) => {
+                                    const active = severity === level;
+                                    const color = level === 'critical' ? '#ef4444' : level === 'high' ? '#f97316' : 'var(--accent-color)';
+                                    const bg = level === 'critical' ? 'rgba(239, 68, 68, 0.15)' : level === 'high' ? 'rgba(249, 115, 22, 0.15)' : 'var(--accent-bg)';
+                                    return (
+                                        <button
+                                            key={level}
+                                            type="button"
+                                            onClick={() => setSeverity(level)}
+                                            style={{
+                                                flex: 1,
+                                                padding: '0.45rem 0.5rem',
+                                                borderRadius: '6px',
+                                                fontSize: '0.72rem',
+                                                fontWeight: 700,
+                                                textTransform: 'uppercase',
+                                                cursor: 'pointer',
+                                                transition: 'all 0.15s ease',
+                                                border: active ? `1px solid ${color}` : '1px solid var(--border-color)',
+                                                background: active ? bg : 'rgba(255, 255, 255, 0.02)',
+                                                color: active ? color : 'var(--text-secondary)'
+                                            }}
+                                        >
+                                            {t(`severity_${level}` as TranslationKey)}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
-                        {/* Pin Duration Selector */}
                         <div className="form-group" style={{ marginBottom: '1rem' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.5rem' }}>
                                 <Pin size={14} style={{ color: pinDuration !== 'none' ? '#f59e0b' : 'var(--text-secondary)' }} />
                                 <span>{t('pin_duration')}</span>
                             </label>
                             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.35rem' }}>
-                                {(['none', '6h', '12h', '1d', '2d', '3d', '1w'] as const).map((dur) => (
-                                    <button
-                                        key={dur}
-                                        type="button"
-                                        onClick={() => setPinDuration(dur)}
-                                        style={{
-                                            padding: '0.4rem 0.25rem',
-                                            borderRadius: 'var(--radius-sm)',
-                                            fontSize: '0.72rem',
-                                            fontWeight: 700,
-                                            cursor: 'pointer',
-                                            transition: 'all 0.2s',
-                                            textAlign: 'center',
-                                            whiteSpace: 'nowrap',
-                                            border: pinDuration === dur
-                                                ? '1px solid #f59e0b'
-                                                : '1px solid var(--border-color)',
-                                            background: pinDuration === dur
-                                                ? 'rgba(245, 158, 11, 0.2)'
-                                                : 'rgba(255, 255, 255, 0.02)',
-                                            color: pinDuration === dur
-                                                ? '#f59e0b'
-                                                : 'var(--text-secondary)'
-                                        }}
-                                    >
-                                        {t(`pin_${dur}` as TranslationKey)}
-                                    </button>
-                                ))}
+                                {(['none', '6h', '12h', '1d', '2d', '3d', '1w'] as const).map((dur) => {
+                                    const active = pinDuration === dur;
+                                    return (
+                                        <button
+                                            key={dur}
+                                            type="button"
+                                            onClick={() => setPinDuration(dur)}
+                                            className={active ? 'announcements-pin-btn active' : 'announcements-pin-btn'}
+                                            style={{ padding: '0.38rem 0.25rem', fontSize: '0.68rem', whiteSpace: 'nowrap', textAlign: 'center' }}
+                                        >
+                                            {t(`pin_${dur}` as TranslationKey)}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -173,18 +157,7 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
                                 placeholder={t('announcement_placeholder')}
                                 value={content}
                                 onChange={(e) => setContent(e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    minHeight: '120px',
-                                    padding: '0.75rem',
-                                    background: 'rgba(0,0,0,0.25)',
-                                    border: '1px solid var(--border-color)',
-                                    borderRadius: 'var(--radius-sm)',
-                                    color: '#fff',
-                                    outline: 'none',
-                                    fontSize: '0.85rem',
-                                    resize: 'vertical'
-                                }}
+                                style={{ ...fieldStyle, minHeight: '130px', resize: 'vertical' }}
                             />
                         </div>
                     </div>
@@ -193,8 +166,8 @@ export const AnnouncementModal: React.FC<AnnouncementModalProps> = React.memo(({
                         <button className="btn btn-secondary" onClick={onClose}>
                             {t('confirm_cancel')}
                         </button>
-                        <button 
-                            className="btn btn-primary" 
+                        <button
+                            className="btn btn-primary"
                             onClick={handlePublish}
                             disabled={!content.trim() || !title.trim()}
                             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}

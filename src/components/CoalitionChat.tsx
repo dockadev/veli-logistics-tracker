@@ -25,8 +25,20 @@ interface CoalitionChatProps {
     style?: React.CSSProperties;
 }
 
-export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ currentUsername, userClan, theme, userRole, showToast, isFullTab, isFloatingOnly, isChatOpen = false, onUnreadChange, onClose, style }) => {
-    const [isOpen, setIsOpen] = useState(false);
+function clanHue(clan: string): number {
+    let hash = 0;
+    for (let i = 0; i < clan.length; i++) {
+        hash = (hash * 31 + clan.charCodeAt(i)) % 360;
+    }
+    return hash;
+}
+
+function formatChatTime(iso: string): string {
+    const d = new Date(iso);
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ currentUsername, userClan, theme, userRole, showToast, isFullTab, isFloatingOnly, isChatOpen = false, onUnreadChange, onClose, style }) => {    const [isOpen, setIsOpen] = useState(false);
     const isChatOpenRef = useRef(isChatOpen);
     useEffect(() => {
         isChatOpenRef.current = isChatOpen;
@@ -177,7 +189,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'chat_messages' },
                 (payload) => {
-                    console.log('[Chat Real-time] Message received:', payload);
+                    console.debug('[Chat Real-time] Message received:', payload);
                     const newMsg = payload.new as ChatMessage;
                     
                     setMessages(prev => {
@@ -202,7 +214,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                 'postgres_changes',
                 { event: 'DELETE', schema: 'public', table: 'chat_messages' },
                 async (payload) => {
-                    console.log('[Chat Real-time] Message deleted:', payload);
+                    console.debug('[Chat Real-time] Message deleted:', payload);
                     if (payload.old && payload.old.id) {
                         setMessages(prev => prev.filter(m => m.id !== payload.old.id));
                     } else {
@@ -230,7 +242,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                 }
             )
             .subscribe((status) => {
-                console.log('[Chat Real-time] Channel status:', status);
+                console.debug('[Chat Real-time] Channel status:', status);
             });
 
         return () => {
@@ -376,10 +388,10 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         width: isFloatingOnly ? '360px' : '100%',
                         height: isFloatingOnly ? '460px' : '100%',
                         minHeight: isFloatingOnly ? undefined : '600px',
-                        background: theme === 'dark' ? 'linear-gradient(135deg, rgba(16, 24, 18, 0.98) 0%, rgba(10, 16, 11, 0.98) 100%)' : '#ffffff',
-                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-color)',
                         borderRadius: 'var(--radius-md)',
-                        boxShadow: isFloatingOnly ? '0 8px 32px rgba(0, 0, 0, 0.8)' : undefined,
+                        boxShadow: isFloatingOnly ? '0 8px 32px rgba(0, 0, 0, 0.55)' : undefined,
                         display: 'flex',
                         flexDirection: 'column',
                         overflow: 'hidden',
@@ -391,36 +403,50 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         <div style={{
                             position: 'absolute',
                             top: 0, left: 0, right: 0, bottom: 0,
-                            background: 'rgba(15, 15, 20, 0.95)',
-                            backdropFilter: 'blur(8px)',
+                            background: 'var(--bg-card)',
+                            backdropFilter: 'blur(10px)',
                             zIndex: 10000,
                             display: 'flex',
                             flexDirection: 'column',
                             justifyContent: 'center',
                             alignItems: 'center',
                             padding: '1.5rem',
-                            textAlign: 'center'
+                            textAlign: 'center',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-md)'
                         }}>
-                            <Trash2 size={32} style={{ color: '#ff4757', marginBottom: '0.8rem' }} />
+                            <div style={{
+                                width: '48px',
+                                height: '48px',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'var(--color-negative-bg)',
+                                border: '1px solid var(--color-negative-border)',
+                                marginBottom: '0.85rem'
+                            }}>
+                                <Trash2 size={22} style={{ color: 'var(--color-negative)' }} />
+                            </div>
                             <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                 Sohbeti Temizle
                             </h4>
-                            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                            <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                                 Sohbet geçmişini kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
                             </p>
                             <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                                <button 
+                                <button
                                     type="button"
-                                    className="btn btn-secondary" 
-                                    style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem' }}
+                                    className="btn btn-secondary"
+                                    style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem', borderRadius: '8px' }}
                                     onClick={() => setShowClearConfirm(false)}
                                 >
                                     İptal
                                 </button>
-                                <button 
+                                <button
                                     type="button"
-                                    className="btn" 
-                                    style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem', background: '#ff4757', border: 'none', color: '#fff', fontWeight: 600 }}
+                                    className="btn"
+                                    style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem', borderRadius: '8px', background: 'var(--color-negative)', border: 'none', color: '#fff', fontWeight: 600 }}
                                     onClick={() => {
                                         confirmClearChat();
                                         setShowClearConfirm(false);
@@ -436,11 +462,11 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         onMouseDown={handleMouseDown}
                         style={{
                             padding: '0.75rem 1rem',
-                            borderBottom: '1px solid rgba(16, 185, 129, 0.25)',
+                            borderBottom: '1px solid var(--border-color)',
                             display: 'flex',
                             justifyContent: 'space-between',
                             alignItems: 'center',
-                            background: 'rgba(0, 0, 0, 0.3)',
+                            background: 'rgba(0, 0, 0, 0.2)',
                             cursor: isFloatingOnly ? 'move' : 'default',
                             userSelect: 'none'
                         }}
@@ -487,15 +513,16 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         }}
                     >
                         {messages.length === 0 ? (
-                            <div style={{ textAlign: 'center', margin: 'auto', opacity: 0.4, fontSize: '0.75rem' }}>
-                                No messages in chat.
+                            <div style={{ textAlign: 'center', margin: 'auto', opacity: 0.45, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                No messages yet — be the first to say hi.
                             </div>
                         ) : (
                             messages.map((msg, index) => {
                                 const isSelf = msg.username === currentUsername;
                                 const isConsecutive = index > 0 && messages[index - 1].username === msg.username;
+                                const avatarHue = msg.clan ? clanHue(msg.clan) : 0;
                                 return (
-                                    <div 
+                                    <div
                                         key={msg.id}
                                         style={{
                                             display: 'flex',
@@ -507,20 +534,56 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                         }}
                                     >
                                         {!isConsecutive && (
-                                            <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '0.05rem', fontWeight: 600 }}>
-                                                {msg.clan ? `[${msg.clan}] ` : ''}{msg.username}
-                                            </span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.1rem' }}>
+                                                <span style={{
+                                                    width: '18px',
+                                                    height: '18px',
+                                                    borderRadius: '50%',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    fontSize: '0.55rem',
+                                                    fontWeight: 800,
+                                                    color: '#000',
+                                                    flexShrink: 0,
+                                                    background: msg.clan
+                                                        ? `linear-gradient(135deg, hsl(${avatarHue}, 70%, 55%), hsl(${avatarHue}, 70%, 40%))`
+                                                        : 'linear-gradient(135deg, #6b7280, #4b5563)'
+                                                }}>
+                                                    {msg.username.charAt(0).toUpperCase()}
+                                                </span>
+                                                <span style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                                                    {msg.username}
+                                                </span>
+                                                {msg.clan && (
+                                                    <span style={{
+                                                        fontSize: '0.52rem',
+                                                        fontWeight: 800,
+                                                        padding: '0.06rem 0.3rem',
+                                                        borderRadius: '4px',
+                                                        letterSpacing: '0.03em',
+                                                        background: `hsla(${avatarHue}, 70%, 50%, 0.18)`,
+                                                        color: `hsl(${avatarHue}, 80%, 65%)`,
+                                                        border: `1px solid hsla(${avatarHue}, 70%, 55%, 0.35)`
+                                                    }}>
+                                                        {msg.clan.toUpperCase()}
+                                                    </span>
+                                                )}
+                                                <span style={{ fontSize: '0.55rem', color: 'var(--text-muted)' }}>
+                                                    {formatChatTime(msg.created_at)}
+                                                </span>
+                                            </div>
                                         )}
-                                        <div 
+                                        <div
                                             style={{
                                                 padding: '0.35rem 0.6rem',
-                                                borderRadius: isSelf 
-                                                    ? (isConsecutive ? '12px' : '12px 12px 2px 12px') 
+                                                borderRadius: isSelf
+                                                    ? (isConsecutive ? '12px' : '12px 12px 2px 12px')
                                                     : (isConsecutive ? '12px' : '12px 12px 12px 2px'),
-                                                background: isSelf ? 'rgba(16, 185, 129, 0.2)' : 'rgba(0, 0, 0, 0.3)',
-                                                border: isSelf ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                                                background: isSelf ? 'rgba(16, 185, 129, 0.16)' : 'rgba(255, 255, 255, 0.04)',
+                                                border: isSelf ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid rgba(255, 255, 255, 0.07)',
                                                 fontSize: '0.75rem',
-                                                color: '#fff',
+                                                color: 'var(--text-primary)',
                                                 wordBreak: 'break-word'
                                             }}
                                         >
@@ -565,6 +628,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                         />
                         <button 
                             type="submit"
+                            disabled={!newMessage.trim()}
                             style={{
                                 background: buttonBg,
                                 color: iconColor,
@@ -575,7 +639,8 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                cursor: 'pointer'
+                                cursor: newMessage.trim() ? 'pointer' : 'not-allowed',
+                                opacity: newMessage.trim() ? 1 : 0.4
                             }}
                         >
                             <Send size={14} style={{ margin: 'auto' }} />
@@ -621,7 +686,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                     fontWeight: 700,
                                     borderRadius: '10px',
                                     padding: '2px 6px',
-                                    border: '2px solid rgba(15, 15, 20, 0.85)'
+                                    border: '2px solid var(--bg-card)'
                                 }}
                             >
                                 {unreadCount}
@@ -640,10 +705,10 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                 right: '1.5rem',
                                 width: '360px',
                                 height: '460px',
-                                background: theme === 'dark' ? '#000000' : '#ffffff',
+                                background: 'var(--bg-card)',
                                 border: '1px solid var(--border-color)',
                                 borderRadius: 'var(--radius-md)',
-                                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
+                                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.55)',
                                 display: 'flex',
                                 flexDirection: 'column',
                                 zIndex: 9999,
@@ -654,36 +719,50 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                 <div style={{
                                     position: 'absolute',
                                     top: 0, left: 0, right: 0, bottom: 0,
-                                    background: 'rgba(15, 15, 20, 0.95)',
-                                    backdropFilter: 'blur(8px)',
+                                    background: 'var(--bg-card)',
+                                    backdropFilter: 'blur(10px)',
                                     zIndex: 10000,
                                     display: 'flex',
                                     flexDirection: 'column',
                                     justifyContent: 'center',
                                     alignItems: 'center',
                                     padding: '1.5rem',
-                                    textAlign: 'center'
+                                    textAlign: 'center',
+                                    border: '1px solid var(--border-color)',
+                                    borderRadius: 'var(--radius-md)'
                                 }}>
-                                    <Trash2 size={32} style={{ color: '#ff4757', marginBottom: '0.8rem' }} />
+                                    <div style={{
+                                        width: '48px',
+                                        height: '48px',
+                                        borderRadius: '50%',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: 'var(--color-negative-bg)',
+                                        border: '1px solid var(--color-negative-border)',
+                                        marginBottom: '0.85rem'
+                                    }}>
+                                        <Trash2 size={22} style={{ color: 'var(--color-negative)' }} />
+                                    </div>
                                     <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                                         Sohbeti Temizle
                                     </h4>
-                                    <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                    <p style={{ margin: '0 0 1.2rem 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
                                         Sohbet geçmişini kalıcı olarak silmek istediğinize emin misiniz? Bu işlem geri alınamaz.
                                     </p>
                                     <div style={{ display: 'flex', gap: '0.5rem', width: '100%' }}>
-                                        <button 
+                                        <button
                                             type="button"
-                                            className="btn btn-secondary" 
-                                            style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem' }}
+                                            className="btn btn-secondary"
+                                            style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem', borderRadius: '8px' }}
                                             onClick={() => setShowClearConfirm(false)}
                                         >
                                             İptal
                                         </button>
-                                        <button 
+                                        <button
                                             type="button"
-                                            className="btn" 
-                                            style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem', background: '#ff4757', border: 'none', color: '#fff', fontWeight: 600 }}
+                                            className="btn"
+                                            style={{ flex: 1, padding: '0.45rem', fontSize: '0.75rem', borderRadius: '8px', background: 'var(--color-negative)', border: 'none', color: '#fff', fontWeight: 600 }}
                                             onClick={() => {
                                                 confirmClearChat();
                                                 setShowClearConfirm(false);
@@ -774,8 +853,8 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                                         borderRadius: isSelf 
                                                             ? (isConsecutive ? '12px' : '12px 12px 2px 12px') 
                                                             : (isConsecutive ? '12px' : '12px 12px 12px 2px'),
-                                                        background: isSelf ? 'rgba(249, 115, 22, 0.15)' : (theme === 'dark' ? '#111111' : 'rgba(0, 0, 0, 0.04)'),
-                                                        border: isSelf ? '1px solid rgba(249, 115, 22, 0.3)' : '1px solid var(--border-color)',
+                                                        background: isSelf ? 'rgba(16, 185, 129, 0.16)' : 'var(--bg-card-hover)',
+                                                        border: isSelf ? '1px solid rgba(16, 185, 129, 0.35)' : '1px solid var(--border-color)',
                                                         fontSize: '0.75rem',
                                                         color: 'var(--text-primary)',
                                                         wordBreak: 'break-word'
@@ -799,7 +878,7 @@ export const CoalitionChat: React.FC<CoalitionChatProps> = React.memo(({ current
                                     borderTop: '1px solid var(--border-color)',
                                     display: 'flex',
                                     gap: '0.5rem',
-                                    background: theme === 'dark' ? '#000000' : 'rgba(0, 0, 0, 0.02)'
+                                    background: 'rgba(0, 0, 0, 0.2)'
                                 }}
                             >
                                 <input 

@@ -10,6 +10,129 @@ import { getItemIconUrl, getCategoryIconUrl } from '../utils/itemIcons';
 import { dbService } from '../utils/dbService';
 import { ConfirmModal } from './ConfirmModal';
 
+interface TemplateRowProps {
+    itemName: string;
+    category: string;
+    rule: { min: number; max: number; isPriority?: boolean };
+    onRuleChange: (itemName: string, field: 'min' | 'max' | 'isPriority', val: any) => void;
+    language: string;
+    t: (key: TranslationKey) => string;
+}
+
+const TemplateRow: React.FC<TemplateRowProps> = React.memo(({ itemName, category, rule, onRuleChange, language, t }) => {
+    return (
+        <tr
+            className="anim-row-in"
+            style={{ transition: 'background 0.15s ease' }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(var(--accent-color-rgb), 0.04)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+        >
+            <td style={{
+                fontWeight: 700,
+                color: rule.isPriority ? '#ff7a00' : 'var(--text-primary)',
+                transition: 'color 0.15s ease'
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    {getItemIconUrl(itemName) && (
+                        <img
+                            src={getItemIconUrl(itemName)!}
+                            alt={itemName}
+                            style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
+                            onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                    )}
+                    <span>{itemName}</span>
+                    {rule.isPriority && (
+                        <span style={{
+                            fontSize: '0.58rem',
+                            fontWeight: 800,
+                            background: 'rgba(255, 122, 0, 0.15)',
+                            color: '#ff7a00',
+                            padding: '0.05rem 0.35rem',
+                            borderRadius: '4px',
+                            textTransform: 'uppercase',
+                            border: '1px solid rgba(255, 122, 0, 0.25)',
+                            letterSpacing: '0.03em',
+                            flexShrink: 0
+                        }}>
+                            PRIO ITEM
+                        </span>
+                    )}
+                </div>
+            </td>
+            <td style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {t(`cat_${category}` as TranslationKey)}
+                </span>
+            </td>
+            <td>
+                <input
+                    type="number"
+                    min={0}
+                    value={rule.min}
+                    onChange={(e) => onRuleChange(itemName, 'min', parseInt(e.target.value, 10))}
+                    style={{
+                        width: '100%',
+                        background: 'var(--input-bg)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.4rem 0.6rem',
+                        color: '#ef4444',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        outline: 'none'
+                    }}
+                />
+            </td>
+            <td>
+                <input
+                    type="number"
+                    min={0}
+                    value={rule.max}
+                    onChange={(e) => onRuleChange(itemName, 'max', parseInt(e.target.value, 10))}
+                    style={{
+                        width: '100%',
+                        background: 'var(--input-bg)',
+                        border: '1px solid rgba(var(--accent-color-rgb), 0.4)',
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.4rem 0.6rem',
+                        color: 'var(--accent-color)',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        outline: 'none'
+                    }}
+                />
+            </td>
+            <td style={{ textAlign: 'center' }}>
+                <button
+                    type="button"
+                    onClick={() => onRuleChange(itemName, 'isPriority', rule.isPriority ? false : true)}
+                    style={{
+                        background: rule.isPriority ? 'rgba(255, 122, 0, 0.12)' : 'rgba(255,255,255,0.02)',
+                        border: rule.isPriority ? '1px solid #ff7a00' : '1px solid var(--border-color)',
+                        color: rule.isPriority ? '#ff7a00' : 'var(--text-secondary)',
+                        borderRadius: '6px',
+                        padding: '0.35rem 0.75rem',
+                        fontSize: '0.72rem',
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        width: '95px',
+                        display: 'inline-block',
+                        textAlign: 'center'
+                    }}
+                >
+                    {rule.isPriority
+                        ? (language === 'tr' ? 'ÖNCELİKLİ' : 'PRIORITY')
+                        : (language === 'tr' ? 'NORMAL' : 'NORMAL')}
+                </button>
+            </td>
+        </tr>
+    );
+});
+
+TemplateRow.displayName = 'TemplateRow';
+
 interface StockpileTemplatesTabProps {
     templates: StockpileTemplates;
     onSaveTemplates: (templates: StockpileTemplates) => Promise<void>;
@@ -58,6 +181,14 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     // Column sorting state
     const [sortField, setSortField] = useState<'name' | 'category' | 'min' | 'max' | 'priority' | null>(null);
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+    // Pagination state (performance: only render one page of rows)
+    const [templatePage, setTemplatePage] = useState(1);
+    const TEMPLATE_ITEMS_PER_PAGE = 100;
+
+    useEffect(() => {
+        setTemplatePage(1);
+    }, [search, sortField, sortDirection, disabledCategories, showOnlyPriority, activeRole]);
 
     const toggleSort = (field: 'name' | 'category' | 'min' | 'max' | 'priority') => {
         if (sortField !== field) {
@@ -150,7 +281,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
 
             const exportData = {
                 _app: "Veli Logistics Tracker",
-                _version: "0.1.71",
+                _version: "0.2.0",
                 _exportedAt: new Date().toISOString(),
                 _activeRole: activeRole,
                 templateColors,
@@ -376,12 +507,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                 };
             }
 
-            const crateKey = itemName.endsWith(' (Crate)') ? itemName : `${itemName} (Crate)`;
-            const baseKey = itemName.endsWith(' (Crate)') ? itemName.replace(' (Crate)', '') : itemName;
-
             currentRoleTemplates[itemName] = updatedRule;
-            currentRoleTemplates[crateKey] = updatedRule;
-            currentRoleTemplates[baseKey] = updatedRule;
 
             return {
                 ...prev,
@@ -437,19 +563,22 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
 
     const activeRules = localTemplates[activeRole] || {};
 
-    const filteredItems = allItems.filter(([itemName, cat]) => {
-        const isCategoryEnabled = !disabledCategories.has(cat);
-        const matchesSearch = search.trim() === '' || itemName.toLowerCase().includes(search.toLowerCase());
-        
-        if (showOnlyPriority) {
-            const rule = activeRules[itemName];
-            if (!rule || !rule.isPriority) {
-                return false;
-            }
-        }
+    const filteredItems = useMemo(() => {
+        return allItems.filter(([itemName, cat]) => {
+            const isCategoryEnabled = !disabledCategories.has(cat);
+            const matchesSearch = search.trim() === '' || itemName.toLowerCase().includes(search.toLowerCase());
 
-        return isCategoryEnabled && matchesSearch;
-    });
+            if (showOnlyPriority) {
+                const rule = activeRules[itemName];
+                if (!rule || !rule.isPriority) {
+                    return false;
+                }
+            }
+
+            return isCategoryEnabled && matchesSearch;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [allItems, disabledCategories, search, showOnlyPriority, activeRules]);
 
     const activeRulesSnapshot = useRef(activeRules);
 
@@ -494,6 +623,9 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
         });
     }, [filteredItems, sortField, sortDirection, activeRole]);
 
+    const totalTemplatePages = Math.max(1, Math.ceil(sortedFilteredItems.length / TEMPLATE_ITEMS_PER_PAGE));
+    const paginatedItems = sortedFilteredItems.slice((templatePage - 1) * TEMPLATE_ITEMS_PER_PAGE, templatePage * TEMPLATE_ITEMS_PER_PAGE);
+
     const templateStats = useMemo(() => {
         const rules = localTemplates[activeRole] || {};
         let activeCount = 0;
@@ -522,9 +654,9 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
     }, [allItems, localTemplates, activeRole]);
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', animation: 'fadeIn 0.25s ease-out' }}>
             {/* Region Template Settings Panel */}
-            <div className="card-container" style={{ padding: '1rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)', marginBottom: '0.25rem' }}>
+            <div className="card-container anim-row-in" style={{ padding: '1rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', marginBottom: '0.25rem', transition: 'border-color 0.2s ease, box-shadow 0.2s ease' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: isRegionPanelCollapsed ? 'none' : '1px solid var(--border-color)', paddingBottom: isRegionPanelCollapsed ? '0' : '0.5rem', marginBottom: isRegionPanelCollapsed ? '0' : '0.75rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                         <div 
@@ -630,19 +762,20 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                             </p>
                         ) : (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                                {Object.entries(uniqueSubregionsGrouped).map(([region, subregions]) => {
+                                {Object.entries(uniqueSubregionsGrouped).map(([region, subregions], regionIdx) => {
                                     return (
-                                        <div key={region} style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(255,255,255,0.03)', borderRadius: '8px' }}>
+                                        <div key={region} className="anim-row-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', padding: '0.75rem', background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: '6px', animationDelay: `${regionIdx * 40}ms`, transition: 'border-color 0.2s ease, box-shadow 0.2s ease' }}>
                                             <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--accent-color)', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.15rem', paddingLeft: '0.25rem' }}>
                                                 {region}
                                             </div>
-                                            {subregions.map(subregion => {
+                                            {subregions.map((subregion, subIdx) => {
                                                 const setting = localRegionSettings[subregion] || { regionName: subregion, templateType: 'unassigned', demandPercentage: 100 };
                                                 const isUnassigned = !setting.templateType || setting.templateType === 'unassigned';
 
                                                 return (
                                                     <div
                                                         key={subregion}
+                                                        className="anim-row-in"
                                                         style={{
                                                             display: 'flex',
                                                             alignItems: 'center',
@@ -650,11 +783,14 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                                             flexWrap: 'wrap',
                                                             gap: '0.75rem',
                                                             padding: '0.45rem 0.65rem',
-                                                            background: isUnassigned ? 'rgba(239, 68, 68, 0.05)' : 'rgba(0, 0, 0, 0.25)',
+                                                            background: isUnassigned ? 'rgba(239, 68, 68, 0.05)' : 'var(--bg-card)',
                                                             border: isUnassigned ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-color)',
                                                             borderRadius: '6px',
-                                                            transition: 'all 0.15s ease'
+                                                            transition: 'border-color 0.15s ease, background 0.15s ease, transform 0.15s ease',
+                                                            animationDelay: `${regionIdx * 40 + (subIdx + 1) * 30}ms`
                                                         }}
+                                                        onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.borderColor = isUnassigned ? 'rgba(239, 68, 68, 0.5)' : 'rgba(var(--accent-color-rgb), 0.4)'; }}
+                                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = isUnassigned ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-color)'; }}
                                                     >
                                                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: '160px' }}>
                                                             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-primary)' }}>
@@ -719,7 +855,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
             {(userRole === 'developer' || userRole === 'logistics_lead') && (
                 <>
                     {/* Header Card */}
-                    <div className="card-container" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+                    <div className="card-container anim-row-in" style={{ padding: '1.5rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', animationDelay: '60ms', transition: 'border-color 0.2s ease, box-shadow 0.2s ease' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
                         <div style={{
@@ -882,7 +1018,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                             fontWeight: 800,
                                             fontSize: '0.8rem',
                                             cursor: 'pointer',
-                                            transition: 'all 0.15s ease',
+                                            transition: 'all 0.15s ease, transform 0.15s ease',
                                             fontFamily: 'var(--font-heading)',
                                             textTransform: 'uppercase',
                                             display: 'inline-flex',
@@ -892,6 +1028,8 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                                             lineHeight: 1,
                                             minHeight: '34px'
                                         }}
+                                        onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                                     >
                                         {tKey === 'frontline' ? t('frontline') : tKey === 'backline' ? t('backline') : tKey === 'airfield' ? 'Airfield' : tKey}
                                     </button>
@@ -1367,116 +1505,50 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
                             </tr>
                         </thead>
                         <tbody>
-                            {sortedFilteredItems.map(([itemName, category]) => {
+                            {paginatedItems.map(([itemName, category]) => {
                                 const rule = activeRules[itemName] || getDefaultRuleForCategory(category, activeRole);
                                 return (
-                                    <tr key={itemName}>
-                                        <td style={{ 
-                                            fontWeight: 700, 
-                                            color: rule.isPriority ? '#ff7a00' : 'var(--text-primary)',
-                                            transition: 'color 0.15s ease'
-                                        }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                                                {getItemIconUrl(itemName) && (
-                                                    <img 
-                                                        src={getItemIconUrl(itemName)!} 
-                                                        alt={itemName} 
-                                                        style={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }} 
-                                                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                    />
-                                                )}
-                                                <span>{itemName}</span>
-                                                {rule.isPriority && (
-                                                    <span style={{
-                                                        fontSize: '0.58rem',
-                                                        fontWeight: 800,
-                                                        background: 'rgba(255, 122, 0, 0.15)',
-                                                        color: '#ff7a00',
-                                                        padding: '0.05rem 0.35rem',
-                                                        borderRadius: '4px',
-                                                        textTransform: 'uppercase',
-                                                        border: '1px solid rgba(255, 122, 0, 0.25)',
-                                                        letterSpacing: '0.03em',
-                                                        flexShrink: 0
-                                                    }}>
-                                                        PRIO ITEM
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <span className="badge badge-item">
-                                                {t(`cat_${category}` as TranslationKey)}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={rule.min}
-                                                onChange={(e) => handleRuleChange(itemName, 'min', parseInt(e.target.value, 10))}
-                                                style={{
-                                                    width: '100%',
-                                                    background: 'var(--input-bg)',
-                                                    border: '1px solid rgba(239, 68, 68, 0.4)',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    padding: '0.4rem 0.6rem',
-                                                    color: '#ef4444',
-                                                    fontWeight: 700,
-                                                    fontSize: '0.8rem',
-                                                    outline: 'none'
-                                                }}
-                                            />
-                                        </td>
-                                        <td>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={rule.max}
-                                                onChange={(e) => handleRuleChange(itemName, 'max', parseInt(e.target.value, 10))}
-                                                style={{
-                                                    width: '100%',
-                                                    background: 'var(--input-bg)',
-                                                    border: '1px solid rgba(var(--accent-color-rgb), 0.4)',
-                                                    borderRadius: 'var(--radius-sm)',
-                                                    padding: '0.4rem 0.6rem',
-                                                    color: 'var(--accent-color)',
-                                                    fontWeight: 700,
-                                                    fontSize: '0.8rem',
-                                                    outline: 'none'
-                                                }}
-                                            />
-                                        </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <button
-                                                type="button"
-                                                onClick={() => handleRuleChange(itemName, 'isPriority', rule.isPriority ? false : true)}
-                                                style={{
-                                                    background: rule.isPriority ? 'rgba(255, 122, 0, 0.12)' : 'rgba(255,255,255,0.02)',
-                                                    border: rule.isPriority ? '1px solid #ff7a00' : '1px solid var(--border-color)',
-                                                    color: rule.isPriority ? '#ff7a00' : 'var(--text-secondary)',
-                                                    borderRadius: '6px',
-                                                    padding: '0.35rem 0.75rem',
-                                                    fontSize: '0.72rem',
-                                                    fontWeight: 800,
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.15s ease',
-                                                    width: '95px',
-                                                    display: 'inline-block',
-                                                    textAlign: 'center'
-                                                }}
-                                            >
-                                                {rule.isPriority 
-                                                    ? (language === 'tr' ? 'ÖNCELİKLİ' : 'PRIORITY') 
-                                                    : (language === 'tr' ? 'NORMAL' : 'NORMAL')}
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <TemplateRow
+                                        key={itemName}
+                                        itemName={itemName}
+                                        category={category}
+                                        rule={rule}
+                                        onRuleChange={handleRuleChange}
+                                        language={language}
+                                        t={t}
+                                    />
                                 );
                             })}
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {totalTemplatePages > 1 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.85rem', marginTop: '0.85rem', padding: '0.5rem 0' }}>
+                        <button
+                            type="button"
+                            className="pagination-btn"
+                            disabled={templatePage === 1}
+                            onClick={() => setTemplatePage(prev => Math.max(1, prev - 1))}
+                        >
+                            {language === 'tr' ? 'Önceki' : 'Previous'}
+                        </button>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            {language === 'tr' ? `Sayfa ${templatePage} / ${totalTemplatePages}` : `Page ${templatePage} of ${totalTemplatePages}`}
+                            {' · '}
+                            {sortedFilteredItems.length} {language === 'tr' ? 'malzeme' : 'items'}
+                        </span>
+                        <button
+                            type="button"
+                            className="pagination-btn"
+                            disabled={templatePage === totalTemplatePages}
+                            onClick={() => setTemplatePage(prev => Math.min(totalTemplatePages, prev + 1))}
+                        >
+                            {language === 'tr' ? 'Sonraki' : 'Next'}
+                        </button>
+                    </div>
+                )}
             </div>
                 </>
             )}

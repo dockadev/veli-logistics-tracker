@@ -213,7 +213,7 @@ export const dbService = {
                         });
 
                         if (keysToDeleteFromDb.length > 0) {
-                            console.log('[DB Service] Deleting obsolete merged duplicate rows:', keysToDeleteFromDb);
+                            console.debug('[DB Service] Deleting obsolete merged duplicate rows:', keysToDeleteFromDb);
                             supabase.from('depots').delete().in('name', keysToDeleteFromDb).then(({ error }) => {
                                 if (error) console.error('[DB Service] Failed to delete obsolete depots:', error);
                             });
@@ -942,7 +942,7 @@ export const dbService = {
                 console.warn('[DB Service] Supabase loadMinAppVersion failed:', err);
             }
         }
-        return '0.1.71';
+        return '0.2.0';
     },
 
     async saveMinAppVersion(version: string): Promise<void> {
@@ -962,5 +962,26 @@ export const dbService = {
                 console.error('[DB Service] Supabase saveMinAppVersion failed:', err);
             }
         }
+    },
+
+    async loadInternalApiSecret(): Promise<string> {
+        if (isSupabaseConfigured && supabase) {
+            try {
+                const { data, error } = await supabase
+                    .from('system_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'internal_api_secret')
+                    .single();
+                if (!error && data && data.setting_value) {
+                    const val = typeof data.setting_value === 'string'
+                        ? data.setting_value
+                        : JSON.stringify(data.setting_value);
+                    return val.replace(/^"|"$/g, '').trim();
+                }
+            } catch (err) {
+                console.warn('[DB Service] Supabase loadInternalApiSecret failed:', err);
+            }
+        }
+        return '';
     }
 };

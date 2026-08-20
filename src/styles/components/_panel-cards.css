@@ -6,112 +6,41 @@
     background: var(--bg-card);
     border: 1px solid var(--border-color);
     border-radius: var(--radius-md);
-    margin-bottom: 1rem;
-    display: flex;
-    flex-direction: column;
-    overflow: visible;
-    box-shadow: 0 4px 20px rgba(var(--black-rgb), 0.2);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 0.75rem;
+    display: flex; flex-direction: column; overflow: visible;
+    transition: border-color var(--transition-smooth);
 }
 
-.panel-card:hover {
-    border-color: var(--border-hover);
-    box-shadow: 0 6px 24px rgba(var(--accent-color-rgb), 0.08);
-}
-
-.popover-card {
-    z-index: 99999 !important;
-    background: rgba(16, 22, 19, 0.96) !important;
-    border: 1px solid rgba(16, 185, 129, 0.35) !important;
-    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75), 0 0 10px rgba(16, 185, 129, 0.15) !important;
-}
+.panel-card:hover { border-color: var(--border-hover); }
 
 .card-header {
-    padding: 0.85rem 1.25rem;
+    padding: 0.75rem 1.1rem;
     border-bottom: 1px solid var(--border-color);
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
+    display: flex; align-items: center; gap: 0.55rem;
     background: var(--card-header-bg);
-    transition: border-color 0.2s ease;
 }
-
-.card-header svg {
-    color: var(--accent-color);
-    filter: drop-shadow(0 0 3px var(--accent-glow));
-    transition: color 0.2s ease;
-}
-
+.card-header svg { color: var(--text-secondary); }
 .card-header h2 {
-    font-family: var(--font-heading);
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    font-family: var(--font-heading); font-size: 0.76rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
 }
+.card-body { padding: 1.1rem; }
 
-.card-body {
-    padding: 1.25rem;
-}
-
-/* Health Region Accordion Header & Depot Cards Hover Effects */
+/* Health accordion */
 .health-region-toggle {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.45rem 0.75rem;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    cursor: pointer;
-    user-select: none;
-    transition: all 0.2s ease;
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 0.4rem 0.65rem; border-radius: 6px;
+    border: 1px solid transparent; cursor: pointer; user-select: none;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
-
-.health-region-toggle:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.3);
-    box-shadow: 0 0 10px rgba(255, 255, 255, 0.05);
-}
+.health-region-toggle:hover { background: var(--accent-bg); border-color: var(--border-color); }
 
 .depot-health-card {
-    padding: 0.9rem 1rem;
-    background: rgba(255, 255, 255, 0.015);
-    border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    transition: all 0.2s ease;
+    padding: 0.75rem 0.85rem; border-radius: 8px;
+    border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.35rem;
+    transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast), opacity var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
 }
+.depot-health-card:hover { background: var(--bg-card-hover); border-color: var(--border-hover); transform: translateY(-1px); }
 
-.depot-health-card:hover {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.35);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4), 0 0 8px rgba(255, 255, 255, 0.1);
-    transform: translateY(-1px);
-}
-
-/* Demand Tab needed & surplus card custom hovers */
-.needed-demand-card {
-    border: 1px solid rgba(239, 68, 68, 0.15) !important;
-    background: rgba(239, 68, 68, 0.01) !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
-}
-
-.needed-demand-card:hover {
-    border-color: rgba(239, 68, 68, 0.65) !important;
-    box-shadow: none !important;
-}
-
-.surplus-stock-card {
-    border: 1px solid rgba(16, 185, 129, 0.15) !important;
-    background: rgba(16, 185, 129, 0.01) !important;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease !important;
-}
-
-.surplus-stock-card:hover {
-    border-color: rgba(16, 185, 129, 0.65) !important;
-    box-shadow: none !important;
-}
-
+/* Popover */
+.popover-card { z-index: 99999 !important; background: var(--modal-bg) !important; border: 1px solid var(--border-hover) !important; box-shadow: 0 12px 28px rgba(0, 0, 0, 0.75) !important; }

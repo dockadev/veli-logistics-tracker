@@ -1,133 +1,111 @@
 /* ============================================================
-   CUSTOM SELECT COMPONENT
+   CUSTOM SELECT COMPONENT — matte theme, 6px corners
    ============================================================ */
 
-.custom-select-container {
-    position: relative;
-    width: 100%;
-}
-
-.custom-select-container.open {
-    z-index: 1000;
-}
+.custom-select-container { position: relative; width: 100%; }
+.custom-select-container.open { z-index: 1000; }
 
 .custom-select-trigger {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     width: 100%;
-    background: var(--input-bg);
+    background: var(--btn-secondary-bg);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-sm);
-    padding: 0.55rem 0.75rem;
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
     color: var(--text-primary);
     font-family: var(--font-body);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     text-align: left;
     cursor: pointer;
-    transition: border-color 0.15s ease, background-color 0.15s ease, box-shadow 0.15s ease;
-    outline: none;
-    height: 38px;
+    height: 36px;
     box-sizing: border-box;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+    outline: none;
 }
-
+.custom-select-trigger:hover {
+    border-color: rgba(228, 234, 229, 0.4);
+    background: var(--btn-secondary-bg-hover);
+}
 .custom-select-trigger:focus {
-    border-color: var(--border-focus);
+    border-color: rgba(228, 234, 229, 0.6);
     background: var(--input-focus-bg);
-    box-shadow: 0 0 0 2px var(--accent-glow);
 }
 
 .custom-select-dropdown {
-    position: absolute;
-    top: calc(100% + 4px);
-    left: 0;
-    width: 100%;
-    min-width: 100%;
-    max-height: 320px;
-    overflow-y: auto;
-    background: rgba(14, 23, 17, 0.98);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    border-radius: var(--radius-sm);
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.85);
-    z-index: 99999 !important;
-    padding: 4px 0;
+    position: absolute; top: calc(100% + 4px); left: 0; width: 100%;
+    min-width: 100%; max-height: 300px; overflow-y: auto;
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-hover);
+    border-radius: 6px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+    z-index: 99999 !important; padding: 4px;
+    animation: customSelectIn 0.15s ease;
 }
-
-.custom-select-dropdown::-webkit-scrollbar {
-    width: 6px;
-}
-
-.custom-select-dropdown::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 3px;
-}
-
-.custom-select-dropdown::-webkit-scrollbar-thumb {
-    background: rgba(16, 185, 129, 0.3);
-    border-radius: 3px;
-}
-
-.custom-select-dropdown::-webkit-scrollbar-thumb:hover {
-    background: #10b981;
+@keyframes customSelectIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 .custom-select-option {
-    padding: 0.55rem 0.75rem;
-    color: #cbd5e1;
-    font-size: 0.8rem;
+    padding: 0.5rem 0.7rem;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
     cursor: pointer;
-    transition: background-color 0.15s ease, color 0.15s ease;
     white-space: nowrap;
+    border-radius: 4px;
+    transition: background var(--transition-fast), color var(--transition-fast);
 }
-
 .custom-select-option:hover {
-    background-color: rgba(16, 185, 129, 0.18);
-    color: #ffffff;
+    background: var(--accent-bg);
+    color: var(--text-primary);
 }
-
 .custom-select-option.selected {
-    color: #10b981;
-    background-color: rgba(16, 185, 129, 0.15);
+    color: var(--text-primary);
+    background: rgba(228, 234, 229, 0.12);
     font-weight: 700;
 }
 
-/* Header Depot Selector Specific overrides */
-.header-depot-select {
-    width: auto;
-    min-width: 200px;
-    max-width: 380px;
-}
-
+/* ---------- HEADER DEPOT SELECT (All Depots / Region-Town) ---------- */
+.header-depot-select { width: auto; min-width: 190px; max-width: 380px; }
 .header-depot-select .custom-select-trigger {
-    background: transparent;
-    border: none;
-    border-bottom: 1px dashed rgba(255, 255, 255, 0.25);
-    border-radius: 0;
-    font-size: 1.05rem;
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 0.9rem;
     font-family: var(--font-heading);
-    font-weight: 600;
-    padding: 0.15rem 0.25rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    padding: 0.4rem 0.75rem;
     color: var(--text-primary);
-    box-shadow: none;
-    transition: border-color 0.15s ease, color 0.15s ease;
     height: auto;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
 }
-
 .header-depot-select .custom-select-trigger:hover {
-    border-color: var(--accent-color);
-    background: transparent;
-    color: var(--accent-color);
+    border-color: rgba(228, 234, 229, 0.4);
+    background: var(--btn-secondary-bg-hover);
 }
-
 .header-depot-select .custom-select-trigger:focus {
-    border-color: var(--accent-color);
-    background: transparent;
+    border-color: rgba(228, 234, 229, 0.6);
+    background: var(--input-focus-bg);
     box-shadow: none;
 }
-
 .header-depot-select .custom-select-dropdown {
     width: max-content;
     min-width: 100%;
     margin-top: 4px;
+    border-radius: 6px;
+}
+
+/* ---------- INVENTORY FILTER SELECTS (Category / Change) ---------- */
+.inventory-filter-select { width: auto; min-width: 170px; flex-shrink: 0; }
+.inventory-filter-select .custom-select-trigger {
+    height: 34px;
+    font-size: 0.75rem;
+    font-family: var(--font-heading);
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+.inventory-filter-select .custom-select-dropdown {
+    border-radius: 6px;
 }

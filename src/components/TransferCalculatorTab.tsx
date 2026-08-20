@@ -751,9 +751,9 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
     };
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+        <div className="transfer-tab-root anim-row-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             {/* Header Title Banner */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
+            <div className="transfer-header anim-row-in" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '42px', height: '42px', background: 'rgba(var(--accent-color-rgb), 0.12)', borderRadius: '10px', color: 'var(--accent-color)' }}>
                         <Truck size={22} />
@@ -772,7 +772,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
             </div>
 
             {/* Selectors Panel */}
-            <div className="panel-card" style={{ position: 'relative', padding: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+            <div className="panel-card transfer-panel anim-row-in" style={{ position: 'relative', padding: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', animationDelay: '60ms' }}>
                 <div style={{ position: 'absolute', top: '0.85rem', right: '0.85rem', zIndex: 10 }} onClick={(e) => e.stopPropagation()}>
                     <div style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
                         <button
@@ -1106,7 +1106,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                 ) : (
                                     <button
                                         type="button"
-                                        className="btn btn-primary"
+                                        className="btn btn-primary transfer-cta-btn"
                                         onClick={() => setIsConfirmingInlineSend(true)}
                                         disabled={isSendingDiscord}
                                         style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', fontWeight: 800 }}
@@ -1120,24 +1120,11 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
 
                         {/* Container Cards Grid */}
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '0.85rem' }}>
-                            {containers.map(container => (
+                            {containers.map((container, idx) => (
                                 <div
                                     key={container.containerIndex}
-                                    style={{
-                                        background: 'rgba(255, 255, 255, 0.02)',
-                                        border: container.totalCrates > 60 
-                                            ? '1px solid #ef4444' 
-                                            : container.hasCriticalPriority 
-                                                ? '2px solid #ff7a00' 
-                                                : '1px solid var(--border-color)',
-                                        borderRadius: '8px',
-                                        padding: '0.75rem',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        gap: '0.5rem',
-                                        position: 'relative',
-                                        boxShadow: container.hasCriticalPriority ? '0 0 10px rgba(255, 122, 0, 0.15)' : undefined
-                                    }}
+                                    className={`transfer-container-card anim-row-in ${container.totalCrates > 60 ? 'is-over' : ''} ${container.hasCriticalPriority ? 'is-priority' : ''}`}
+                                    style={{ animationDelay: `${idx * 60}ms` }}
                                 >
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.35rem' }}>
                                         <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center' }}>
@@ -1250,7 +1237,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                                 zIndex: 100,
                                                 maxHeight: '150px',
                                                 overflowY: 'auto',
-                                                background: 'rgba(20, 20, 23, 0.98)',
+                                                background: 'var(--bg-card)',
                                                 border: '1px solid var(--border-color)',
                                                 borderRadius: '4px',
                                                 width: '100%',
@@ -1300,7 +1287,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                 )}
             </div>
             {/* Side-by-Side Regional Logi Comparison View */}
-            <div className="panel-card" style={{ marginTop: '0', padding: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-md)' }}>
+            <div className="panel-card transfer-panel transfer-compare anim-row-in" style={{ marginTop: '0', padding: '1.25rem', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '6px', animationDelay: '120ms' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -1395,7 +1382,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                     <>
                         <div style={{ display: 'flex', gap: '1.25rem', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'stretch' }}>
                             {/* Source Region Table */}
-                            <div style={{ flex: '1 1 380px', background: 'rgba(0, 0, 0, 0.12)', borderRadius: '6px', padding: '0.85rem', border: '1px solid rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column' }}>
+                            <div className="transfer-compare-panel" style={{ flex: '1 1 380px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
                                     <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                                         {sourceRegion} ({language === 'tr' ? 'Kaynak' : 'Source'})
@@ -1500,7 +1487,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                             )}
 
                             {/* Target Region Table */}
-                            <div style={{ flex: '1 1 380px', background: 'rgba(0, 0, 0, 0.12)', borderRadius: '6px', padding: '0.85rem', border: '1px solid rgba(255,255,255,0.03)', display: 'flex', flexDirection: 'column' }}>
+                            <div className="transfer-compare-panel" style={{ flex: '1 1 380px' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.5rem' }}>
                                     <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                                         {targetRegion} ({language === 'tr' ? 'Hedef' : 'Target'})
@@ -1605,6 +1592,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                             <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.85rem', marginTop: '0.75rem' }}>
                                 <button
                                     type="button"
+                                    className="transfer-pager-btn"
                                     disabled={logiPage === 1}
                                     onClick={() => setLogiPage(prev => Math.max(1, prev - 1))}
                                     style={{
@@ -1624,6 +1612,7 @@ export const TransferCalculatorTab: React.FC<TransferCalculatorTabProps> = React
                                 </span>
                                 <button
                                     type="button"
+                                    className="transfer-pager-btn"
                                     disabled={logiPage === totalLogiPages}
                                     onClick={() => setLogiPage(prev => Math.min(totalLogiPages, prev + 1))}
                                     style={{

@@ -6,19 +6,19 @@
 .depot-interface-header {
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
+    border-radius: 6px;
     padding: 1rem 1.25rem;
     margin-bottom: 1.25rem;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 1.5rem;
-    box-shadow: 0 4px 15px rgba(var(--black-rgb), 0.15);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     transition: border-color 0.2s ease;
 }
 
 .depot-interface-header:hover {
-    border-color: var(--border-hover);
+    border-color: rgba(228, 234, 229, 0.4);
 }
 
 .depot-title-group h2 {
@@ -40,6 +40,87 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
+}
+
+/* Template badge */
+.depot-template-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 0.28rem 0.7rem;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+/* Sub-depot filter chips container */
+.depot-filter-chips {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.65rem;
+    margin-bottom: 0.25rem;
+    padding: 0.5rem 0.85rem;
+    background: var(--card-header-bg);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    width: fit-content;
+}
+
+.depot-filter-label {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    opacity: 0.85;
+    margin-right: 0.3rem;
+}
+
+.depot-chip {
+    padding: 0.35rem 0.85rem;
+    border-radius: 6px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+    border: 1px solid var(--border-color);
+    background: var(--btn-secondary-bg);
+    color: var(--text-secondary);
+}
+
+.depot-chip:hover {
+    border-color: rgba(228, 234, 229, 0.4);
+    color: var(--text-primary);
+}
+
+.depot-chip.selected {
+    border-color: var(--ink-100);
+    background: rgba(228, 234, 229, 0.14);
+    color: var(--text-primary);
+    box-shadow: 0 0 10px rgba(228, 234, 229, 0.1);
+}
+
+.depot-chip.stale {
+    border-color: var(--color-negative);
+    color: var(--color-negative);
+}
+
+.depot-chip.stale.selected {
+    background: rgba(239, 68, 68, 0.12);
+}
+
+/* Location info line */
+.depot-location-line {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    margin: 0.35rem 0 0 0;
 }
 
 /* ----- Footer Component ----- */

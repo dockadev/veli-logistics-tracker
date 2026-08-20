@@ -1,0 +1,319 @@
+/* ============================================================
+   STOCKPILE PASSCODES — matte theme, 6px corners
+   Unified single card with search + region filter inside
+   ============================================================ */
+
+.passcodes-tab {
+    padding: 0 0.5rem 2rem;
+}
+
+/* ---------- UNIFIED SINGLE CARD ---------- */
+.passcodes-unified {
+    overflow: hidden;
+}
+
+/* Card title row */
+.passcodes-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.passcodes-card-title h3 {
+    margin: 0;
+    font-size: 0.82rem;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+}
+.passcodes-card-count {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--ink-80);
+}
+
+/* Search */
+.passcodes-search {
+    position: relative;
+    width: 100%;
+}
+.passcodes-search input {
+    width: 100%;
+    padding: 0.5rem 0.85rem 0.5rem 2.25rem;
+    border-radius: 6px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    outline: none;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.passcodes-search input:focus {
+    border-color: rgba(228, 234, 229, 0.5);
+    background: var(--input-focus-bg);
+}
+
+/* Region filter chips */
+.passcodes-chips {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+/* Body */
+.passcodes-unified-body {
+    padding: 0.85rem 1rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* White separator between region cards */
+.passcodes-separator {
+    height: 1px;
+    background: rgba(228, 234, 229, 0.25);
+    margin: 0.9rem 0;
+}
+
+/* Region card */
+.passcodes-region-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.7rem 0.85rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+.passcodes-region-card:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.45);
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.15), 0 6px 18px rgba(0, 0, 0, 0.35);
+}
+
+/* Region name */
+.passcodes-u-region-name {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-heading);
+    font-size: 0.74rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-100);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 0.3rem;
+}
+.passcodes-u-region-name::before {
+    content: '';
+    width: 12px;
+    height: 1px;
+    background: var(--ink-50);
+    flex-shrink: 0;
+}
+.passcodes-u-count {
+    margin-left: auto;
+    font-size: 0.62rem;
+    font-weight: 800;
+    color: var(--ink-80);
+    white-space: nowrap;
+}
+
+/* Town card */
+.passcodes-town-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    background: var(--card-header-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.5rem 0.7rem;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.passcodes-town-card:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.35);
+    background: var(--bg-card-hover);
+}
+
+/* Town name — brighter */
+.passcodes-u-town-name {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--ink-100);
+    letter-spacing: 0.03em;
+}
+.passcodes-u-town-name svg {
+    color: var(--ink-80);
+    flex-shrink: 0;
+}
+.passcodes-u-town-name::before {
+    content: '';
+    width: 10px;
+    height: 1px;
+    background: var(--ink-50);
+    flex-shrink: 0;
+}
+.passcodes-town-count {
+    margin-left: auto;
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--ink-70);
+    white-space: nowrap;
+}
+
+/* Depot rows */
+.passcodes-u-depots {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+}
+.passcodes-u-depot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.32rem 0.6rem;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.passcodes-u-depot:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.4);
+    background: var(--bg-card-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+}
+.passcodes-u-depot:active {
+    transform: translateY(0);
+}
+.passcodes-u-depot-name {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    flex: 1;
+}
+.passcodes-u-depot-name svg {
+    color: var(--ink-70);
+    flex-shrink: 0;
+}
+.passcodes-u-depot-name span {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Actions */
+.passcodes-depot-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-shrink: 0;
+}
+.passcodes-code-box {
+    padding: 0.18rem 0.45rem;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--ink-80);
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+.passcodes-code-box:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.45);
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.12);
+}
+.passcodes-code-box.revealed {
+    color: var(--ink-100);
+    border-color: rgba(228, 234, 229, 0.3);
+    background: rgba(228, 234, 229, 0.06);
+}
+.passcodes-code-box.copied {
+    color: var(--color-positive);
+    border-color: var(--color-positive-border);
+    background: var(--color-positive-bg);
+    box-shadow: 0 0 10px rgba(var(--color-positive-rgb, 34, 197, 94), 0.25);
+}
+.passcodes-action-btn {
+    background: var(--btn-secondary-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.22rem 0.35rem;
+    color: var(--ink-80);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transform: scale(0.94);
+    transition: opacity 0.18s ease, transform 0.18s ease, border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+.passcodes-u-depot:hover .passcodes-action-btn,
+.passcodes-action-btn:focus-visible {
+    opacity: 1;
+    transform: scale(1);
+}
+.passcodes-action-btn:active {
+    transform: scale(0.9);
+}
+.passcodes-action-btn:hover {
+    border-color: rgba(var(--accent-color-rgb), 0.5);
+    color: var(--text-primary);
+    background: var(--btn-secondary-bg-hover);
+}
+.passcodes-action-btn.revealed {
+    color: var(--ink-100);
+    border-color: rgba(var(--accent-color-rgb), 0.5);
+    opacity: 1;
+    transform: scale(1);
+}
+.passcodes-action-btn.copied {
+    color: var(--color-positive);
+    border-color: var(--color-positive-border);
+    background: var(--color-positive-bg);
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Empty state */
+.passcodes-empty {
+    text-align: center;
+    padding: 2.5rem 1.5rem;
+    color: var(--text-secondary);
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+}
+.passcodes-empty svg {
+    margin: 0 auto 0.6rem;
+    opacity: 0.3;
+    display: block;
+}
+
+/* ---------- ENTRANCE ANIMATION (matches inventory) ---------- */
+@keyframes passcodesRowIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.anim-row-in {
+    animation: passcodesRowIn 0.25s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}

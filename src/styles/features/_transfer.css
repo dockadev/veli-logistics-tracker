@@ -1,0 +1,108 @@
+/* ============================================================
+   TRANSFER CALCULATOR — modern flat theme layer
+   Entrance animations, hover states, CTA glow
+   ============================================================ */
+
+@keyframes transferFadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes transferGlow {
+    0%, 100% { box-shadow: 0 0 0 rgba(228, 234, 229, 0); }
+    50% { box-shadow: 0 0 14px rgba(228, 234, 229, 0.18); }
+}
+
+.transfer-tab-root {
+    animation: transferFadeUp 0.3s ease both;
+}
+
+.transfer-header {
+    animation: transferFadeUp 0.3s ease both;
+}
+
+.transfer-panel {
+    animation: transferFadeUp 0.35s ease both;
+    transition: box-shadow 0.2s ease;
+}
+.transfer-panel:hover {
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.1), 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+/* CTA button — Send to Discord */
+.transfer-cta-btn {
+    transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.15s ease;
+}
+.transfer-cta-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+.transfer-cta-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+
+/* Regional comparison tables */
+.transfer-compare table tbody tr {
+    transition: background 0.15s ease;
+}
+.transfer-compare table tbody tr:hover {
+    background: rgba(var(--accent-color-rgb), 0.04);
+}
+
+/* Pagination buttons */
+.transfer-pager-btn {
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.transfer-pager-btn:hover:not(:disabled) {
+    background: rgba(var(--accent-color-rgb), 0.08) !important;
+    transform: translateY(-1px);
+}
+
+/* Container cards */
+.transfer-container-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    position: relative;
+    transition: box-shadow 0.2s ease;
+}
+.transfer-container-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+.transfer-container-card.is-priority {
+    border-color: rgba(255, 122, 0, 0.55);
+    box-shadow: 0 0 10px rgba(255, 122, 0, 0.12);
+}
+.transfer-container-card.is-over {
+    border-color: rgba(239, 68, 68, 0.6);
+}
+.transfer-container-card.is-over:hover {
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+/* Regional comparison panels */
+.transfer-compare-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.85rem;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Source/target region template badge — (kept minimal) */
+
+/* Reduced motion fallback */
+@media (prefers-reduced-motion: reduce) {
+    .transfer-tab-root,
+    .transfer-header,
+    .transfer-panel,
+    .transfer-cta-btn,
+    .transfer-pager-btn:not(:disabled) {
+        animation: none !important;
+        transition: none !important;
+    }
+}

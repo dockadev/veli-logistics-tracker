@@ -30,6 +30,12 @@
 @import './features/_analytics.css';
 @import './features/_leaderboard.css';
 @import './features/_audit-logs.css';
+@import './features/_passcodes.css';
+@import './features/_announcements.css';
+@import './features/_demand.css';
+@import './features/_transfer.css';
+@import './features/_mpf.css';
+@import './features/_direct-sync.css';
 
 /* === 5. OVERLAYS === */
 @import './overlays/_secure-gate.css';

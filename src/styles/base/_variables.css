@@ -1,114 +1,175 @@
 /* ============================================================
-   DOCKA LOGISTICS TRACKER - DESIGN TOKENS & THEME VARIABLES
+   VELI LOGISTICS TRACKER - MODERN MINIMALIST MONOCHROME
+   Bento Grid + Liquid Glass Edition
    ============================================================ */
 
-/* ----- Typography & Font Importing ----- */
-/* Google Fonts loaded via HTML <link> tags in index.html for optimized preload performance */
-
-/* ----- Theme Variables ----- */
 :root {
     color-scheme: dark;
     --font-heading: 'Oxanium', sans-serif;
     --font-body: 'Plus Jakarta Sans', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
 
+    /* Base RGB tokens */
     --black-rgb: 0, 0, 0;
     --white-rgb: 255, 255, 255;
     --color-discord: #5865f2;
     --color-discord-hover: #4752c4;
     --discord-rgb: 88, 101, 242;
-    --color-positive-rgb: 16, 185, 129;
+
+    /* Spacing & Shape */
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 22px;
+    --transition-fast: 0.12s ease;
+    --transition-smooth: 0.2s ease;
+    --transition-spring: 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* === LIQUID GLASS TOKENS (dark olive) === */
+    --glass-bg: rgba(228, 234, 229, 0.04);
+    --glass-bg-strong: rgba(228, 234, 229, 0.07);
+    --glass-bg-tint: rgba(30, 38, 33, 0.6);
+    --glass-bg-deep: rgba(20, 26, 22, 0.75);
+    --glass-border: rgba(228, 234, 229, 0.09);
+    --glass-border-strong: rgba(228, 234, 229, 0.18);
+    --glass-border-bright: rgba(228, 234, 229, 0.32);
+    --glass-highlight: rgba(228, 234, 229, 0.08);
+    --glass-blur: 24px;
+    --glass-blur-strong: 36px;
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(228, 234, 229, 0.06);
+    --glass-shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(228, 234, 229, 0.08);
+    --glass-glow: 0 0 0 1px rgba(228, 234, 229, 0.06), 0 0 28px rgba(228, 234, 229, 0.04);
+
+    /* === INK SCALE (light text on dark) === */
+    --ink-100: #E4EAE5;
+    --ink-90: #D0D8D2;
+    --ink-80: #B9C6BC;
+    --ink-70: #9AA8A0;
+    --ink-60: #8A988F;
+    --ink-50: #6F7E74;
+    --ink-40: #55635A;
+    --ink-30: #3E4B43;
+    --ink-20: #2D3A31;
+    --ink-15: #262F29;
+    --ink-10: #1E2621;
+    --ink-05: #181F1A;
+    --ink-00: #141A16;
+
+    /* === BENTO LAYOUT === */
+    --bento-gap: 14px;
+    --bento-radius: 18px;
+    --bento-radius-lg: 26px;
+
+    /* === TACTICAL OLIVE-DARK PALETTE === */
+    --bg-main: #141A16;
+    --bg-surface: #181F1A;
+    --bg-card: #1E2621;
+    --bg-card-hover: #242E27;
+
+    --border-color: rgba(45, 58, 49, 0.8);
+    --border-hover: rgba(100, 130, 110, 0.9);
+    --border-focus: rgba(200, 220, 205, 0.7);
+
+    --text-primary: #E4EAE5;
+    --text-secondary: #9AA8A0;
+    --text-muted: #5C6B61;
+
+    --accent-color: #E4EAE5;
+    --accent-color-rgb: 228, 234, 229;
+    --accent-glow: rgba(228, 234, 229, 0.08);
+    --accent-bg: rgba(228, 234, 229, 0.06);
+
+    /* Status colors (vibrant for stock change indicators) */
+    --color-positive: #22c55e;
+    --color-positive-rgb: 34, 197, 94;
+    --color-positive-bg: rgba(34, 197, 94, 0.14);
+    --color-positive-border: rgba(34, 197, 94, 0.42);
+    --color-positive-strong: rgba(34, 197, 94, 0.85);
+
+    --color-negative: #ef4444;
     --color-negative-rgb: 244, 63, 94;
-    --color-warning-rgb: 245, 158, 11;
-    --bg-surface-rgb: 10, 10, 15;
-    --bg-card-rgb: 18, 18, 26;
-    --bg-header-rgb: 24, 24, 27;
-    --bg-titlebar-rgb: 20, 20, 22;
-
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 18px;
-    --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-smooth: 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
-
-    /* Glassmorphism Configuration Tokens */
-    --glass-blur: 16px;
-    --glass-opacity: 0.85;
-
-    /* Dark Theme Variables (Dark Khaki Green Theme) */
-    --bg-main: #0c100c;
-    --bg-surface: #101610;
-    --bg-card: rgba(18, 26, 18, var(--glass-opacity));
-    --bg-card-hover: rgba(24, 36, 24, 0.95);
-    --border-color: rgba(148, 163, 148, 0.2);
-    --border-hover: rgba(255, 255, 255, 0.45);
-    --border-focus: #ffffff;
-
-    --text-primary: #ffffff;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-
-    --accent-color: #ffffff;
-    --accent-color-rgb: 255, 255, 255;
-    --accent-glow: rgba(255, 255, 255, 0.25);
-    --accent-bg: rgba(255, 255, 255, 0.08);
-
-    --color-positive: #10b981;
-    --color-positive-bg: rgba(16, 185, 129, 0.08);
-    --color-positive-border: rgba(16, 185, 129, 0.3);
-
-    --color-negative: #f43f5e;
-    --color-negative-bg: rgba(244, 63, 94, 0.08);
-    --color-negative-border: rgba(244, 63, 94, 0.3);
+    --color-negative-bg: rgba(239, 68, 68, 0.14);
+    --color-negative-border: rgba(239, 68, 68, 0.42);
+    --color-negative-strong: rgba(239, 68, 68, 0.85);
 
     --color-warning: #f59e0b;
-    --color-warning-bg: rgba(245, 158, 11, 0.08);
-    --color-warning-border: rgba(245, 158, 11, 0.3);
+    --color-warning-rgb: 245, 158, 11;
+    --color-warning-bg: rgba(245, 158, 11, 0.14);
+    --color-warning-border: rgba(245, 158, 11, 0.42);
+    --color-warning-strong: rgba(245, 158, 11, 0.85);
 
-    --header-bg: rgba(12, 18, 12, 0.98);
-    --btn-primary-text: #06060c;
-    --btn-secondary-bg: rgba(255, 255, 255, 0.04);
-    --input-bg: rgba(0, 0, 0, 0.35);
-    --input-focus-bg: rgba(0, 0, 0, 0.5);
-    --card-header-bg: rgba(0, 0, 0, 0.15);
-    --table-header-bg: #121812;
-    --modal-bg: #121812;
-    --modal-header-bg: rgba(0, 0, 0, 0.2);
+    /* Cards & Surfaces */
+    --header-bg: rgba(20, 26, 22, 0.92);
+    --btn-primary-text: #141A16;
+    --btn-secondary-bg: rgba(228, 234, 229, 0.05);
+    --btn-secondary-bg-hover: rgba(228, 234, 229, 0.1);
+    --input-bg: rgba(0, 0, 0, 0.25);
+    --input-focus-bg: rgba(0, 0, 0, 0.35);
+    --card-header-bg: rgba(0, 0, 0, 0.12);
+    --table-header-bg: #1A221C;
+    --modal-bg: #1E2621;
+    --modal-header-bg: rgba(0, 0, 0, 0.15);
     --modal-sidebar-bg: rgba(0, 0, 0, 0.2);
-    --request-card-open-bg: rgba(22, 22, 34, 0.45);
-    --logo-shine-middle: #ffffff;
+    --autofill-bg: #141A16;
+    --progress-bg: rgba(228, 234, 229, 0.06);
 
-    /* Secure Gate Design Tokens */
-    --gate-accent: #ffffff;
-    --gate-accent-rgb: 255, 255, 255;
-    --gate-accent-glow: rgba(255, 255, 255, 0.15);
-    --gate-accent-glow-subtle: rgba(255, 255, 255, 0.08);
-    --gate-accent-bg: rgba(255, 255, 255, 0.08);
-    --gate-border: rgba(255, 255, 255, 0.2);
-    --gate-btn-hover: #e2e8f0;
-    --autofill-bg: #09090f;
-    --logo-shine-side: #94a3b8;
-    --logo-shine-middle: #ffffff;
+    /* Secure Gate */
+    --gate-accent: #E4EAE5;
+    --gate-accent-rgb: 228, 234, 229;
+    --gate-accent-glow: rgba(228, 234, 229, 0.08);
+    --gate-accent-glow-subtle: rgba(228, 234, 229, 0.04);
+    --gate-accent-bg: rgba(228, 234, 229, 0.06);
+    --gate-border: rgba(228, 234, 229, 0.12);
+    --gate-btn-hover: #B9C6BC;
+    --logo-shine-side: #7C8A80;
+    --logo-shine-middle: #E4EAE5;
 
-    /* Category Badges Design Tokens */
-    --color-category-item: #3b82f6;
-    --color-category-item-rgb: 59, 130, 246;
-    --color-category-item-bg: rgba(59, 130, 246, 0.1);
-    --color-category-item-border: rgba(59, 130, 246, 0.3);
+    /* Category tags — distinct color per category (small_arms, heavy_arms, etc.) */
+    /* small_arms — gunmetal silver */
+    --color-category-item: #c8d1dc;
+    --color-category-item-rgb: 200, 209, 220;
+    --color-category-item-bg: rgba(200, 209, 220, 0.1);
+    --color-category-item-border: rgba(200, 209, 220, 0.3);
 
-    --color-category-crate: #f59e0b;
-    --color-category-crate-bg: rgba(245, 158, 11, 0.1);
-    --color-category-crate-border: rgba(245, 158, 11, 0.3);
+    /* heavy_arms — crimson red (destructive) */
+    --color-category-crate: #ff5d5d;
+    --color-category-crate-rgb: 255, 93, 93;
+    --color-category-crate-bg: rgba(255, 93, 93, 0.12);
+    --color-category-crate-border: rgba(255, 93, 93, 0.36);
 
-    --color-category-vehicle: #94a3b8;
-    --color-category-vehicle-bg: rgba(148, 163, 184, 0.1);
-    --color-category-vehicle-border: rgba(148, 163, 184, 0.3);
+    /* vehicles — olive / armored green */
+    --color-category-vehicle: #a3c25a;
+    --color-category-vehicle-rgb: 163, 194, 90;
+    --color-category-vehicle-bg: rgba(163, 194, 90, 0.12);
+    --color-category-vehicle-border: rgba(163, 194, 90, 0.36);
 
-    --color-category-structure: #64748b;
-    --color-category-structure-bg: rgba(100, 116, 139, 0.1);
-    --color-category-structure-border: rgba(100, 116, 139, 0.3);
+    /* utility / shippables — cyan / teal */
+    --color-category-structure: #4dd0e1;
+    --color-category-structure-rgb: 77, 208, 225;
+    --color-category-structure-bg: rgba(77, 208, 225, 0.12);
+    --color-category-structure-border: rgba(77, 208, 225, 0.36);
 
-    --color-category-crate-vehicle: #ec4899;
-    --color-category-crate-vehicle-bg: rgba(236, 72, 153, 0.1);
-    --color-category-crate-vehicle-border: rgba(236, 72, 153, 0.3);
-    --progress-bg: rgba(255, 255, 255, 0.04);
+    /* heavy_ammunition / aircraft_parts — orange (explosive) */
+    --color-category-crate-vehicle: #ff9d3d;
+    --color-category-crate-vehicle-rgb: 255, 157, 61;
+    --color-category-crate-vehicle-bg: rgba(255, 157, 61, 0.14);
+    --color-category-crate-vehicle-border: rgba(255, 157, 61, 0.4);
+
+    /* medical — pink red */
+    --color-category-medical: #f06ea6;
+    --color-category-medical-rgb: 240, 110, 166;
+    --color-category-medical-bg: rgba(240, 110, 166, 0.12);
+    --color-category-medical-border: rgba(240, 110, 166, 0.36);
+
+    /* materials — amber / yellow */
+    --color-category-materials: #e5c547;
+    --color-category-materials-rgb: 229, 197, 71;
+    --color-category-materials-bg: rgba(229, 197, 71, 0.12);
+    --color-category-materials-border: rgba(229, 197, 71, 0.36);
+
+    /* uniforms — violet */
+    --color-category-uniforms: #b58cff;
+    --color-category-uniforms-rgb: 181, 140, 255;
+    --color-category-uniforms-bg: rgba(181, 140, 255, 0.12);
+    --color-category-uniforms-border: rgba(181, 140, 255, 0.36);
 }

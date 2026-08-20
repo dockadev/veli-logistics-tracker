@@ -102,3 +102,69 @@
     transform-origin: left center;
 }
 
+/* ===== LIQUID GLASS & BENTO KEYFRAMES ===== */
+
+/* Slow drift for ambient orbs in the gate background */
+@keyframes ambientDrift {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    33%  { transform: translate3d(40px, -30px, 0) scale(1.08); }
+    66%  { transform: translate3d(-30px, 20px, 0) scale(0.95); }
+    100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes ambientDriftAlt {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(-50px, 25px, 0) scale(1.1); }
+    100% { transform: translate3d(0, 0, 0) scale(1); }
+}
+
+/* Subtle scan line moving vertically (gate hero) */
+@keyframes scanSweep {
+    0%   { transform: translateY(-100%); opacity: 0; }
+    10%  { opacity: 0.45; }
+    90%  { opacity: 0.45; }
+    100% { transform: translateY(100%); opacity: 0; }
+}
+
+/* Gate entrance - slide in panels with stagger */
+@keyframes gateSlideInLeft {
+    from { opacity: 0; transform: translateX(-24px) scale(0.98); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes gateSlideInRight {
+    from { opacity: 0; transform: translateX(24px) scale(0.98); }
+    to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+.anim-gate-left  { animation: gateSlideInLeft 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.anim-gate-right { animation: gateSlideInRight 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+/* Bento card scale-in with subtle bounce */
+@keyframes bentoRise {
+    from { opacity: 0; transform: translateY(10px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.anim-bento {
+    animation: bentoRise 0.5s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+/* Glass shimmer sweep on hover */
+@keyframes glassShimmer {
+    0%   { transform: translateX(-120%) skewX(-12deg); }
+    100% { transform: translateX(220%) skewX(-12deg); }
+}
+
+/* Slow border rotation for highlighted cards */
+@keyframes borderRotate {
+    0%   { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+/* Marquee strip for hero brand line */
+@keyframes marquee {
+    0%   { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+

@@ -1,0 +1,170 @@
+/* ============================================================
+   DIRECT SAV SYNC — modern flat theme layer
+   ============================================================ */
+
+@keyframes dsFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dsPing {
+    0% { transform: scale(1); opacity: 0.9; }
+    75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+
+.ds-root {
+    animation: dsFadeUp 0.3s ease both;
+}
+
+.ds-header {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    animation: dsFadeUp 0.3s ease both;
+    transition: box-shadow 0.2s ease;
+}
+.ds-header:hover {
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.1), 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.ds-panel {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    box-sizing: border-box;
+    animation: dsFadeUp 0.35s ease both;
+    transition: box-shadow 0.2s ease;
+}
+.ds-panel:hover {
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.1), 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.ds-path-input {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.6rem 0.8rem;
+    color: var(--text-primary);
+    font-family: monospace;
+    font-size: 0.75rem;
+    outline: none;
+    box-sizing: border-box;
+    transition: box-shadow 0.15s ease;
+}
+.ds-path-input:focus {
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.45);
+}
+
+.ds-capture-btn {
+    transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+.ds-capture-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+.ds-capture-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+
+.ds-mute-btn {
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.ds-mute-btn:hover {
+    transform: translateY(-1px);
+}
+
+.ds-info-card {
+    background: rgba(var(--accent-color-rgb), 0.04);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.2);
+    border-radius: var(--radius-md);
+    padding: 1.1rem 1.35rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    animation: dsFadeUp 0.35s ease both;
+}
+.ds-step-tile {
+    background: var(--card-header-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 0.85rem;
+    transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.ds-step-tile:hover {
+    background: var(--bg-card-hover);
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.12);
+    transform: translateY(-1px);
+}
+
+.ds-terminal {
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    display: flex;
+    flex-direction: column;
+    height: 350px;
+    overflow: hidden;
+    box-shadow: inset 0 4px 10px rgba(0, 0, 0, 0.35);
+    animation: dsFadeUp 0.35s ease both;
+}
+.ds-terminal-header {
+    background: rgba(0, 0, 0, 0.2);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.5rem 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.ds-log-row {
+    transition: background 0.12s ease;
+    border-radius: 3px;
+}
+.ds-log-row:hover {
+    background: rgba(var(--accent-color-rgb), 0.04);
+}
+
+.ds-clear-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.65rem;
+    color: var(--text-secondary);
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.ds-clear-btn:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+    transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-root,
+    .ds-header,
+    .ds-panel,
+    .ds-info-card,
+    .ds-terminal,
+    .ds-capture-btn,
+    .ds-mute-btn,
+    .ds-step-tile,
+    .ds-clear-btn,
+    .ds-log-row {
+        animation: none !important;
+        transition: none !important;
+    }
+}

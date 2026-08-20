@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, Package, ArrowUpDown, ArrowUp, ArrowDown, ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { Search, Package, ArrowUpDown, ArrowUp, ArrowDown, ArrowRight, ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { CustomSelect } from './CustomSelect';
 import { useLanguage, type TranslationKey } from '../context/LanguageContext';
 import type { Depot, FilterState, SortField, StockpileTemplates, RegionSettings } from '../types';
@@ -112,7 +112,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
 
     const getDepotDistribution = React.useCallback((itemName: string) => {
         if (!activeDepot) return [];
-        const matching: Record<string, { location: string; count: number; region: string }> = {};
+        const matching: Record<string, { location: string; subregion: string; count: number; region: string; depotName: string }> = {};
         const isTownFilter = activeDepot.name.startsWith('town:');
         const targetTown = isTownFilter ? activeDepot.name.substring(5) : '';
 
@@ -129,26 +129,33 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
             }
             const count = dep.current?.[itemName]?.count || 0;
             if (count > 0) {
+                const depKey = dep.customName || dep.name;
                 const details = parseDepotNameDetails(dep.customName || dep.name, dep.townName || null);
                 const loc = details.location || 'Unknown Location';
                 const region = dep.name.split(' - ')[0].trim();
-                if (!matching[loc]) {
-                    matching[loc] = {
+                const subregion = loc.split(' - ').slice(1).join(' - ').trim() || region;
+                if (!matching[depKey]) {
+                    matching[depKey] = {
                         location: loc,
+                        subregion,
                         count: 0,
-                        region
+                        region,
+                        depotName: depKey
                     };
                 }
-                matching[loc].count += count;
+                matching[depKey].count += count;
             }
         });
 
-        // Convert to array and sort alphabetically by region, then by total count descending
+        // Convert to array and sort alphabetically by region, then by subregion, then by depot name
         return Object.values(matching).sort((a, b) => {
             if (a.region !== b.region) {
                 return a.region.localeCompare(b.region);
             }
-            return b.count - a.count;
+            if (a.subregion !== b.subregion) {
+                return a.subregion.localeCompare(b.subregion);
+            }
+            return a.depotName.localeCompare(b.depotName);
         });
     }, [depots, activeDepot]);
 
@@ -239,12 +246,24 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
 
     const renderSortIcon = (field: SortField) => {
         if (filters.sortField !== field || filters.sortDirection === 'none') {
-            return <ArrowUpDown size={13} style={{ opacity: 0.3, marginLeft: '4px' }} />;
+            return (
+                <span className="sort-icon-wrap">
+                    <ArrowUpDown size={12} />
+                </span>
+            );
         }
         if (filters.sortDirection === 'asc') {
-            return <ArrowUp size={13} style={{ color: 'var(--accent-color)', marginLeft: '4px' }} />;
+            return (
+                <span className="sort-icon-wrap is-active">
+                    <ArrowUp size={12} />
+                </span>
+            );
         }
-        return <ArrowDown size={13} style={{ color: 'var(--accent-color)', marginLeft: '4px' }} />;
+        return (
+            <span className="sort-icon-wrap is-active">
+                <ArrowDown size={12} />
+            </span>
+        );
     };
 
     // Reset filters and local search query when changing selected depot
@@ -441,11 +460,11 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
             <div id="tabContentInventory" className="tab-content-panel">
                 <div className="table-container" style={{ padding: '3rem 1.5rem', textAlign: 'center' }}>
                     <div className="empty-row">
-                        <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.3, display: 'block', color: 'var(--accent-color)' }} />
-                        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.5rem', fontFamily: 'var(--font-heading)' }}>
+                        <Package size={48} style={{ margin: '0 auto 1rem', opacity: 0.4, display: 'block', color: 'var(--ink-100)' }} />
+                        <h3 style={{ fontSize: '1.05rem', marginBottom: '0.5rem', fontFamily: 'var(--font-heading)', color: 'var(--ink-100)', letterSpacing: '0.04em' }}>
                             {t('no_depots_imported')}
                         </h3>
-                        <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', maxWidth: '400px', margin: '0 auto' }}>
+                        <p style={{ fontSize: '0.78rem', color: 'var(--ink-60)', maxWidth: '400px', margin: '0 auto' }}>
                             {t('no_active_depot')}
                         </p>
                     </div>
@@ -456,9 +475,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
 
     return (
         <div id="tabContentInventory" className="tab-content-panel">
-            {/* Metrics Panel */}
+            {/* Metrics Panel - Bento */}
             <div className="metrics-container">
-                <div className="stat-card-modern anim-fade-in">
+                <div className="stat-card-modern is-feature anim-bento" style={{ animationDelay: '0ms' }}>
                     <div className="stat-card-header">
                         <div className="stat-card-title">{t('total_items')}</div>
                     </div>
@@ -467,7 +486,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                     </div>
                     <div className="stat-card-sub text-muted">{t('currently_in_stock')}</div>
                 </div>
-                <div className="stat-card-modern anim-fade-in text-positive">
+                <div className="stat-card-modern anim-bento text-positive" style={{ animationDelay: '60ms' }}>
                     <div className="stat-card-header">
                         <div className="stat-card-title">{t('increased_stock')}</div>
                     </div>
@@ -476,7 +495,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                     </div>
                     <div className="stat-card-sub">{t('items_higher_qty')}</div>
                 </div>
-                <div className="stat-card-modern anim-fade-in text-negative">
+                <div className="stat-card-modern anim-bento text-negative" style={{ animationDelay: '120ms' }}>
                     <div className="stat-card-header">
                         <div className="stat-card-title">{t('decreased_stock')}</div>
                     </div>
@@ -485,7 +504,7 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                     </div>
                     <div className="stat-card-sub">{t('items_lower_qty')}</div>
                 </div>
-                <div className="stat-card-modern anim-fade-in text-warning">
+                <div className="stat-card-modern anim-bento text-warning" style={{ animationDelay: '180ms' }}>
                     <div className="stat-card-header">
                         <div className="stat-card-title">{t('new_items')}</div>
                     </div>
@@ -509,8 +528,9 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                         />
                     </div>
                     <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                        <div style={{ width: '160px' }}>
+                        <div style={{ minWidth: '170px', flexShrink: 0 }}>
                             <CustomSelect
+                                className="inventory-filter-select"
                                 options={[
                                     { value: 'all', label: t('all_items') },
                                     { value: 'increased', label: t('increased_stock') },
@@ -612,191 +632,179 @@ export const InventoryTab: React.FC<InventoryTabProps> = React.memo(({ depots, a
                     })}
                 </div>
 
-                <div className="table-wrapper">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('name')}>
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        {t('item_name')}
-                                        {renderSortIcon('name')}
-                                    </div>
-                                </th>
-                                <th style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('category')}>
-                                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                                        {t('category')}
-                                        {renderSortIcon('category')}
-                                    </div>
-                                </th>
-                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('currVal')}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                        {t('current_qty')}
-                                        {renderSortIcon('currVal')}
-                                    </div>
-                                </th>
-                                {showTargets && (
-                                    <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('target')}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                            {language === 'tr' ? 'Hedef' : 'Target'}
-                                            {renderSortIcon('target')}
-                                        </div>
-                                    </th>
-                                )}
-                                {showTargets && (
-                                    <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('needed')}>
-                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                            {language === 'tr' ? 'Fark / İhtiyaç' : 'Diff / Needed'}
-                                            {renderSortIcon('needed')}
-                                        </div>
-                                    </th>
-                                )}
-                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('prevVal')}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                        {t('previous_qty')}
-                                        {renderSortIcon('prevVal')}
-                                    </div>
-                                </th>
-                                <th className="text-right" style={{ cursor: 'pointer', userSelect: 'none' }} onClick={() => handleSort('diff')}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                        {t('difference')}
-                                        {renderSortIcon('diff')}
-                                    </div>
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {filteredItems.length === 0 ? (
-                                <tr>
-                                    <td colSpan={showTargets ? 7 : 5} className="empty-row">
-                                        <p>
-                                            {!activeDepot || !activeDepot.current || Object.keys(activeDepot.current).length === 0
-                                                ? (t('depot_is_empty') || 'Bu depo şu anda boş.')
-                                                : t('no_items_match')
-                                            }
-                                        </p>
-                                    </td>
-                                </tr>
-                            ) : (
-                                paginatedItems.map(item => {
-                                    let changeClass = '';
-                                    if (item.changeType === 'increased') changeClass = 'td-change-positive';
-                                    else if (item.changeType === 'decreased') changeClass = 'td-change-negative';
-                                    else if (item.changeType === 'new') changeClass = 'td-change-new';
+                {/* Column Header - aligned with rows */}
+                <div className="bento-row-header">
+                    <div className="bento-row-header-spacer" />
+                    <div className="bento-row-header-icon" />
+                    <div className="bento-row-header-col is-name" onClick={() => handleSort('name')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        {t('item_name')}
+                        {renderSortIcon('name')}
+                    </div>
+                    <div className="bento-row-header-col is-prev" onClick={() => handleSort('prevVal')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        {t('previous_qty')}
+                        {renderSortIcon('prevVal')}
+                    </div>
+                    <div className="bento-row-header-col is-current" onClick={() => handleSort('currVal')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        {t('current_qty')}
+                        {renderSortIcon('currVal')}
+                    </div>
+                    {showTargets && (
+                        <div className="bento-row-header-col is-target" onClick={() => handleSort('target')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                            {language === 'tr' ? 'Hedef' : 'Target'}
+                            {renderSortIcon('target')}
+                        </div>
+                    )}
+                    {showTargets && (
+                        <div className="bento-row-header-col is-needed" onClick={() => handleSort('needed')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                            {t('needed')}
+                            {renderSortIcon('needed')}
+                        </div>
+                    )}
+                    <div className="bento-row-header-col is-diff" onClick={() => handleSort('diff')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                        {t('difference')}
+                        {renderSortIcon('diff')}
+                    </div>
+                    <div className="bento-row-header-col is-expand" />
+                </div>
 
-                                    let diffElement: React.ReactNode;
-                                    if (item.changeType === 'new') {
-                                        diffElement = <span className="diff-val diff-new">NEW</span>;
-                                    } else {
-                                        const d = item.diff as number;
-                                        if (d > 0) {
-                                            diffElement = <span className="diff-val diff-positive">+{d}</span>;
-                                        } else if (d < 0) {
-                                            diffElement = <span className="diff-val diff-negative">{d}</span>;
-                                        } else {
-                                            diffElement = <span className="diff-val diff-zero">0</span>;
-                                        }
-                                    }
+                {/* Bento Grid */}
+                <div className="table-wrapper" style={{ maxHeight: 'none', overflow: 'visible' }}>
+                    {filteredItems.length === 0 ? (
+                        <div className="empty-row" style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--text-muted)' }}>
+                            <p>
+                                {!activeDepot || !activeDepot.current || Object.keys(activeDepot.current).length === 0
+                                    ? (t('depot_is_empty') || 'Bu depo şu anda boş.')
+                                    : t('no_items_match')
+                                }
+                            </p>
+                        </div>
+                    ) : (
+                        <div className="bento-grid">
+                            {paginatedItems.map((item, idx) => {
+                                let changeIndicator = '';
+                                if (item.changeType === 'increased') changeIndicator = 'increased';
+                                else if (item.changeType === 'decreased') changeIndicator = 'decreased';
+                                else if (item.changeType === 'new') changeIndicator = 'new';
 
-                                    const displayName = item.name;
-                                    const canExpandRow = canExpand && getDepotDistribution(item.name).length > 0;
-                                    const iconUrl = getItemIconUrl(item.name);
+                                let diffText = '';
+                                if (item.changeType === 'new') diffText = 'NEW';
+                                else {
+                                    const d = item.diff as number;
+                                    if (d > 0) diffText = `+${d}`;
+                                    else if (d < 0) diffText = `${d}`;
+                                    else diffText = '0';
+                                }
 
-                                    return (
-                                        <React.Fragment key={item.name}>
-                                            <tr 
-                                                onClick={() => {
-                                                    if (canExpandRow) {
-                                                        setExpandedItem(prev => prev === item.name ? null : item.name);
-                                                    }
-                                                }}
-                                                style={canExpandRow ? { cursor: 'pointer' } : undefined}
-                                                className={expandedItem === item.name ? 'row-expanded' : ''}
-                                            >
-                                                <td className={changeClass}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', width: '100%' }}>
-                                                        {iconUrl && (
-                                                            <img 
-                                                                src={iconUrl} 
-                                                                alt={displayName} 
-                                                                style={{ width: 22, height: 22, objectFit: 'contain', flexShrink: 0 }} 
-                                                                onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                                                            />
-                                                        )}
-                                                        <span style={{ wordBreak: 'break-word' }}>{displayName}</span>
-                                                        {canExpandRow && (
-                                                            <ChevronDown 
-                                                                size={13} 
-                                                                style={{ 
-                                                                    transition: 'transform 0.2s ease', 
-                                                                    transform: expandedItem === item.name ? 'rotate(180deg)' : 'rotate(0deg)',
-                                                                    color: 'var(--text-secondary)',
-                                                                    opacity: 0.5,
-                                                                    marginLeft: 'auto'
-                                                                }} 
-                                                            />
-                                                        )}
+                                const displayName = item.name;
+                                const canExpandRow = canExpand && getDepotDistribution(item.name).length > 0;
+                                const iconUrl = getItemIconUrl(item.name);
+                                const isExpanded = expandedItem === item.name;
+
+                                return (
+                                    <React.Fragment key={item.name}>
+                                        <div
+                                            className={`bento-row anim-row-in ${isExpanded ? 'is-expanded' : ''}`}
+                                            style={{ animationDelay: `${Math.min(idx * 25, 400)}ms` }}
+                                            onClick={() => { if (canExpandRow) setExpandedItem(prev => prev === item.name ? null : item.name); }}
+                                        >
+                                            <div className={`bento-row-indicator ${changeIndicator}`} />
+                                            <div className="bento-row-icon-wrap">
+                                                {iconUrl && <img src={iconUrl} alt={displayName} className="bento-row-icon" onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }} />}
+                                            </div>
+                                            <div className="bento-row-name">
+                                                <span className="bento-row-name-text">{displayName}</span>
+                                                <span className={`badge ${getCategoryClass(item.category)}`}>{t(`cat_${item.category}` as TranslationKey)}</span>
+                                            </div>
+                                            <div className="bento-row-cell is-prev">
+                                                <span className="bento-cell-value is-prev">{item.prevVal ?? '—'}</span>
+                                            </div>
+                                            <div className="bento-row-cell is-current">
+                                                <span className="bento-cell-value">{item.currVal}</span>
+                                            </div>
+                                            {showTargets && (
+                                                <>
+                                                    <div className="bento-row-cell is-target">
+                                                        <span className="bento-cell-value is-target">{item.target}</span>
                                                     </div>
-                                                </td>
-                                                <td>
-                                                    <span className={`badge ${getCategoryClass(item.category)}`}>{t(`cat_${item.category}` as TranslationKey)}</span>
-                                                </td>
-                                                <td className="text-right">{item.currVal}</td>
-                                                {showTargets && (
-                                                    <td className="text-right" style={{ color: 'var(--text-secondary)' }}>{item.target}</td>
-                                                )}
-                                                {showTargets && (() => {
-                                                    const needed = item.needed;
-                                                    let neededStyle: React.CSSProperties = { color: 'var(--text-secondary)', fontWeight: 600 };
-                                                    let neededLabel = `0 (${language === 'tr' ? 'Tamam' : 'Optimal'})`;
-                                                    if (needed > 0) {
-                                                        neededStyle = { color: '#10b981', fontWeight: 700 };
-                                                        neededLabel = `+${needed} (${language === 'tr' ? 'Fazla' : 'Surplus'})`;
-                                                    } else if (needed < 0) {
-                                                        neededStyle = { color: '#ef4444', fontWeight: 700 };
-                                                        neededLabel = `${needed} (${language === 'tr' ? 'Eksik' : 'Shortage'})`;
-                                                    }
-                                                    return (
-                                                        <td className="text-right" style={neededStyle}>{neededLabel}</td>
-                                                    );
-                                                })()}
-                                                <td className="text-right">{item.prevVal ?? '-'}</td>
-                                                <td className="text-right">{diffElement}</td>
-                                            </tr>
-                                            {expandedItem === item.name && canExpandRow && (
-                                                <tr className="expanded-row-details">
-                                                    <td colSpan={showTargets ? 7 : 5} style={{ background: 'rgba(0, 0, 0, 0.12)', padding: '0.75rem 1rem', borderBottom: '1px dashed var(--border-color)' }}>
-                                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-                                                            <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                                                                <Package size={12} />
-                                                                <span>{language === 'tr' ? 'Depo Dağılımı:' : 'Depot Distribution:'}</span>
-                                                            </div>
-                                                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.5rem' }}>
-                                                                {getDepotDistribution(item.name).map((distItem) => {
-                                                                    const { location, count } = distItem as any;
-                                                                    return (
-                                                                        <div key={location} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.6rem', background: 'rgba(255,255,255,0.02)', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.15)', fontSize: '0.7rem' }}>
-                                                                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', overflow: 'hidden' }}>
-                                                                                <span style={{ fontWeight: 800, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                                                                    {location}
-                                                                                </span>
-                                                                            </div>
-                                                                            <span style={{ fontWeight: 750, color: 'var(--accent-color)', marginLeft: '0.75rem', fontSize: '0.78rem', flexShrink: 0 }}>
-                                                                                {count}
-                                                                            </span>
-                                                                        </div>
-                                                                    );
-                                                                })}
-                                                            </div>
-                                                        </div>
-                                                    </td>
-                                                </tr>
+                                                    <div className="bento-row-cell is-needed">
+                                                        <span className="bento-cell-label" style={{ color: item.needed > 0 ? 'var(--color-positive)' : item.needed < 0 ? 'var(--color-negative)' : 'var(--ink-80)' }}>
+                                                            {item.needed > 0 ? (language === 'tr' ? 'Fazla' : 'Surplus') : item.needed < 0 ? (language === 'tr' ? 'Eksik' : 'Shortage') : (language === 'tr' ? 'Optimal' : 'OK')}
+                                                        </span>
+                                                        <span className="bento-cell-value is-needed" style={{ color: item.needed > 0 ? 'var(--color-positive)' : item.needed < 0 ? 'var(--color-negative)' : 'var(--ink-80)' }}>
+                                                            {item.needed > 0 ? `+${item.needed}` : item.needed < 0 ? item.needed : '0'}
+                                                        </span>
+                                                    </div>
+                                                </>
                                             )}
-                                        </React.Fragment>
-                                    );
-                                })
-                            )}
-                        </tbody>
-                    </table>
+                                            <div className="bento-row-cell is-diff">
+                                                <span className="bento-cell-value is-diff-val" style={{ color: item.changeType === 'new' ? 'var(--color-warning)' : item.changeType === 'increased' ? 'var(--color-positive)' : item.changeType === 'decreased' ? 'var(--color-negative)' : 'var(--ink-70)' }}>
+                                                    {diffText}
+                                                </span>
+                                            </div>
+                                            {canExpandRow ? (
+                                                <div className="bento-row-expand">
+                                                    <ChevronDown size={13} style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
+                                                </div>
+                                            ) : (
+                                                <div className="bento-row-expand is-empty" />
+                                            )}
+                                        </div>
+                                        {isExpanded && canExpandRow && (
+                                            <div className="bento-dist-panel">
+                                                <div className="bento-dist-panel-header">
+                                                    <ArrowRight size={14} />
+                                                    <span>{language === 'tr' ? 'Depo Dağılımı' : 'Depot Distribution'}: {displayName}</span>
+                                                    <span className="bento-dist-total">{item.currVal} {t('current')}</span>
+                                                </div>
+                                                {getDepotDistribution(item.name).reduce<{ region: string; subregions: { subregion: string; total: number; depots: { depotName: string; count: number }[] }[] }[]>((groups, distItem) => {
+                                                    const { region, subregion, depotName, count } = distItem as any;
+                                                    let rg = groups.find(g => g.region === region);
+                                                    if (!rg) {
+                                                        rg = { region, subregions: [] };
+                                                        groups.push(rg);
+                                                    }
+                                                    let sg = rg.subregions.find(s => s.subregion === subregion);
+                                                    if (!sg) {
+                                                        sg = { subregion, total: 0, depots: [] };
+                                                        rg.subregions.push(sg);
+                                                    }
+                                                    sg.total += count;
+                                                    sg.depots.push({ depotName, count });
+                                                    return groups;
+                                                }, []).map(group => {
+                                                    const regionTotal = group.subregions.reduce((sum, s) => sum + s.total, 0);
+                                                    return (
+                                                    <div key={group.region} className="bento-dist-region">
+                                                        <div className="bento-dist-region-name">
+                                                            {group.region}
+                                                            <span className="bento-dist-region-total">{regionTotal.toLocaleString()} {language === 'tr' ? 'kasa' : 'crates'}</span>
+                                                        </div>
+                                                        {group.subregions.map(sub => (
+                                                            <div key={sub.subregion} className="bento-dist-subregion">
+                                                                <div className="bento-dist-subregion-name">
+                                                                    {sub.subregion}
+                                                                    <span className="bento-dist-subregion-total">{sub.total.toLocaleString()} {language === 'tr' ? 'kasa' : 'crates'}</span>
+                                                                </div>
+                                                                <div className="bento-dist-depots">
+                                                                    {sub.depots.map(dep => (
+                                                                        <div key={dep.depotName} className="bento-dist-depot">
+                                                                            <span className="bento-dist-depot-name">{dep.depotName}</span>
+                                                                            <span className="bento-dist-depot-count">{dep.count}</span>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </React.Fragment>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
 
                 {/* Pagination Footer */}

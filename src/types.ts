@@ -123,6 +123,8 @@ export interface PortalUser {
     import_count?: number;
     request_count?: number;
     delivery_count?: number;
+    clan?: string;
+    approvedAt?: string;
 }
 
 export interface DepotHistoryEntry {

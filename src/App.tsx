@@ -1,27 +1,16 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
-    FileText,
     CheckCircle,
     AlertOctagon,
     AlertTriangle,
     Info,
     X,
-    Truck,
     Bell,
     Megaphone,
-    ShieldAlert,
-    BarChart3,
-    Trophy,
-    MessageSquare,
-    Sliders,
-    Lightbulb,
-    Lock,
-    ArrowLeftRight,
-    ClipboardList,
     LogOut,
     Download,
     Database,
-    ShieldCheck,
+    Sliders,
     Pin
 } from 'lucide-react';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -57,8 +46,9 @@ import { useLanguage, type Language } from './context/LanguageContext';
 import { dbService } from './utils/dbService';
 import { getDefaultTemplates } from './utils/defaultTemplates';
 import { supabase, isSupabaseConfigured } from './utils/supabaseClient';
+import { useRealtimeSubscriptions } from './hooks/useRealtimeSubscriptions';
+import { AppSidebar } from './components/AppSidebar';
 import { getRelativeTimeString, getDepotDisplayName, getRelativeTimeColor, resolveTemplateSetting } from './utils/helpers';
-import { generateTestDepotsSet1, generateTestDepotsSet2 } from './utils/testDataGenerator';
 
 function getDepotMatchKey(rawFullName: string): string {
     const fullName = rawFullName.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, '-');
@@ -114,7 +104,7 @@ function getDepotMatchKey(rawFullName: string): string {
 
 const IS_TAURI = typeof window !== 'undefined' && !!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
-const APP_VERSION = '0.1.71';
+const APP_VERSION = '0.2.0';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);
@@ -350,7 +340,7 @@ export const App: React.FC = () => {
     const [isAnnouncementOpen, setIsAnnouncementOpen] = useState(false);
     const [portalUsers, setPortalUsers] = useState<PortalUser[]>([]);
     const [depotsHistory, setDepotsHistory] = useState<DepotHistoryEntry[]>([]);
-    if (false as boolean) console.log(depotsHistory);
+    if (false as boolean) console.debug(depotsHistory);
 
     const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
     const [feedbacks, setFeedbacks] = useState<{ id: string; username: string; message: string; created_at: string; category?: 'bug' | 'idea'; status?: 'pending' | 'in_progress' | 'completed' }[]>(() => {
@@ -512,9 +502,14 @@ export const App: React.FC = () => {
         }
 
         try {
-            const { data: profiles, error } = await supabase
+            let { data: profiles, error } = await supabase
                 .from('profiles')
-                .select('id, username, role, status, import_count, request_count, delivery_count');
+                .select('id, username, role, status, import_count, request_count, delivery_count, clan, approved_at');
+            if (error && String(error.message).includes('approved_at')) {
+                ({ data: profiles, error } = await supabase
+                    .from('profiles')
+                    .select('id, username, role, status, import_count, request_count, delivery_count, clan'));
+            }
             if (error) {
                 console.error('[App] Failed to load portal users from Supabase:', error);
             } else if (profiles) {
@@ -526,7 +521,9 @@ export const App: React.FC = () => {
                         status: (p.status || 'pending') as 'pending' | 'approved' | 'rejected',
                         import_count: p.import_count || 0,
                         request_count: p.request_count || 0,
-                        delivery_count: p.delivery_count || 0
+                        delivery_count: p.delivery_count || 0,
+                        clan: p.clan || undefined,
+                        approvedAt: p.approved_at || undefined
                     };
                 });
                 const username = currentUsername || sessionStorage.getItem('docka_session_username');
@@ -919,7 +916,12 @@ export const App: React.FC = () => {
         });
         
         logAction(`Direct SAV Sync: Synced ${syncedCount} stockpiles successfully.`);
-    }, [isSupabaseConfigured, checkCriticalStock, logAction]);
+
+        incrementLocalUserStat('import');
+        if (isSupabaseConfigured && supabase) {
+            dbService.incrementProfileStat('import').then(() => { fetchPortalUsers(); });
+        }
+    }, [isSupabaseConfigured, checkCriticalStock, logAction, incrementLocalUserStat, fetchPortalUsers]);
 
 
 
@@ -997,379 +999,23 @@ export const App: React.FC = () => {
     }, [masterKey, language, showToast]);
 
     // Real-time Supabase Subscriptions
-    useEffect(() => {
-        if (!isSupabaseConfigured || !supabase || !masterKey) return;
-
-        // 1. Subscribe to profiles changes
-        const profilesChannel = supabase
-            .channel('public-profiles')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'profiles' },
-                async (payload: { new: Record<string, unknown>; eventType: string; old?: { id?: string } }) => {
-                    console.log('[Real-time] Profile changed:', payload);
-                    const updatedProfile = payload.new as Partial<PortalUser>;
-                    
-                    if (updatedProfile) {
-                        // If the updated profile is for the logged-in user, apply role change in real-time
-                        if (updatedProfile.id === masterKey) {
-                            const nextRole = updatedProfile.role as UserRole;
-                            const nextStatus = updatedProfile.status;
-                            
-                            if (nextRole && nextRole !== sessionStorage.getItem('docka_session_role')) {
-                                setUserRole(nextRole);
-                                sessionStorage.setItem('docka_session_role', nextRole);
-                                showToast(`Your role has been updated to ${nextRole}.`, 'info');
-                            }
-                            
-                            if (nextStatus === 'rejected') {
-                                showToast('Your access has been revoked by a developer.', 'error');
-                                handleDisconnect();
-                                return;
-                            }
-                        }
-
-                        // Update portalUsers list in real-time
-                        setPortalUsers(prev => {
-                            const exists = prev.some(u => u.id === updatedProfile.id);
-                            const mappedUser: PortalUser = {
-                                id: updatedProfile.id || '',
-                                username: updatedProfile.username || 'Unknown',
-                                role: updatedProfile.role || 'member',
-                                status: (updatedProfile.status || 'pending') as PortalUser['status'],
-                                import_count: typeof updatedProfile.import_count === 'number' ? updatedProfile.import_count : 0,
-                                request_count: typeof updatedProfile.request_count === 'number' ? updatedProfile.request_count : 0,
-                                delivery_count: typeof updatedProfile.delivery_count === 'number' ? updatedProfile.delivery_count : 0
-                            };
-
-                            if (payload.eventType === 'INSERT') {
-                                if (exists) return prev;
-                                return [...prev, mappedUser];
-                            } else if (payload.eventType === 'UPDATE') {
-                                return prev.map(u => u.id === updatedProfile.id ? mappedUser : u);
-                            } else if (payload.eventType === 'DELETE') {
-                                const oldId = payload.old?.id;
-                                return oldId ? prev.filter(u => u.id !== oldId) : prev;
-                            }
-                            return prev;
-                        });
-                    }
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Real-time] Profiles subscription status:', status);
-            });
-
-        // 2. Subscribe to supply_requests changes
-        const requestsChannel = supabase
-            .channel('public-supply-requests')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'supply_requests' },
-                (payload: { new: Record<string, unknown>; eventType: string; old?: { id?: string } }) => {
-                    console.log('[Real-time] Supply request changed:', payload);
-                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        const row = payload.new as { id: string; data: string | SupplyRequest; status: 'open' | 'completed' };
-                        const parsedData = typeof row.data === 'string' && (row.data.startsWith('{') || row.data.startsWith('['))
-                            ? JSON.parse(row.data)
-                            : row.data;
-                        const requestItem = {
-                            ...parsedData,
-                            id: row.id,
-                            status: row.status,
-                            claimedBy: Array.isArray(parsedData.claimedBy)
-                                ? parsedData.claimedBy
-                                : (parsedData.claimedBy ? [parsedData.claimedBy] : [])
-                        } as SupplyRequest;
-
-                        setSupplyRequests(prev => {
-                            const existingIdx = prev.findIndex(r => r.id === requestItem.id);
-                            if (existingIdx !== -1) {
-                                const existing = prev[existingIdx];
-                                // Compare content to avoid triggering update on identical payload
-                                if (JSON.stringify(existing) === JSON.stringify(requestItem)) {
-                                    return prev;
-                                }
-                                isRemoteRequestsUpdateRef.current = true;
-                                const next = [...prev];
-                                next[existingIdx] = requestItem;
-                                return next;
-                            }
-                            isRemoteRequestsUpdateRef.current = true;
-                            return [requestItem, ...prev];
-                        });
-                    } else if (payload.eventType === 'DELETE') {
-                        console.log('[Real-time] DELETE payload received:', payload);
-                        const oldId = payload.old?.id;
-                        isRemoteRequestsUpdateRef.current = true;
-                        if (oldId) {
-                            setSupplyRequests(prev => {
-                                const next = prev.filter(r => r.id !== oldId);
-                                try { localStorage.setItem('docka_supply_requests', JSON.stringify(next)); } catch (e) {}
-                                return next;
-                            });
-                        } else {
-                            dbService.loadRequests(masterKey).then(updatedReqs => {
-                                isRemoteRequestsUpdateRef.current = true;
-                                setSupplyRequests(updatedReqs);
-                            });
-                        }
-                    }
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Real-time] Supply requests subscription status:', status);
-            });
-
-        // 3. Subscribe to depots changes
-        const depotsChannel = supabase
-            .channel('public-depots')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'depots' },
-                (payload: { new: Record<string, unknown>; eventType: string; old?: { id?: string; name?: string } }) => {
-                    console.log('[Real-time] Depot changed:', payload);
-                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        const row = payload.new as { name: string; data: string | Depot };
-                        const parsedData = typeof row.data === 'string' && (row.data.startsWith('{') || row.data.startsWith('['))
-                            ? JSON.parse(row.data)
-                            : row.data;
-                        const cleanName = dbService.normalizeDepotName(row.name);
-                        
-                        setDepots(prev => {
-                            const existing = prev[cleanName];
-                            if (existing && JSON.stringify(existing) === JSON.stringify(parsedData)) {
-                                return prev;
-                            }
-                            isRemoteDepotsUpdateRef.current = true;
-                            const next = { ...prev };
-                            if (row.name !== cleanName) {
-                                delete next[row.name];
-                            }
-                            next[cleanName] = {
-                                ...parsedData,
-                                name: cleanName
-                            };
-                            return next;
-                        });
-                    } else if (payload.eventType === 'DELETE') {
-                        if (payload.old?.name) {
-                            const oldName = dbService.normalizeDepotName(payload.old.name);
-                            setDepots(prev => {
-                                if (!prev[oldName]) return prev;
-                                isRemoteDepotsUpdateRef.current = true;
-                                const next = { ...prev };
-                                delete next[oldName];
-                                return next;
-                            });
-                        }
-                    }
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Real-time] Depots subscription status:', status);
-            });
-
-        // 4. Subscribe to announcements table changes
-        const announcementsChannel = supabase
-            .channel('public-announcements')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'announcements' },
-                (payload) => {
-                    console.log('[Real-time] Announcement changed:', payload);
-                    if (payload.eventType === 'INSERT') {
-                        const row = payload.new as any;
-                        const newAnn: SystemNotification = {
-                            id: row.id,
-                            type: 'announcement',
-                            message: `${row.title}: "${row.content}"`,
-                            timestamp: row.created_at,
-                            isRead: false,
-                            announcementTitle: row.title,
-                            announcementContent: row.content,
-                            announcementSeverity: row.severity,
-                            announcementAuthor: row.author,
-                            announcementRole: row.role,
-                            pinnedUntil: row.pinned_until || row.pinnedUntil || null
-                        };
-                        setNotifications(prev => {
-                            const exists = prev.some(n => n.id === newAnn.id);
-                            if (exists) return prev;
-                            const next = [newAnn, ...prev];
-                            localStorage.setItem('docka_notifications', JSON.stringify(next));
-                            return next;
-                        });
-                        showToast(language === 'tr' ? "Yeni bir duyuru paylaşıldı!" : "A new announcement has been published!", "info");
-                    } else if (payload.eventType === 'UPDATE') {
-                        const row = payload.new as any;
-                        setNotifications(prev => {
-                            const next = prev.map(n => {
-                                if (n.id === row.id) {
-                                    const updatedPinned = row.pinned_until !== undefined ? row.pinned_until : row.pinnedUntil !== undefined ? row.pinnedUntil : n.pinnedUntil;
-                                    return {
-                                        ...n,
-                                        announcementTitle: row.title || n.announcementTitle,
-                                        announcementContent: row.content || n.announcementContent,
-                                        announcementSeverity: row.severity || n.announcementSeverity,
-                                        pinnedUntil: updatedPinned || null
-                                    };
-                                }
-                                return n;
-                            });
-                            localStorage.setItem('docka_notifications', JSON.stringify(next));
-                            return next;
-                        });
-                    } else if (payload.eventType === 'DELETE') {
-                        if (payload.old?.id) {
-                            const deletedId = payload.old.id;
-                            setNotifications(prev => {
-                                const next = prev.filter(n => n.id !== deletedId);
-                                localStorage.setItem('docka_notifications', JSON.stringify(next));
-                                return next;
-                            });
-                        }
-                    }
-                }
-            )
-            .on(
-                'broadcast',
-                { event: 'announcement_pinned' },
-                (payload) => {
-                    console.log('[Broadcast] Announcement pin changed:', payload);
-                    const { id, pinnedUntil } = payload.payload || {};
-                    if (id !== undefined) {
-                        setNotifications(prev => {
-                            const next = prev.map(n => n.id === id ? { ...n, pinnedUntil } : n);
-                            localStorage.setItem('docka_notifications', JSON.stringify(next));
-                            return next;
-                        });
-                    }
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Real-time] Announcements subscription status:', status);
-            });
-
-        // 5. Subscribe to audit logs table changes
-        const auditLogsChannel = supabase
-            .channel('public-audit-logs')
-            .on(
-                'postgres_changes',
-                { event: 'INSERT', schema: 'public', table: 'audit_logs' },
-                (payload) => {
-                    console.log('[Real-time] Audit log inserted:', payload);
-                    const row = payload.new as any;
-                    const newLog: AuditLogEntry = {
-                        id: row.id,
-                        timestamp: row.timestamp,
-                        username: row.username,
-                        role: row.role,
-                        action: row.action
-                    };
-                    setAuditLogs(prev => {
-                        const exists = prev.some(l => l.id === newLog.id);
-                        if (exists) return prev;
-                        const next = [newLog, ...prev].slice(0, 300);
-                        localStorage.setItem('docka_audit_logs', JSON.stringify(next));
-                        return next;
-                    });
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Real-time] Audit logs subscription status:', status);
-            });
-
-        // 6. Subscribe to system settings changes (templates & region settings)
-        const systemSettingsChannel = supabase
-            .channel('public-system-settings')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'system_settings' },
-                (payload: any) => {
-                    console.log('[Real-time] System settings changed:', payload);
-                    if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                        const row = payload.new;
-                        try {
-                            const parsedValue = typeof row.setting_value === 'string'
-                                ? JSON.parse(row.setting_value)
-                                : row.setting_value;
-                            if (row.setting_key === 'stockpile_templates') {
-                                const defaults = getDefaultTemplates();
-                                const merged: StockpileTemplates = {
-                                    frontline: { ...defaults.frontline, ...(parsedValue.frontline || {}) },
-                                    backline: { ...defaults.backline, ...(parsedValue.backline || {}) },
-                                    airfield: { ...defaults.airfield, ...(parsedValue.airfield || parsedValue.aircraft || {}) }
-                                };
-                                Object.keys(parsedValue || {}).forEach(k => {
-                                    if (k !== 'frontline' && k !== 'backline' && k !== 'airfield' && k !== 'aircraft') {
-                                        merged[k] = parsedValue[k];
-                                    }
-                                });
-                                setTemplates(merged);
-                            } else if (row.setting_key === 'region_settings') {
-                                setRegionSettings(parsedValue || {});
-                            }
-                        } catch (e) {
-                            console.error('[Real-time] Failed to parse system setting:', e);
-                        }
-                    }
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Real-time] System settings subscription status:', status);
-            });
-
-        // 7. Subscribe to feedbacks changes
-        const feedbacksChannel = supabase
-            .channel('public-feedbacks')
-            .on(
-                'postgres_changes',
-                { event: '*', schema: 'public', table: 'feedbacks' },
-                (payload) => {
-                    console.log('[Real-time] Feedback table change:', payload);
-                    if (payload.eventType === 'INSERT') {
-                        const row = payload.new as any;
-                        setFeedbacks(prev => {
-                            const exists = prev.some(f => f.id === row.id);
-                            if (exists) return prev;
-                            const next = [row, ...prev];
-                            localStorage.setItem('docka_feedbacks', JSON.stringify(next));
-                            return next;
-                        });
-                    } else if (payload.eventType === 'UPDATE') {
-                        const row = payload.new as any;
-                        setFeedbacks(prev => {
-                            const next = prev.map(f => f.id === row.id ? row : f);
-                            localStorage.setItem('docka_feedbacks', JSON.stringify(next));
-                            return next;
-                        });
-                    } else if (payload.eventType === 'DELETE') {
-                        const row = payload.old as any;
-                        setFeedbacks(prev => {
-                            const next = prev.filter(f => f.id !== row.id);
-                            localStorage.setItem('docka_feedbacks', JSON.stringify(next));
-                            return next;
-                        });
-                    }
-                }
-            )
-            .subscribe((status) => {
-                console.log('[Real-time] Feedbacks subscription status:', status);
-            });
-
-        return () => {
-            if (supabase) {
-                supabase.removeChannel(profilesChannel);
-                supabase.removeChannel(requestsChannel);
-                supabase.removeChannel(depotsChannel);
-                supabase.removeChannel(announcementsChannel);
-                supabase.removeChannel(auditLogsChannel);
-                supabase.removeChannel(systemSettingsChannel);
-                supabase.removeChannel(feedbacksChannel);
-            }
-        };
-    }, [masterKey, handleDisconnect, showToast, t, language]);
+    useRealtimeSubscriptions({
+        masterKey,
+        language,
+        showToast,
+        handleDisconnect,
+        setUserRole,
+        setPortalUsers,
+        setSupplyRequests,
+        setDepots,
+        setNotifications,
+        setAuditLogs,
+        setFeedbacks,
+        setTemplates,
+        setRegionSettings,
+        isRemoteRequestsUpdateRef,
+        isRemoteDepotsUpdateRef
+    });
 
 
 
@@ -2075,7 +1721,8 @@ export const App: React.FC = () => {
                     .from('profiles')
                     .update({ 
                         status: 'approved',
-                        role: targetRole
+                        role: targetRole,
+                        approved_at: new Date().toISOString()
                     })
                     .eq('id', id);
                 if (error) throw error;
@@ -2164,85 +1811,6 @@ export const App: React.FC = () => {
         logAction(`Updated user ${username} role to ${nextRole}.`);
         showToast(`Updated ${username} role.`, 'success');
     }, [portalUsers, isSupabaseConfigured, showToast, logAction, fetchPortalUsers, masterKey, currentUsername]);
-
-    const handleGenerateTestDepotsSet1 = useCallback(async () => {
-        if (userRole !== 'developer') return;
-
-        const { depots: generated, logs } = generateTestDepotsSet1();
-
-        setDepots(prev => ({
-            ...prev,
-            ...generated
-        }));
-
-        setAuditLogs(prev => [...logs, ...prev]);
-
-        showToast(language === 'tr' ? 'Set 1 Yüklendi: 20 Depo (7 günlük zengin ilk veri) kuruldu!' : 'Set 1 Loaded: 20 Depots with 7-day rich baseline data generated!', 'success');
-        logAction('Generated 20 simulated test depots (Set 1 - 7 Day Baseline).');
-    }, [userRole, language, showToast, logAction]);
-
-    const handleGenerateTestDepotsSet2 = useCallback(async () => {
-        if (userRole !== 'developer') return;
-
-        const { depots: generated, logs } = generateTestDepotsSet2(depots);
-
-        setDepots(prev => ({
-            ...prev,
-            ...generated
-        }));
-
-        setAuditLogs(prev => [...logs, ...prev]);
-
-        showToast(language === 'tr' ? 'Set 2 Yüklendi: 20 Depo güncellendi! Tüketim hızı ve kritik stok alarmları aktif.' : 'Set 2 Loaded: 20 Depots updated with rapid consumption & critical alerts!', 'warning');
-        logAction('Updated 20 simulated test depots (Set 2 - Depletion & Consumption Active).');
-    }, [userRole, depots, language, showToast, logAction]);
-
-    const handleClearTestDepots = useCallback(async () => {
-        if (userRole !== 'developer') return;
-
-        const testKeys = Object.keys(depots).filter(k => k.startsWith('TEST-'));
-        if (testKeys.length === 0) {
-            showToast(language === 'tr' ? 'Silinecek test deposu bulunamadı.' : 'No test depots found to delete.', 'info');
-            return;
-        }
-
-        // Delete from Supabase
-        const client = supabase;
-        if (isSupabaseConfigured && client) {
-            try {
-                // Delete in parallel
-                await Promise.all(testKeys.map(async (name) => {
-                    const { error } = await client
-                        .from('depots')
-                        .delete()
-                        .eq('name', name);
-                    if (error) console.error(`[App] Failed to delete test depot ${name}:`, error);
-                }));
-            } catch (err) {
-                console.error('[App] Failed to clear test depots from Supabase:', err);
-            }
-        }
-
-        // Update local state by removing keys
-        setDepots(prev => {
-            const next = { ...prev };
-            testKeys.forEach(k => {
-                delete next[k];
-            });
-            return next;
-        });
-
-        // Set active depot name to 'all' or another depot if active one was a test depot
-        setActiveDepotName(prev => {
-            if (prev && prev.startsWith('TEST-')) {
-                return 'all';
-            }
-            return prev;
-        });
-
-        showToast(language === 'tr' ? 'Tüm test depoları silindi!' : 'All test depots cleared!', 'warning');
-        logAction('Cleared all simulated test depots.');
-    }, [userRole, depots, language, showToast, logAction]);
 
     const getDepotRegion = (dep: Depot): string => {
         const parts = dep.name.split(' - ').map(s => s.trim()).filter(Boolean);
@@ -2436,6 +2004,7 @@ export const App: React.FC = () => {
             return {
                 name: `town:${town}`,
                 customName: town,
+                subregion: town,
                 current: mergedCurrent,
                 previous: Object.keys(mergedPrevious).length > 0 ? mergedPrevious : null,
                 lastUpdated: latestUpdated || new Date().toISOString()
@@ -2493,7 +2062,7 @@ export const App: React.FC = () => {
 
 
 
-    const isOutdated = isOutdatedVersion(APP_VERSION, minAppVersion);
+    const isOutdated = !import.meta.env.DEV && isOutdatedVersion(APP_VERSION, minAppVersion);
 
     if (isOutdated) {
         const forceUpdateTranslations: Record<string, Record<string, string>> = {
@@ -2901,13 +2470,7 @@ export const App: React.FC = () => {
                                                          : type === 'airfield' ? 'AIRFIELD' : type.toUpperCase();
 
                                                      return (
-                                                         <span style={{
-                                                             fontSize: '0.72rem',
-                                                             fontWeight: 800,
-                                                             padding: '0.25rem 0.65rem',
-                                                             borderRadius: '6px',
-                                                             textTransform: 'uppercase',
-                                                             letterSpacing: '0.05em',
+                                                         <span className="depot-template-badge" style={{
                                                              background: `${color}20`,
                                                              color: color,
                                                              border: `1px solid ${color}60`
@@ -2922,49 +2485,14 @@ export const App: React.FC = () => {
 
                                         {/* Toggle Chips for Sub-depots of the Town */}
                                         {(activeTab === 'inventory' || activeTab === 'analytics') && currentTownDepotsList.length > 0 && (
-                                            <div style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.65rem',
-                                                flexWrap: 'wrap',
-                                                marginTop: '0.65rem',
-                                                marginBottom: '0.25rem',
-                                                padding: '0.5rem 0.85rem',
-                                                background: 'rgba(20, 21, 26, 0.4)',
-                                                backdropFilter: 'blur(8px)',
-                                                WebkitBackdropFilter: 'blur(8px)',
-                                                borderRadius: '8px',
-                                                border: '1px solid rgba(255, 255, 255, 0.08)',
-                                                width: 'fit-content',
-                                                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
-                                            }}>
-                                                <span style={{ 
-                                                    fontSize: '0.72rem', 
-                                                    color: 'var(--text-secondary)', 
-                                                    fontWeight: 800, 
-                                                    letterSpacing: '0.05em',
-                                                    marginRight: '0.35rem',
-                                                    textTransform: 'uppercase',
-                                                    opacity: 0.8
-                                                }}>
+                                            <div className="depot-filter-chips">
+                                                <span className="depot-filter-label">
                                                     {language === 'tr' ? 'Depo Seçimi:' : 'Stockpile Filter:'}
                                                 </span>
                                                 <button
                                                     type="button"
                                                     onClick={() => setActiveSubDepotFilter('all')}
-                                                    style={{
-                                                        padding: '0.35rem 0.85rem',
-                                                        borderRadius: '6px',
-                                                        fontSize: '0.78rem',
-                                                        fontWeight: 700,
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                        border: '1px solid ' + (activeSubDepotFilter === 'all' ? 'var(--accent-color)' : 'rgba(255, 255, 255, 0.05)'),
-                                                        background: activeSubDepotFilter === 'all' 
-                                                            ? 'rgba(249, 115, 22, 0.15)' 
-                                                            : 'rgba(255, 255, 255, 0.03)',
-                                                        color: activeSubDepotFilter === 'all' ? 'var(--accent-color)' : 'var(--text-secondary)'
-                                                    }}
+                                                    className={`depot-chip ${activeSubDepotFilter === 'all' ? 'selected' : ''}`}
                                                 >
                                                     {language === 'tr' ? 'Tümü' : 'All'}
                                                 </button>
@@ -2979,19 +2507,7 @@ export const App: React.FC = () => {
                                                             key={item.key}
                                                             type="button"
                                                             onClick={() => setActiveSubDepotFilter(item.key)}
-                                                            style={{
-                                                                padding: '0.35rem 0.85rem',
-                                                                borderRadius: '6px',
-                                                                fontSize: '0.78rem',
-                                                                fontWeight: 700,
-                                                                cursor: 'pointer',
-                                                                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                                                                border: '1px solid ' + (isSelected ? 'var(--accent-color)' : (isStale ? '#ef4444' : 'rgba(255, 255, 255, 0.05)')),
-                                                                background: isSelected 
-                                                                    ? 'rgba(249, 115, 22, 0.15)' 
-                                                                    : (isStale ? 'rgba(239, 68, 68, 0.05)' : 'rgba(255, 255, 255, 0.03)'),
-                                                                color: isSelected ? 'var(--accent-color)' : (isStale ? '#ef4444' : 'var(--text-secondary)')
-                                                            }}
+                                                            className={`depot-chip ${isSelected ? 'selected' : ''} ${isStale ? 'stale' : ''}`}
                                                         >
                                                             {item.label}
                                                         </button>
@@ -3268,10 +2784,6 @@ export const App: React.FC = () => {
                                           feedbacks={feedbacks}
                                           onDeleteFeedback={handleDeleteFeedback}
                                           onUpdateFeedbackStatus={handleUpdateFeedbackStatus}
-                                          depots={depots}
-                                          onGenerateTestDepotsSet1={handleGenerateTestDepotsSet1}
-                                          onGenerateTestDepotsSet2={handleGenerateTestDepotsSet2}
-                                          onDeleteTestDepots={handleClearTestDepots}
                                           onRefreshUsers={fetchPortalUsers}
                                           onResetLeaderboard={handleResetLeaderboard}
                                           minAppVersion={minAppVersion}
@@ -3329,252 +2841,20 @@ export const App: React.FC = () => {
 
 
             {/* Integrated Navigation Tabs (Left Vertical Sidebar Menu) */}
-            <div className={`vertical-navigation-sidebar anim-fade-in ${isChatOpen || isPersonalizeOpen ? 'forced-collapsed' : ''}`}>
-                {IS_TAURI && (
-                    <div style={{ paddingTop: '0.4rem', width: '100%' }}>
-                        <button
-                            className={`vertical-nav-btn ${activeTab === 'direct-sync' ? 'active' : ''}`}
-                            onClick={() => handleTabChange('direct-sync')}
-                            data-tooltip="Direct SAV Sync (New Import Method)"
-                            type="button"
-                        >
-                            <Database size={18} style={{ color: 'var(--accent-color)' }} />
-                            <span style={{ color: 'var(--accent-color)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                Direct Sync
-                                <span style={{
-                                    fontSize: '0.58rem',
-                                    fontWeight: 800,
-                                    background: 'var(--accent-color)',
-                                    color: '#000000',
-                                    padding: '0.12rem 0.35rem',
-                                    borderRadius: '4px',
-                                    letterSpacing: '0.04em',
-                                    lineHeight: 1,
-                                    textTransform: 'uppercase'
-                                }}>
-                                    NEW
-                                </span>
-                            </span>
-                        </button>
-                    </div>
-                )}
-
-                <div className="sidebar-divider" />
-
-                <div className="sidebar-scrollable-content">
-                    {/* 1. Announcements */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'announcements' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('announcements')}
-                        data-tooltip={t('announcements')}
-                    >
-                        <Megaphone size={18} />
-                        <span>{t('announcements')}</span>
-                    </button>
-
-                    {/* 2. Passcodes */}
-                    {userRole !== 'recruit' && (
-                        <button
-                            className={`vertical-nav-btn ${activeTab === 'passcodes' ? 'active' : ''}`}
-                            onClick={() => handleTabChange('passcodes')}
-                            data-tooltip={t('tab_passcodes')}
-                        >
-                            <Lock size={18} />
-                            <span>{t('tab_passcodes')}</span>
-                        </button>
-                    )}
-
-                    {/* 3. Inventory */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'inventory' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('inventory')}
-                        data-tooltip={t('tab_inventory')}
-                    >
-                        <FileText size={18} />
-                        <span>{t('tab_inventory')}</span>
-                    </button>
-
-                    {/* 4. Demand */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'demand' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('demand')}
-                        data-tooltip={t('tab_demand')}
-                    >
-                        <ClipboardList size={18} />
-                        <span>{t('tab_demand')}</span>
-                    </button>
-
-                    {/* 5. Supply Requests */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'requests' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('requests')}
-                        data-tooltip={t('tab_supply_requests')}
-                    >
-                        <Truck size={18} />
-                        <span>{t('tab_supply_requests')}</span>
-                    </button>
-
-                    {/* 6. Transfer Calculator */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'transfer-calculator' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('transfer-calculator')}
-                        data-tooltip={t('tab_transfer_calculator')}
-                    >
-                        <ArrowLeftRight size={18} />
-                        <span>{t('tab_transfer_calculator')}</span>
-                    </button>
-
-                    {/* 7. Analytics */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'analytics' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('analytics')}
-                        data-tooltip="Analytics"
-                    >
-                        <BarChart3 size={18} />
-                        <span>Analytics</span>
-                    </button>
-
-                    {/* 8. Leaderboard */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'leaderboard' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('leaderboard')}
-                        data-tooltip={language === 'tr' ? 'Liderlik Tablosu' : 'Leaderboard'}
-                    >
-                        <Trophy size={18} />
-                        <span>{language === 'tr' ? 'Liderlik Tablosu' : 'Leaderboard'}</span>
-                    </button>
-
-                    {/* 9. Feedback */}
-                    <button
-                        className={`vertical-nav-btn ${activeTab === 'feedback' ? 'active' : ''}`}
-                        onClick={() => handleTabChange('feedback')}
-                        data-tooltip={language === 'tr' ? 'Geri Bildirim' : 'Feedback'}
-                    >
-                        <Lightbulb size={18} />
-                        <span>{language === 'tr' ? 'Geri Bildirim' : 'Feedback'}</span>
-                    </button>
-
-                    {/* Management Divider */}
-                    <div className="sidebar-divider" />
-
-                    {/* 10. Stockpile Management */}
-                    {(userRole === 'developer' || userRole === 'logistics_lead' || userRole === 'officer') && (
-                        <button
-                            className={`vertical-nav-btn ${activeTab === 'region-management' ? 'active' : ''}`}
-                            onClick={() => handleTabChange('region-management')}
-                            data-tooltip={t('stockpile_management')}
-                        >
-                            <ShieldCheck size={18} />
-                            <span>{t('stockpile_management')}</span>
-                            {Object.values(depots).some(d => !d.isIntegrated) && (
-                                <span style={{
-                                    background: '#ef4444',
-                                    color: '#ffffff',
-                                    fontSize: '0.65rem',
-                                    fontWeight: 800,
-                                    borderRadius: '10px',
-                                    padding: '0.1rem 0.45rem',
-                                    marginLeft: 'auto'
-                                }}>
-                                    {Object.values(depots).filter(d => !d.isIntegrated).length}
-                                </span>
-                            )}
-                        </button>
-                    )}
-
-                    {/* 11. Template Management */}
-                    {(userRole === 'developer' || userRole === 'logistics_lead') && (
-                        <button
-                            className={`vertical-nav-btn ${activeTab === 'templates' ? 'active' : ''}`}
-                            onClick={() => handleTabChange('templates')}
-                            data-tooltip={t('template_management')}
-                        >
-                            <Sliders size={18} />
-                            <span>{t('template_management')}</span>
-                        </button>
-                    )}
-
-                    {/* 12. Officer+ Menu */}
-                    {userRole !== 'member' && (
-                        <button
-                            className={`vertical-nav-btn dev-portal-nav-btn ${activeTab === 'dev-portal' ? 'active' : ''}`}
-                            onClick={() => handleTabChange('dev-portal')}
-                            data-tooltip={
-                                unreadFeedbackCount > 0
-                                    ? (language === 'tr' ? `${unreadFeedbackCount} yeni bildirim` : `${unreadFeedbackCount} new notifications`)
-                                    : t('officer_menu')
-                            }
-                        >
-                            <ShieldAlert size={18} />
-                            <span>{t('officer_menu')}</span>
-                            {unreadFeedbackCount > 0 && (
-                                <span className="nav-badge">{unreadFeedbackCount}</span>
-                            )}
-                        </button>
-                    )}
-                </div>
-
-                <div className="sidebar-divider" />
-
-                <button
-                    className={`vertical-nav-btn ${isChatOpen ? 'active' : ''}`}
-                    onClick={() => {
-                        const nextState = !isChatOpen;
-                        setIsChatOpen(nextState);
-                        if (nextState) {
-                            setChatUnreadCount(0);
-                        }
-                        setIsPersonalizeOpen(false);
-                    }}
-                    data-tooltip={
-                        chatUnreadCount > 0
-                            ? (chatUnreadCount > 10
-                                ? (language === 'tr' ? '10+ yeni mesaj' : '10+ new messages')
-                                : (language === 'tr' ? `${chatUnreadCount} yeni mesaj` : `${chatUnreadCount} new messages`))
-                            : (language === 'tr' ? 'Sohbet' : 'Chat')
-                    }
-                >
-                    <MessageSquare size={18} />
-                    <span>{language === 'tr' ? 'Sohbet' : 'Chat'}</span>
-                    {chatUnreadCount > 0 && (
-                        <span className="nav-badge">
-                            {chatUnreadCount > 10 ? '10+' : chatUnreadCount}
-                        </span>
-                    )}
-                </button>
-
-                <button
-                    className={`vertical-nav-btn ${isPersonalizeOpen ? 'active' : ''}`}
-                    onClick={() => {
-                        setIsPersonalizeOpen(!isPersonalizeOpen);
-                        setIsChatOpen(false);
-                    }}
-                    data-tooltip={language === 'tr' ? 'Kişiselleştir' : 'Personalize'}
-                >
-                    <Sliders size={18} />
-                    <span>{language === 'tr' ? 'Kişiselleştir' : 'Personalize'}</span>
-                </button>
-
-                <button
-                    type="button"
-                    onClick={() => openExternalUrl('https://discord.gg/F63C7cqNdF')}
-                    className="vertical-nav-btn discord-nav-btn"
-                    data-tooltip="VELI"
-                    style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.65rem' }}
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="18"
-                        height="18"
-                        viewBox="0 0 127.14 96.36"
-                        fill="currentColor"
-                        style={{ flexShrink: 0 }}
-                    >
-                        <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.4-5c.87-.64,1.72-1.31,2.53-2a75.76,75.76,0,0,0,72.71,0c.81.7,1.66,1.37,2.53,2a68.43,68.43,0,0,1-10.4,5,77.7,77.7,0,0,0,6.63,10.85,105.73,105.73,0,0,0,31-18.83C129,54.65,122.64,31.58,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z" />
-                    </svg>
-                    <span>VELI</span>
-                </button>
-            </div>
+            <AppSidebar
+                activeTab={activeTab}
+                handleTabChange={handleTabChange}
+                userRole={userRole}
+                depots={depots}
+                unreadFeedbackCount={unreadFeedbackCount}
+                isChatOpen={isChatOpen}
+                setIsChatOpen={setIsChatOpen}
+                setChatUnreadCount={setChatUnreadCount}
+                chatUnreadCount={chatUnreadCount}
+                isPersonalizeOpen={isPersonalizeOpen}
+                setIsPersonalizeOpen={setIsPersonalizeOpen}
+                userClan={userClan}
+            />
 
             {/* Coalition Chat Widget (Bottom-right float) */}
 
@@ -3670,10 +2950,10 @@ export const App: React.FC = () => {
                             left: '5.5rem',
                             top: '110px',
                             width: '360px',
-                            background: theme === 'dark' ? 'linear-gradient(135deg, rgba(16, 24, 18, 0.98) 0%, rgba(10, 16, 11, 0.98) 100%)' : '#ffffff',
-                            border: '1px solid rgba(16, 185, 129, 0.35)',
+                            background: 'var(--bg-card)',
+                            border: '1px solid var(--border-color)',
                             borderRadius: 'var(--radius-md)',
-                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.8)',
+                            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.55)',
                             zIndex: 9999,
                             overflow: 'visible',
                             display: 'flex',
@@ -3724,7 +3004,7 @@ export const App: React.FC = () => {
                                 <CustomSelect
                                     options={[
                                         { value: '', label: language === 'tr' ? '-- Birlik Yok (No Regiment) --' : '-- No Regiment --' },
-                                        ...['UBGE', 'PARS', 'JgF', 'G.H.R', 'RU', 'AFC', 'VOG', 'SBR'].map(clan => ({ value: clan, label: clan }))
+                                        ...['UBGE', 'PARS', 'JgF', 'RU', 'AFC', 'VOG', 'SBR'].map(clan => ({ value: clan, label: clan }))
                                     ]}
                                     value={userClan || ''}
                                     onChange={(val) => setUserClan(val || null)}

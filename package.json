@@ -1,7 +1,7 @@
 {
   "name": "foxhole-depot-tracker",
   "private": true,
-  "version": "0.1.71",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,10 @@
     "preview": "vite preview",
     "tauri": "tauri",
     "audit:css": "node audit-css.cjs",
-    "translate:i18n": "node auto-translate-i18n.cjs"
+      "bump:version": "node bump-version.cjs",
+    "translate:i18n": "node auto-translate-i18n.cjs",
+    "bot:deploy": "cd worker && wrangler deploy",
+    "bot:dev": "cd worker && wrangler dev"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.108.1",
@@ -36,6 +39,7 @@
     "globals": "^17.6.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "wrangler": "^4.122.0"
   }
 }

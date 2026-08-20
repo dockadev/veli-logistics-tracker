@@ -36,8 +36,8 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = React.memo(({
 
     const renderRankingTable = (title: string, data: PortalUser[], metricKey: 'import_count' | 'request_count' | 'delivery_count') => {
         return (
-            <div className="panel-card leaderboard-column" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', padding: '1.25rem', flex: 1, minWidth: '280px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
+            <div className="panel-card leaderboard-column anim-row-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', padding: '1.25rem', flex: 1, minWidth: '280px', borderRadius: '6px', transition: 'border-color 0.2s ease, box-shadow 0.2s ease' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', marginBottom: '0.25rem' }}>
                     <Award size={16} style={{ color: 'var(--accent-color)' }} />
                     <h3 style={{ margin: 0, fontSize: '0.8rem', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--text-primary)', letterSpacing: '0.04em' }}>
                         {title}
@@ -58,19 +58,24 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = React.memo(({
                             return (
                                 <div 
                                     key={user.id || user.username} 
-                                    className={`leaderboard-item ${isTopThree ? `leaderboard-rank-${index + 1}` : ''}`}
+                                    className={`leaderboard-item anim-row-in ${isTopThree ? `leaderboard-rank-${index + 1}` : ''}`}
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
                                         padding: '0.55rem 0.85rem',
-                                        borderRadius: '8px',
+                                        borderRadius: '6px',
                                         background: isTopThree 
-                                            ? `rgba(255, 255, 255, ${0.035 - (index * 0.008)})` 
-                                            : 'rgba(255, 255, 255, 0.01)',
-                                        border: '1px solid rgba(255, 255, 255, 0.02)',
-                                        transition: 'transform 0.15s ease'
+                                            ? `rgba(245, 158, 11, ${0.04 - (index * 0.01)})` 
+                                            : 'var(--card-header-bg)',
+                                        border: isTopThree 
+                                            ? `1px solid rgba(245, 158, 11, ${0.25 - (index * 0.06)})` 
+                                            : '1px solid var(--border-color)',
+                                        transition: 'border-color 0.15s ease, background 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease',
+                                        animationDelay: `${index * 50}ms`
                                     }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.borderColor = 'rgba(var(--accent-color-rgb), 0.4)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = isTopThree ? `rgba(245, 158, 11, ${0.25 - (index * 0.06)})` : 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                         {index === 0 ? (
@@ -120,9 +125,9 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = React.memo(({
         <div className="leaderboard-tab anim-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.5rem' }}>
             
             {/* Header section with Trophy icon & title */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '0.75rem' }}>
+            <div className="anim-row-in" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '0.5rem', borderRadius: 'var(--radius-sm, 6px)' }}>
+                    <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '0.5rem', borderRadius: '6px' }}>
                         <Trophy size={22} style={{ color: '#f59e0b' }} />
                     </div>
                     <div>
@@ -144,12 +149,12 @@ export const LeaderboardTab: React.FC<LeaderboardTabProps> = React.memo(({
             </div>
 
             {/* Informational helper note */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255, 255, 255, 0.01)', border: '1px solid rgba(255, 255, 255, 0.02)', padding: '0.65rem 0.85rem', borderRadius: '6px', fontSize: '0.68rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+            <div className="anim-row-in" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderLeft: '3px solid var(--accent-color)', padding: '0.65rem 0.85rem', borderRadius: '6px', fontSize: '0.68rem', color: 'var(--text-secondary)', lineHeight: 1.4, animationDelay: '150ms' }}>
                 <Info size={14} style={{ color: 'var(--accent-color)', flexShrink: 0 }} />
                 <span>
                     {language === 'tr' 
-                        ? 'İstatistikler, envanter yükleme (CSV aktarımı), lojistik talep oluşturma ve teslim edilen malzemelerin sisteme girilmesiyle gerçek zamanlı olarak güncellenir.'
-                        : 'Statistics are updated in real-time when uploading inventories (CSV import), creating logistics requests, or delivering items to depots.'}
+                        ? 'İstatistikler, envanter yükleme (SAV aktarımı), lojistik talep oluşturma ve teslim edilen malzemelerin sisteme girilmesiyle gerçek zamanlı olarak güncellenir.'
+                        : 'Statistics are updated in real-time when uploading inventories (SAV import), creating logistics requests, or delivering items to depots.'}
                 </span>
             </div>
 

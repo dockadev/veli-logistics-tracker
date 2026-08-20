@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Sparkles, RefreshCw, Package, ChevronDown, Check } from 'lucide-react';
+import { Sparkles, Package, ChevronDown, Check, Info } from 'lucide-react';
 import type { Depot, StockpileTemplates, RegionSettings } from '../types';
 import { getMPFCosts } from '../utils/mpfData';
 import { getItemOfficialCategory, type OfficialCategory } from '../utils/itemCategories';
@@ -54,16 +54,16 @@ const CompactItemSelect: React.FC<CompactItemSelectProps> = ({ candidateItems, s
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '0.35rem',
-                    background: 'rgba(20, 26, 22, 0.95)',
-                    border: '1px solid rgba(16, 185, 129, 0.35)',
-                    borderRadius: '5px',
+                    background: 'var(--bg-card-hover)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '0.18rem 0.5rem',
-                    color: '#ffffff',
+                    color: 'var(--text-primary)',
                     fontSize: '0.7rem',
                     fontWeight: 600,
                     cursor: 'pointer',
                     outline: 'none',
-                    transition: 'all 0.15s ease',
+                    transition: 'background 0.15s ease, transform 0.15s ease',
                     boxShadow: isOpen ? '0 0 10px rgba(16, 185, 129, 0.25)' : 'none'
                 }}
             >
@@ -95,9 +95,9 @@ const CompactItemSelect: React.FC<CompactItemSelectProps> = ({ candidateItems, s
                         maxWidth: '360px',
                         maxHeight: '210px',
                         overflowY: 'auto',
-                        background: 'rgba(16, 20, 18, 0.98)',
+                        background: 'var(--bg-card)',
                         backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        border: '1px solid var(--border-color)',
                         borderRadius: '8px',
                         padding: '0.3rem',
                         boxShadow: '0 12px 28px rgba(0,0,0,0.85)',
@@ -202,7 +202,7 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
     templates,
     regionSettings = {}
 }) => {
-    const { language } = useLanguage();
+    const { language, t } = useLanguage();
     // Custom Queue counts per category item (item -> number 0..9)
     const [customQueues, setCustomQueues] = useState<Record<string, number>>({});
     // Custom selected item index per category when multiple items have deficits
@@ -431,12 +431,6 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
         }));
     };
 
-    const handleResetAll = () => {
-        setCustomQueues({});
-        setCategorySelectedIndices({});
-        setDisabledCategories({});
-    };
-
     const toggleCategoryDisabled = (catKey: string) => {
         setDisabledCategories(prev => ({
             ...prev,
@@ -446,9 +440,9 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
 
     return (
         <div className="panel-card mpf-calculator-panel" style={{
-            background: 'rgba(20, 24, 22, 0.95)',
-            border: '1px solid rgba(16, 185, 129, 0.2)',
-            borderRadius: '8px',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            borderRadius: 'var(--radius-md)',
             padding: '1.25rem',
             display: 'flex',
             flexDirection: 'column',
@@ -472,16 +466,25 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <img src="/MapIconMassProductionFactory.png" alt="MPF Factory Icon" style={{ width: '32px', height: '32px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
-                    <button
-                        type="button"
-                        onClick={handleResetAll}
-                        className="btn btn-secondary"
-                        style={{ fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.4rem 0.75rem' }}
-                    >
-                        <RefreshCw size={13} />
-                        <span>{language === 'tr' ? 'Varsayılana Sıfırla' : 'Reset Queues'}</span>
-                    </button>
                 </div>
+            </div>
+
+            {/* MPF Cost Warning Note */}
+            <div className="anim-row-in" style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.6rem',
+                padding: '0.7rem 0.9rem',
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                borderLeft: '4px solid #f59e0b',
+                borderRadius: '6px',
+                fontSize: '0.78rem',
+                color: 'var(--text-primary)',
+                lineHeight: '1.5'
+            }}>
+                <Info size={15} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
+                <span>{t('mpf_cost_warning')}</span>
             </div>
 
             {/* Equal Height/Width Summary Cards: Total Raw Material Costs & Total Crate Amounts */}
@@ -492,83 +495,83 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
                 alignItems: 'stretch'
             }}>
                 {/* Card 1: Total Material Costs */}
-                <div style={{
-                    background: '#121713',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '8px',
+                <div className="mpf-summary-card" style={{
+                    background: 'var(--bg-card-hover)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '1rem',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.04em' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.04em' }}>
                         {language === 'tr' ? 'Toplam Hammadde Maliyeti' : 'Total Material Costs'}
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', flex: 1, alignItems: 'center' }}>
                         {/* Bmats */}
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src={getItemIconUrl('Basic Materials') || undefined} alt="Bmats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Bmats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Bmats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#fbbf24' }}>{totals.bmats.toLocaleString('en-US')}</span>
                         </div>
                         {/* Rmats */}
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src={getItemIconUrl('Refined Materials') || undefined} alt="Rmats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Rmats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Rmats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#38bdf8' }}>{totals.rmats.toLocaleString('en-US')}</span>
                         </div>
                         {/* Emats */}
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src={getItemIconUrl('Explosive Powder') || undefined} alt="Emats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Emats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Emats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f87171' }}>{totals.emats.toLocaleString('en-US')}</span>
                         </div>
                         {/* Hemats */}
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.6rem 0.4rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src={getItemIconUrl('Heavy Explosive Powder') || undefined} alt="Hemats" style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Hemats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Hemats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#c084fc' }}>{totals.hemats.toLocaleString('en-US')}</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Card 2: Total Crate Amounts Required */}
-                <div style={{
-                    background: '#121713',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '8px',
+                <div className="mpf-summary-card" style={{
+                    background: 'var(--bg-card-hover)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-sm)',
                     padding: '1rem',
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between'
                 }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.04em' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: '0.75rem', letterSpacing: '0.04em' }}>
                         {language === 'tr' ? 'Gerekli Kasa Miktarı' : 'Crate Amounts'} ({(totals.bmatsCrates + totals.rmatsCrates + totals.ematsCrates + totals.hematsCrates).toLocaleString('en-US')} {language === 'tr' ? 'Kasa' : 'Crates'})
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.5rem', flex: 1, alignItems: 'center' }}>
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src="/crate.png" alt="Crate" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Bmats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Bmats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#fbbf24' }}>{totals.bmatsCrates.toLocaleString('en-US')} Crates</span>
-                            <span style={{ fontSize: '0.58rem', color: '#64748b' }}>100/crate</span>
+                            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>100/crate</span>
                         </div>
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src="/crate.png" alt="Crate" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Rmats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Rmats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#38bdf8' }}>{totals.rmatsCrates.toLocaleString('en-US')} Crates</span>
-                            <span style={{ fontSize: '0.58rem', color: '#64748b' }}>20/crate</span>
+                            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>20/crate</span>
                         </div>
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src="/crate.png" alt="Crate" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Emats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Emats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#f87171' }}>{totals.ematsCrates.toLocaleString('en-US')} Crates</span>
-                            <span style={{ fontSize: '0.58rem', color: '#64748b' }}>40/crate</span>
+                            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>40/crate</span>
                         </div>
-                        <div style={{ background: '#1c241e', border: '1px solid rgba(255, 255, 255, 0.06)', borderRadius: '6px', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
+                        <div className="mpf-material-tile" style={{ background: 'var(--card-header-bg)', border: '1px solid var(--border-color)', borderRadius: 'var(--radius-sm)', padding: '0.5rem 0.3rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.2rem', height: '100%', justifyContent: 'center' }}>
                             <img src="/crate.png" alt="Crate" style={{ width: '22px', height: '22px', objectFit: 'contain' }} />
-                            <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 600 }}>Hemats</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Hemats</span>
                             <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#c084fc' }}>{totals.hematsCrates.toLocaleString('en-US')} Crates</span>
-                            <span style={{ fontSize: '0.58rem', color: '#64748b' }}>30/crate</span>
+                            <span style={{ fontSize: '0.58rem', color: 'var(--text-muted)' }}>30/crate</span>
                         </div>
                     </div>
                 </div>
@@ -594,15 +597,16 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
                             return (
                                 <div
                                     key={catDef.key}
+                                    className="mpf-item-card"
                                     style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         gap: '1rem',
-                                        background: '#2c2c2c',
-                                        border: '1px solid rgba(255, 255, 255, 0.05)',
-                                        borderRadius: '6px',
+                                        background: 'var(--bg-card-hover)',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: 'var(--radius-sm)',
                                         padding: '0.75rem 1.25rem',
-                                        color: '#a0a0a0'
+                                        color: 'var(--text-secondary)'
                                     }}
                                 >
                                     <div style={{ display: 'flex', alignItems: 'center', width: '22px', height: '22px' }} title={catDef.label}>
@@ -628,16 +632,17 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
                         return (
                             <div
                                 key={catDef.key}
+                                className="mpf-item-card"
                                 style={{
                                     display: 'flex',
                                     flexDirection: 'column',
                                     gap: '0.4rem',
-                                    background: '#2c2c2c',
-                                    border: topItem.isPriority ? '1px solid rgba(255, 122, 0, 0.45)' : '1px solid rgba(255, 255, 255, 0.08)',
-                                    borderRadius: '6px',
+                                    background: 'var(--card-header-bg)',
+                                    border: topItem.isPriority ? '1px solid rgba(255, 122, 0, 0.45)' : '1px solid var(--border-color)',
+                                    borderRadius: 'var(--radius-sm)',
                                     padding: '0.75rem 1.25rem',
                                     opacity: isCategoryDisabled ? 0.45 : 1,
-                                    transition: 'opacity 0.2s ease'
+                                    transition: 'opacity 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease'
                                 }}
                             >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -654,7 +659,7 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
                                                 <img src={categoryIconUrl} alt={catDef.label} style={{ width: '22px', height: '22px', objectFit: 'contain' }} onError={e => { (e.target as HTMLElement).style.display = 'none'; }} />
                                             ) : <Package size={20} />}
                                         </div>
-                                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: isCategoryDisabled ? '#94a3b8' : '#ffffff', textDecoration: isCategoryDisabled ? 'line-through' : 'none' }}>{topItem.itemName}</span>
+                                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: isCategoryDisabled ? 'var(--text-secondary)' : 'var(--text-primary)', textDecoration: isCategoryDisabled ? 'line-through' : 'none' }}>{topItem.itemName}</span>
                                         
                                         {topItem.isPriority && (
                                             <span style={{
@@ -674,8 +679,8 @@ export const MPFCalculatorPanel: React.FC<MPFCalculatorPanelProps> = React.memo(
                                     </div>
                                     
                                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                                        <div style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <span>Stock: <strong style={{ color: '#ffffff' }}>{topItem.currentQty.toLocaleString('en-US')}</strong> / {topItem.targetMax.toLocaleString('en-US')}</span>
+                                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <span>Stock: <strong style={{ color: 'var(--text-primary)' }}>{topItem.currentQty.toLocaleString('en-US')}</strong> / {topItem.targetMax.toLocaleString('en-US')}</span>
                                             <span style={{ color: 'rgba(255, 255, 255, 0.15)' }}>|</span>
                                             <span style={{ display: 'inline-flex', gap: '0.5rem' }}>
                                                 {itemBmats > 0 && <span style={{ color: '#fbbf24', fontWeight: 600 }}>{itemBmats.toLocaleString('en-US')} Bmats</span>}

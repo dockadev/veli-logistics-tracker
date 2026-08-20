@@ -55,6 +55,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
     const [tooltipState, setTooltipState] = useState<{ visible: boolean; content: string; x: number; y: number }>({ visible: false, content: '', x: 0, y: 0 });
     const [healthViewMode, setHealthViewMode] = useState<'category' | 'region'>('category');
 
+    const [showMoreLists, setShowMoreLists] = useState<Record<string, boolean>>({ increased: false, decreased: false, shortage: false, surplus: false });
+
     // Demand Overview Grid State
     const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
     const [isCopying, setIsCopying] = useState(false);
@@ -1304,8 +1306,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                     }
                 }
             `}</style>
-            <div className="analytics-graphs-grid">
-                
+            <div className="analytics-graphs-grid anim-row-in">
+
                 {/* Top Increased Items */}
                 <div className="panel-card" style={{ padding: '1.25rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: '1px solid rgba(255, 255, 255, 0.05)', paddingBottom: '0.5rem' }}>
@@ -1375,24 +1377,37 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                             {language === 'tr' ? 'Bu zaman aralığında artış gösteren malzeme bulunmamaktadır.' : 'No items increased within this range.'}
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                            {topIncreased.map(item => {
-                                const pct = Math.round((item.diff / maxInc) * 100);
-                                return (
-                                    <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
-                                                {formatCanonicalItemName(item.name)}
-                                            </span>
-                                            <span style={{ color: '#10b981', fontWeight: 700 }}>+{item.diff.toLocaleString()}</span>
+                        <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                                {(showMoreLists.increased ? topIncreased : topIncreased.slice(0, 5)).map((item, idx) => {
+                                    const pct = Math.round((item.diff / maxInc) * 100);
+                                    return (
+                                        <div key={item.name} className="anim-row-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', animationDelay: `${idx * 50}ms`, transition: 'transform 0.15s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateX(3px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateX(0)'; }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                    {formatCanonicalItemName(item.name)}
+                                                </span>
+                                                <span style={{ color: '#10b981', fontWeight: 700 }}>+{item.diff.toLocaleString()}</span>
+                                            </div>
+                                            <div style={{ width: '100%', height: '8px', background: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                                            </div>
                                         </div>
-                                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                            {topIncreased.length > 5 && (
+                                <button
+                                    type="button"
+                                    className="analytics-show-more"
+                                    onClick={() => setShowMoreLists(prev => ({ ...prev, increased: !prev.increased }))}
+                                >
+                                    {showMoreLists.increased
+                                        ? (language === 'tr' ? 'Daha Az Göster' : 'Show Less')
+                                        : (language === 'tr' ? `Daha Fazla Göster (+${topIncreased.length - 5})` : `Show More (+${topIncreased.length - 5})`)}
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
 
@@ -1465,24 +1480,37 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                             {language === 'tr' ? 'Bu zaman aralığında azalış gösteren malzeme bulunmamaktadır.' : 'No items decreased within this range.'}
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                            {topDecreased.map(item => {
-                                const pct = Math.round((item.diff / maxDec) * 100);
-                                return (
-                                    <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
-                                                {formatCanonicalItemName(item.name)}
-                                            </span>
-                                            <span style={{ color: '#ef4444', fontWeight: 700 }}>-{item.diff.toLocaleString()}</span>
+                        <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                                {(showMoreLists.decreased ? topDecreased : topDecreased.slice(0, 5)).map((item, idx) => {
+                                    const pct = Math.round((item.diff / maxDec) * 100);
+                                    return (
+                                        <div key={item.name} className="anim-row-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', animationDelay: `${idx * 50}ms`, transition: 'transform 0.15s ease' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateX(3px)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateX(0)'; }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                    {formatCanonicalItemName(item.name)}
+                                                </span>
+                                                <span style={{ color: '#ef4444', fontWeight: 700 }}>-{item.diff.toLocaleString()}</span>
+                                            </div>
+                                            <div style={{ width: '100%', height: '8px', background: 'var(--input-bg)', border: '1px solid var(--border-color)', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #ef4444, #dc2626)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                                            </div>
                                         </div>
-                                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #ef4444, #dc2626)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                            {topDecreased.length > 5 && (
+                                <button
+                                    type="button"
+                                    className="analytics-show-more"
+                                    onClick={() => setShowMoreLists(prev => ({ ...prev, decreased: !prev.decreased }))}
+                                >
+                                    {showMoreLists.decreased
+                                        ? (language === 'tr' ? 'Daha Az Göster' : 'Show Less')
+                                        : (language === 'tr' ? `Daha Fazla Göster (+${topDecreased.length - 5})` : `Show More (+${topDecreased.length - 5})`)}
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
 
@@ -1500,24 +1528,37 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                             {language === 'tr' ? 'İhtiyaç duyulan malzeme bulunmamaktadır.' : 'No shortage items.'}
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                            {topShortage.map(item => {
-                                const pct = Math.round((item.amount / maxShortage) * 100);
-                                return (
-                                    <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
-                                                {formatCanonicalItemName(item.name)}
-                                            </span>
-                                            <span style={{ color: '#ef4444', fontWeight: 700 }}>{item.amount.toLocaleString()}</span>
+                        <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                                {(showMoreLists.shortage ? topShortage : topShortage.slice(0, 5)).map(item => {
+                                    const pct = Math.round((item.amount / maxShortage) * 100);
+                                    return (
+                                        <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                    {formatCanonicalItemName(item.name)}
+                                                </span>
+                                                <span style={{ color: '#ef4444', fontWeight: 700 }}>{item.amount.toLocaleString()}</span>
+                                            </div>
+                                            <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #ef4444, #dc2626)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                                            </div>
                                         </div>
-                                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #ef4444, #dc2626)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                            {topShortage.length > 5 && (
+                                <button
+                                    type="button"
+                                    className="analytics-show-more"
+                                    onClick={() => setShowMoreLists(prev => ({ ...prev, shortage: !prev.shortage }))}
+                                >
+                                    {showMoreLists.shortage
+                                        ? (language === 'tr' ? 'Daha Az Göster' : 'Show Less')
+                                        : (language === 'tr' ? `Daha Fazla Göster (+${topShortage.length - 5})` : `Show More (+${topShortage.length - 5})`)}
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
 
@@ -1535,24 +1576,37 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = React.memo(({
                             {language === 'tr' ? 'Fazla malzeme bulunmamaktadır.' : 'No surplus items.'}
                         </div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '400px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                            {topSurplus.map(item => {
-                                const pct = Math.round((item.amount / maxSurplus) * 100);
-                                return (
-                                    <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
-                                            <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
-                                                {formatCanonicalItemName(item.name)}
-                                            </span>
-                                            <span style={{ color: '#10b981', fontWeight: 700 }}>+{item.amount.toLocaleString()}</span>
+                        <>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', maxHeight: '420px', overflowY: 'auto', paddingRight: '0.25rem' }}>
+                                {(showMoreLists.surplus ? topSurplus : topSurplus.slice(0, 5)).map(item => {
+                                    const pct = Math.round((item.amount / maxSurplus) * 100);
+                                    return (
+                                        <div key={item.name} style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem' }}>
+                                                <span style={{ fontWeight: 600, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', maxWidth: '200px' }} title={formatCanonicalItemName(item.name)}>
+                                                    {formatCanonicalItemName(item.name)}
+                                                </span>
+                                                <span style={{ color: '#10b981', fontWeight: 700 }}>+{item.amount.toLocaleString()}</span>
+                                            </div>
+                                            <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
+                                                <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
+                                            </div>
                                         </div>
-                                        <div style={{ width: '100%', height: '8px', background: 'rgba(255,255,255,0.03)', borderRadius: '4px', overflow: 'hidden' }}>
-                                            <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #10b981, #059669)', borderRadius: '4px', transition: 'width 0.5s ease' }} />
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
+                                    );
+                                })}
+                            </div>
+                            {topSurplus.length > 5 && (
+                                <button
+                                    type="button"
+                                    className="analytics-show-more"
+                                    onClick={() => setShowMoreLists(prev => ({ ...prev, surplus: !prev.surplus }))}
+                                >
+                                    {showMoreLists.surplus
+                                        ? (language === 'tr' ? 'Daha Az Göster' : 'Show Less')
+                                        : (language === 'tr' ? `Daha Fazla Göster (+${topSurplus.length - 5})` : `Show More (+${topSurplus.length - 5})`)}
+                                </button>
+                            )}
+                        </>
                     )}
                 </div>
 

@@ -1,1 +1,34 @@
-/* Analytics styling is deprecated. System is under maintenance. */
+/* ============================================================
+   ANALYTICS — modern flat layer
+   ============================================================ */
+
+/* Expand/collapse control for top lists */
+.analytics-show-more {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+    margin-top: 0.75rem;
+    width: 100%;
+    font-size: 0.66rem;
+    font-weight: 800;
+    padding: 0.35rem 0.6rem;
+    background: rgba(var(--accent-color-rgb), 0.08);
+    border: 1px solid rgba(var(--accent-color-rgb), 0.3);
+    border-radius: var(--radius-sm);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.analytics-show-more:hover {
+    background: rgba(var(--accent-color-rgb), 0.16);
+}
+.analytics-show-more:active {
+    transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .analytics-show-more {
+        transition: none !important;
+    }
+}

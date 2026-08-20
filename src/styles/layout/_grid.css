@@ -1,358 +1,223 @@
 /* ============================================================
-   APP CONTAINER GRID LAYOUT
-   ============================================================ */
-
-.app-container {
-    max-width: 2200px;
-    width: 100%;
-    margin: 0 auto;
-    padding: 1.5rem 1.5rem 5.5rem 1.5rem;
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
-    flex-grow: 1;
-    overflow-y: auto;
-}
-
-@media (min-width: 1100px) {
-    .app-container {
-        padding-left: 5.5rem; /* Shift content to make room for left vertical elements */
-    }
-}
-
-@media (max-width: 1100px) {
-    .app-container {
-        padding: 1rem 1rem 5.5rem 1rem;
-    }
-}
-
-/* ============================================================
-   VERTICAL NAVIGATION SIDEBAR
+   FLAT MINIMALIST EXPANDABLE RAIL SIDEBAR
+   Icon-only rail; on hover expands to a drawer revealing labels.
+   Active: light icon on matte gray. Theme-based colors.
    ============================================================ */
 
 .vertical-navigation-sidebar {
     position: fixed;
-    left: 1.25rem;
-    top: 80px;
-    z-index: 9999;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 999;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    background: rgba(15, 15, 20, var(--glass-opacity));
-    backdrop-filter: blur(var(--glass-blur));
-    -webkit-backdrop-filter: blur(var(--glass-blur));
+    align-items: stretch;
+    gap: 0.25rem;
+    background: var(--bg-card);
     border: 1px solid var(--border-color);
-    padding: 0.5rem 0.4rem;
-    border-radius: 20px;
-    box-shadow: 0 8px 32px rgba(var(--black-rgb), 0.6);
-    align-items: flex-start;
-    width: 50px;
-    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
-    overflow: hidden;
-}
-
-.vertical-navigation-sidebar:hover {
-    width: 215px;
-    padding: 0.5rem 0.6rem;
+    border-radius: 12px;
+    padding: 0.6rem 0.5rem;
+    width: 52px;
+    box-shadow: none;
+    transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.2s ease;
     overflow: visible;
 }
 
+.vertical-navigation-sidebar:hover {
+    width: 200px;
+    border-color: rgba(228, 234, 229, 0.45);
+}
+
+/* Scrollable content — full width of the rail */
+.sidebar-scrollable-content {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch;
+    gap: 0.2rem !important;
+    width: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
+}
+
+/* Nav buttons — icon + slide-in label (drawer) */
 .vertical-nav-btn {
     position: relative;
     display: flex;
     align-items: center;
-    justifyContent: flex-start;
+    justify-content: center;
+    gap: 0;
     width: 100%;
-    height: 34px;
-    border-radius: 17px;
+    height: 36px;
+    border-radius: 8px;
     background: transparent;
     border: none;
-    color: var(--text-muted);
-    transition: all 0.25s ease;
+    color: var(--text-secondary);
     cursor: pointer;
     outline: none;
-    padding: 0 0.5rem;
-    gap: 0.55rem;
-    overflow: hidden;
+    padding: 0;
+    flex-shrink: 0;
     white-space: nowrap;
+    text-align: left;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Expanded drawer: align icon left and reveal label */
+.vertical-navigation-sidebar:hover .vertical-nav-btn {
+    justify-content: flex-start;
+    gap: 0.65rem;
+    padding: 0 0.6rem;
 }
 
 .vertical-nav-btn svg {
+    width: 17px;
+    height: 17px;
     flex-shrink: 0;
+    transition: transform 0.15s ease;
 }
 
+.vertical-nav-btn:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+
+.vertical-nav-btn:hover svg {
+    transform: scale(1.08);
+}
+
+.vertical-nav-btn.active {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+    border: 1px solid rgba(228, 234, 229, 0.22);
+}
+
+.vertical-nav-btn.active svg {
+    color: var(--text-primary);
+}
+
+/* Labels: zero-width by default, slide in when the rail expands */
 .vertical-nav-btn span:not(.nav-badge) {
-    font-size: 0.73rem;
-    font-family: var(--font-heading);
+    display: inline-block;
+    max-width: 0;
     opacity: 0;
-    transform: translateX(-10px);
-    transition: opacity 0.25s ease, transform 0.25s ease;
-    pointer-events: none;
+    overflow: hidden;
     white-space: nowrap;
+    pointer-events: none;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    text-overflow: ellipsis;
+    transition: max-width 0.28s ease, opacity 0.2s ease 0.1s;
 }
 
 .vertical-navigation-sidebar:hover .vertical-nav-btn span:not(.nav-badge) {
+    max-width: 160px;
     opacity: 1;
-    transform: translateX(0);
-    transition-delay: 0.05s;
 }
 
-/* Theme-specific styles for Vertical Navigation Sidebar */
-
-/* DARK THEME */
-[data-theme="dark"] .vertical-navigation-sidebar {
-    background: rgba(14, 18, 14, 0.92);
-    border-color: var(--border-color);
-    box-shadow: 0 8px 32px rgba(var(--black-rgb), 0.5);
-    transition: background-color 0.25s ease, width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s ease;
+/* Inline count badge (region management) aligns right when expanded */
+.vertical-navigation-sidebar:hover .vertical-nav-btn > span[style*="margin-left: auto"] {
+    margin-left: auto !important;
 }
 
-[data-theme="dark"] .vertical-navigation-sidebar:hover {
-    background: rgba(14, 18, 14, 0.98);
+/* Meta chip (language / clan tag) — right aligned when expanded */
+.vertical-nav-btn span.nav-meta-chip {
+    display: inline-block;
+    max-width: 0;
+    padding: 0;
+    margin-left: 0;
+    opacity: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0.56rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: #cbd5e1;
+    background: rgba(255, 255, 255, 0.06);
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    flex-shrink: 0;
+    transition: max-width 0.28s ease, opacity 0.2s ease 0.1s, padding 0.2s ease;
 }
 
-[data-theme="dark"] .vertical-navigation-sidebar .vertical-nav-btn {
-    color: var(--text-secondary);
+.vertical-navigation-sidebar:hover .vertical-nav-btn span.nav-meta-chip {
+    max-width: 90px;
+    padding: 0.12rem 0.4rem;
+    margin-left: auto;
+    opacity: 1;
 }
 
-[data-theme="dark"] .vertical-navigation-sidebar .vertical-nav-btn:hover,
-[data-theme="dark"] .vertical-navigation-sidebar .vertical-nav-btn.active {
-    color: rgb(var(--white-rgb));
-    background: rgba(var(--white-rgb), 0.08);
-    box-shadow: 0 0 12px rgba(var(--white-rgb), 0.1);
-}
-
-
-
-/* Forced Collapsed Sidebar when Chat is open */
-.vertical-navigation-sidebar.forced-collapsed {
-    width: 50px !important;
-    padding: 0.5rem 0.4rem !important;
-}
-
-.vertical-navigation-sidebar.forced-collapsed .vertical-nav-btn span {
-    display: none !important;
-}
-
-/* Discord (VELI) Special Hover Animation */
-.discord-nav-btn {
-    transition: background-color 0.25s, color 0.25s, box-shadow 0.25s !important;
-}
-
+/* Discord special — flat unified hover */
 .discord-nav-btn:hover {
-    background: var(--color-discord) !important;
-    color: rgb(var(--white-rgb)) !important;
-    box-shadow: 0 4px 15px rgba(var(--discord-rgb), 0.4);
+    background: var(--bg-card-hover) !important;
+    color: var(--text-primary) !important;
+    border-color: transparent !important;
 }
 
-.discord-nav-btn:hover svg {
-    transform: scale(1.1) rotate(-5deg);
-    transition: transform 0.3s ease;
-}
-
-/* Red circle badge for sidebar notifications */
-.vertical-nav-btn {
-    position: relative;
-}
-
+/* Nav badge — unread counter */
 .nav-badge {
     position: absolute;
-    top: 1px;
-    left: 18px;
-    right: auto;
+    top: 2px;
+    right: 2px;
+    left: auto;
     background: var(--color-negative);
-    color: rgb(var(--white-rgb));
-    font-size: 0.62rem;
+    color: #fff;
+    font-size: 0.5rem;
     font-weight: 700;
-    min-width: 14px;
-    height: 14px;
+    min-width: 13px;
+    height: 13px;
     border-radius: 7px;
     display: flex !important;
     align-items: center;
     justify-content: center;
     padding: 0 3px;
-    border: 1.5px solid var(--bg-main);
+    border: 2px solid var(--bg-card);
     z-index: 10;
-    box-shadow: 0 2px 6px rgba(var(--black-rgb), 0.4);
     pointer-events: none;
-    opacity: 1 !important;
-    transform: none !important;
 }
 
-/* ============================================================
-   COLLAPSIBLE SIDEBAR & FLOATING TOGGLE
-   ============================================================ */
-
-/* Sidebar collapsed & control panel styles removed for clean fullscreen layout */
-.data-panel {
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    min-width: 0;
-    max-width: 2100px;
-    margin: 0 auto;
-}
-
-
-
-/* Center icons inside vertical-nav-btn when collapsed */
-.vertical-navigation-sidebar.forced-collapsed,
-.vertical-navigation-sidebar:not(:hover) {
-    align-items: center !important;
-}
-
-.vertical-navigation-sidebar.forced-collapsed .sidebar-scrollable-content,
-.vertical-navigation-sidebar:not(:hover) .sidebar-scrollable-content {
-    align-items: center !important;
-}
-
-.vertical-navigation-sidebar.forced-collapsed .vertical-nav-btn,
-.vertical-navigation-sidebar:not(:hover) .vertical-nav-btn {
-    justify-content: center !important;
-    align-items: center !important;
-    padding: 0 !important;
-    gap: 0 !important;
-    width: 34px !important;
-    margin: 0 auto !important;
-}
-
-.vertical-navigation-sidebar.forced-collapsed .vertical-nav-btn svg,
-.vertical-navigation-sidebar:not(:hover) .vertical-nav-btn svg {
-    margin: 0 !important;
-    display: block !important;
-}
-
-.vertical-navigation-sidebar.forced-collapsed .vertical-nav-btn span:not(.nav-badge),
-.vertical-navigation-sidebar:not(:hover) .vertical-nav-btn span:not(.nav-badge) {
-    display: none !important;
-}
-
-/* Sidebar scrollable container and divider styles */
-.sidebar-scrollable-content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    width: 100%;
-    overflow-y: auto;
-    overflow-x: visible;
-    flex-grow: 1;
-    max-height: calc(100vh - 230px);
-    scrollbar-width: none; /* Firefox */
-}
-
-.sidebar-scrollable-content::-webkit-scrollbar {
-    display: none; /* Chrome, Safari, Opera */
-}
-
+/* Divider → subtle group separator */
 .sidebar-divider {
-    width: 85%;
-    height: 1px;
-    background: rgba(16, 185, 129, 0.35);
-    margin: 0.5rem auto;
-    flex-shrink: 0;
-}
-
-/* Sidebar Flyout Sub-menu (Rightward Fixed Floating Reveal) */
-.sidebar-flyout-item {
-    position: relative;
     width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    height: 1px;
+    background: var(--border-color);
+    margin: 0.5rem 0;
+    align-self: center;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 1px;
 }
 
-.vertical-navigation-sidebar:hover .sidebar-flyout-menu {
-    left: 222px;
-}
-
-.vertical-navigation-sidebar:not(:hover) .sidebar-flyout-menu {
-    left: 82px;
-}
-
-.sidebar-flyout-menu {
-    position: fixed;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    background: rgba(18, 18, 22, 0.98);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 0.5rem;
-    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.8), 0 0 20px rgba(var(--accent-color-rgb), 0.15);
-    z-index: 999999 !important;
-    min-width: 195px;
-    animation: flyoutSlideIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-    pointer-events: auto;
-}
-
-/* Invisible hover bridge to prevent hover loss when moving cursor to right flyout menu */
-.sidebar-flyout-menu::before {
-    content: '';
-    position: absolute;
-    left: -30px;
-    top: -10px;
-    width: 35px;
-    bottom: -10px;
-    background: transparent;
-}
-
-@keyframes flyoutSlideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-6px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
+/* App container — shift right for the collapsed rail */
+@media (min-width: 1100px) {
+    .app-container {
+        padding-left: 5.25rem;
     }
 }
 
-.sidebar-flyout-menu .vertical-nav-btn {
-    height: 36px;
-    font-size: 0.73rem;
-    padding: 0 0.75rem !important;
-    justify-content: flex-start !important;
-    gap: 0.6rem !important;
-    border-radius: 8px;
-    white-space: nowrap;
-    background: transparent;
-    width: 100% !important;
+/* Responsive: smaller rail */
+@media (max-width: 768px) {
+    .vertical-navigation-sidebar {
+        left: 0.4rem;
+        width: 44px;
+        padding: 0.5rem 0.35rem;
+        border-radius: 10px;
+    }
+    .vertical-navigation-sidebar:hover {
+        width: 184px;
+    }
+    .vertical-nav-btn {
+        height: 32px;
+        padding: 0 0.5rem;
+    }
+    .vertical-nav-btn svg {
+        width: 15px;
+        height: 15px;
+    }
+    .sidebar-divider {
+        margin: 0.4rem 0;
+    }
+    .app-container {
+        padding-left: 1rem !important;
+    }
 }
-
-.sidebar-flyout-menu .vertical-nav-btn span {
-    opacity: 1 !important;
-    transform: none !important;
-    white-space: nowrap;
-    pointer-events: auto;
-    width: auto !important;
-    height: auto !important;
-    position: static !important;
-}
-
-
-
-
-
-/* Optimized gradient shift animation for version indicator on login screen */
-@keyframes versionGradientShift {
-  0% {
-    background-position: 200% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-.version-pulse-glow {
-  background: linear-gradient(to left, #ffffff 15%, #d8b4fe 50%, #ffffff 85%);
-  background-size: 200% auto;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: versionGradientShift 5s linear infinite;
-  will-change: background-position;
-  filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.55)) drop-shadow(0 0 10px rgba(192, 132, 252, 0.3));
-}
-
-

@@ -1,0 +1,48 @@
+/* ============================================================
+   MPF CALCULATOR — modern flat theme layer
+   ============================================================ */
+
+@keyframes mpfFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.mpf-calculator-panel {
+    animation: mpfFadeUp 0.3s ease both;
+}
+
+.mpf-summary-card {
+    animation: mpfFadeUp 0.35s ease both;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.mpf-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.1), 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.mpf-material-tile {
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+.mpf-material-tile:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateY(-1px);
+}
+
+.mpf-item-card {
+    animation: mpfFadeUp 0.35s ease both;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.mpf-item-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0 0 1px rgba(var(--accent-color-rgb), 0.1), 0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mpf-calculator-panel,
+    .mpf-summary-card,
+    .mpf-material-tile,
+    .mpf-item-card {
+        animation: none !important;
+        transition: none !important;
+    }
+}

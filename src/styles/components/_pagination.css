@@ -1,71 +1,77 @@
 /* ============================================================
-   PAGINATION CONTROLS
+   PAGINATION CONTROLS — LIQUID GLASS EDITION
    ============================================================ */
 
 .pagination-container {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1rem 1.25rem;
-    border-top: 1px solid var(--border-color);
-    background: var(--card-header-bg);
+    padding: 1rem 1.35rem;
+    border-top: 1px solid var(--glass-border);
+    background: rgba(255,255,255,0.015);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
     font-size: 0.72rem;
-    color: var(--text-secondary);
+    color: var(--ink-70);
+    border-radius: 0 0 var(--bento-radius-lg) var(--bento-radius-lg);
 }
 
 @media (max-width: 640px) {
     .pagination-container {
         flex-direction: column;
-        gap: 0.75rem;
+        gap: 0.85rem;
         text-align: center;
     }
 }
 
 .pagination-info {
     font-family: var(--font-body);
+    letter-spacing: 0.02em;
 }
 
 .pagination-controls {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.3rem;
 }
 
 .pagination-btn {
-    background: var(--btn-secondary-bg);
-    border: 1px solid var(--border-color);
-    color: var(--text-secondary);
-    padding: 0.35rem 0.65rem;
-    border-radius: var(--radius-sm);
+    background: var(--glass-bg);
+    border: 1px solid var(--glass-border);
+    color: var(--ink-70);
+    padding: 0.4rem 0.7rem;
+    border-radius: 10px;
     font-family: var(--font-heading);
-    font-size: 0.68rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
-    user-select: none;
-}
-
-.pagination-btn:hover:not(:disabled) {
-    color: var(--text-primary);
-    border-color: var(--border-hover);
-    background: var(--btn-secondary-bg-hover, rgba(var(--white-rgb), 0.05));
-}
-
-.pagination-btn.active {
-    background: var(--accent-color);
-    border-color: var(--accent-color);
-    color: var(--btn-primary-text);
+    font-size: 0.66rem;
     font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    user-select: none;
+    min-width: 32px;
+    text-transform: uppercase;
 }
-
+.pagination-btn:hover:not(:disabled) {
+    color: var(--ink-100);
+    border-color: var(--ink-60);
+    background: var(--glass-bg-strong);
+    transform: translateY(-1px);
+}
+.pagination-btn.active {
+    background: var(--ink-100);
+    border-color: var(--ink-100);
+    color: var(--ink-00);
+    font-weight: 800;
+    box-shadow: 0 0 18px rgba(255,255,255,0.25);
+}
 .pagination-btn:disabled {
     opacity: 0.3;
     cursor: not-allowed;
-    border-color: var(--border-color);
 }
 
 .pagination-dots {
-    padding: 0 0.25rem;
-    opacity: 0.5;
+    padding: 0 0.35rem;
+    color: var(--ink-50);
+    font-family: var(--font-mono);
     user-select: none;
 }

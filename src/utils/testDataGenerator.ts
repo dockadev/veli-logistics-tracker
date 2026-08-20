@@ -18,28 +18,37 @@ export const ALL_TEST_ITEMS = Array.from(COLONIAL_NEUTRAL_ITEMS).map(name => {
     return { name, category };
 });
 
-export const TEST_DEPOT_NAMES = [
-    'TEST-Deadlands - Plaza Depot',
-    'TEST-Linn of Mercy - Ulster Falls Seaport',
-    'TEST-Marban Hollow - Spitrock Depot',
-    'TEST-Callahans Passage - Whitegrove Port',
-    'TEST-Drowned Vale - Salt Farms Seaport',
-    'TEST-Shackled Chasm - Silk Farms Depot',
-    'TEST-Farranac Coast - Jade Cove Port',
-    'TEST-Westgate - Longstone Depot',
-    'TEST-Heartlands - Blemish Seaport',
-    'TEST-Umbral Wildwood - Hermits Rest Depot',
-    'TEST-Brodytown - Main Seaport',
-    'TEST-Sun Haven - Central Port',
-    'TEST-Viper Pit - Kirknell Depot',
-    'TEST-Weathered Expanse - Weatherby Depot',
-    'TEST-Great March - Scurvyshire Depot',
-    'TEST-Fishermans Row - Partisan Island Seaport',
-    'TEST-Oarbreaker - Skelio Depot',
-    'TEST-Stonewall - Main Port',
-    'TEST-Red River - Cannonsmoke Seaport',
-    'TEST-Kalokai - The Basin Depot'
+// Every region gets 3 subregions, each with 3 depots (Storage Depot + Seaport + Aircraft Depot)
+const DEPOT_TYPES = ['Storage Depot', 'Seaport', 'Aircraft Depot'] as const;
+
+const TEST_REGION_SUBREGIONS: [string, string[]][] = [
+    ['Deadlands', ['Plaza', 'Harbor', 'Bitter Junction']],
+    ['Linn of Mercy', ['Ulster Falls', 'North Gate', 'Dockside']],
+    ['Marban Hollow', ['Spitrock', 'East Ridge', 'Quarry Town']],
+    ['Callahans Passage', ['Whitegrove', 'Central', 'Old Port']],
+    ['Drowned Vale', ['Salt Farms', 'South End', 'Mud Hollow']],
+    ['Shackled Chasm', ['Silk Farms', 'Crossroads', 'West Bank']],
+    ['Farranac Coast', ['Jade Cove', 'Factory Row', 'Finger Lake']],
+    ['Westgate', ['Longstone', 'Garrison', 'Iron Junction']],
+    ['Heartlands', ['Blemish', 'Airfield', 'Rustroad']],
+    ['Umbral Wildwood', ['Hermits Rest', 'Outskirts', 'Dark Wood']],
+    ['Brodytown', ['Main Square', 'River Docks', 'Mill Town']],
+    ['Sun Haven', ['Central Port', 'Industrial Zone', 'Grain Fields']],
+    ['Viper Pit', ['Kirknell', 'Rail Yard', 'Copper Hill']],
+    ['Weathered Expanse', ['Weatherby', 'Mill District', 'Canyon Pass']],
+    ['Great March', ['Scurvyshire', 'Market District', 'East March']],
+    ['Fishermans Row', ['Partisan Island', 'Old Town', 'Reed Fields']],
+    ['Oarbreaker', ['Skelio', 'Fortress', 'Storm Coast']],
+    ['Stonewall', ['Main Port', 'Garrison North', 'Stone Quarry']],
+    ['Red River', ['Cannonsmoke', 'River Mouth', 'Red Plains']],
+    ['Kalokai', ['The Basin', 'East Docks', 'Volcanic Ridge']]
 ];
+
+export const TEST_DEPOT_NAMES = TEST_REGION_SUBREGIONS.flatMap(([region, subregions]) =>
+    subregions.flatMap(subregion =>
+        DEPOT_TYPES.map(type => `TEST-${region} - ${type} - ${subregion}`)
+    )
+);
 
 /**
  * SET 1: Initial State & 7-Day History
@@ -53,6 +62,7 @@ export const generateTestDepotsSet1 = (): { depots: Record<string, Depot>; logs:
     TEST_DEPOT_NAMES.forEach((name, depotIdx) => {
         const current: Record<string, ItemInfo> = {};
         const previous: Record<string, ItemInfo> = {};
+        const subregion = name.split(' - ')[2] || '';
 
         // Include ALL 200+ Colonial/Neutral items per depot for 100% full analytics
         ALL_TEST_ITEMS.forEach((item, itemIdx) => {
@@ -100,7 +110,10 @@ export const generateTestDepotsSet1 = (): { depots: Record<string, Depot>; logs:
             customName: `[TEST] ${name.replace('TEST-', '')}`,
             lastUpdated: updatedNow,
             previous,
-            current
+            current,
+            isIntegrated: true,
+            townName: subregion,
+            subregion
         };
 
         // Add Audit Log
@@ -146,6 +159,7 @@ export const generateTestDepotsSet2 = (existingDepots?: Record<string, Depot>): 
         const existing = existingDepots?.[name];
         const previous: Record<string, ItemInfo> = existing?.current ? { ...existing.current } : {};
         const current: Record<string, ItemInfo> = {};
+        const subregion = name.split(' - ')[2] || '';
 
         // Copy baseline items and drop critical ones
         ALL_TEST_ITEMS.forEach((item, itemIdx) => {
@@ -183,7 +197,10 @@ export const generateTestDepotsSet2 = (existingDepots?: Record<string, Depot>): 
             customName: `[TEST] ${name.replace('TEST-', '')}`,
             lastUpdated: updatedNow,
             previous,
-            current
+            current,
+            isIntegrated: true,
+            townName: subregion,
+            subregion
         };
 
         // Add Audit Log for Set 2

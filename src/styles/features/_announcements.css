@@ -1,0 +1,223 @@
+/* ============================================================
+   ANNOUNCEMENTS - matte theme, 6px corners (matches passcodes)
+   ============================================================ */
+
+.announcements-tab {
+    padding: 0 0.5rem 2rem;
+}
+
+.announcements-unified {
+    overflow: hidden;
+}
+
+/* Title row */
+.announcements-card-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border-color);
+}
+.announcements-card-title h3 {
+    margin: 0;
+    font-size: 0.82rem;
+    font-family: var(--font-heading);
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-primary);
+}
+.announcements-card-count {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--ink-80);
+}
+
+/* Pinned banner strip */
+.announcements-pinned-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    padding: 0.7rem 0.85rem;
+    background: var(--bg-card);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-left: 4px solid #f59e0b;
+    border-radius: 6px;
+}
+.announcements-pinned-strip-title {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #f59e0b;
+}
+.announcements-pinned-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--card-header-bg);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+.announcements-pinned-item:hover {
+    border-color: rgba(245, 158, 11, 0.5);
+    background: var(--bg-card-hover);
+}
+.announcements-pinned-item-title {
+    font-size: 0.74rem;
+    font-weight: 700;
+    color: var(--ink-100);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+.announcements-pinned-item-until {
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #f59e0b;
+    white-space: nowrap;
+}
+
+/* Announcement card (region-card style) */
+.announcements-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.7rem 0.85rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.announcements-card:hover {
+    border-color: rgba(228, 234, 229, 0.4);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.announcements-card.is-pinned {
+    border-color: rgba(245, 158, 11, 0.45);
+    border-left: 4px solid #f59e0b;
+}
+
+.announcements-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+}
+.announcements-card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    min-width: 0;
+}
+.announcements-severity-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.45rem;
+    border-radius: 4px;
+}
+.announcements-title {
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: 0.01em;
+    min-width: 0;
+}
+.announcements-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-size: 0.66rem;
+    color: var(--text-secondary);
+}
+.announcements-meta span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Body */
+.announcements-body {
+    font-size: 0.82rem;
+    color: var(--text-primary);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    background: rgba(0, 0, 0, 0.15);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 0.7rem 0.8rem;
+}
+
+/* Footer controls */
+.announcements-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.03);
+    padding-top: 0.55rem;
+    flex-wrap: wrap;
+}
+.announcements-pin-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 0.2rem;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+.announcements-pin-label {
+    font-size: 0.62rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-left: 0.2rem;
+    margin-right: 0.1rem;
+}
+.announcements-pin-btn {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.25);
+    color: #f59e0b;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease, opacity 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+.announcements-pin-btn:hover {
+    background: rgba(245, 158, 11, 0.25);
+    border-color: rgba(245, 158, 11, 0.5);
+}
+.announcements-pin-btn.active {
+    background: rgba(245, 158, 11, 0.3);
+    border-color: #f59e0b;
+}
+
+/* Empty state */
+.announcements-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--text-muted);
+}

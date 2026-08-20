@@ -201,22 +201,11 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
     }
   }, [logs]);
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
-      
+return (
+    <div className="ds-root" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '0.5rem', width: '100%', boxSizing: 'border-box' }}>
+
       {/* Title & Banner */}
-      <div style={{
-        background: 'linear-gradient(135deg, rgba(20, 28, 20, 0.6) 0%, rgba(12, 18, 12, 0.8) 100%)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '12px',
-        padding: '1.25rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
-        flexWrap: 'wrap',
-        gap: '1rem'
-      }}>
+      <div className="ds-header">
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
             <Database size={22} className="text-primary-color" /> Direct SAV Sync
@@ -227,13 +216,13 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
         </div>
         
         {/* Pulse status widget */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(0, 0, 0, 0.3)', padding: '0.5rem 1rem', borderRadius: '30px', border: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'rgba(255,255,255,0.03)', padding: '0.5rem 1rem', borderRadius: '30px', border: '1px solid var(--border-color)' }}>
           <div style={{ position: 'relative', width: '12px', height: '12px' }}>
             <div style={{
               width: '100%',
               height: '100%',
               borderRadius: '50%',
-              background: pulseState === 'active' ? '#10B981' : pulseState === 'error' ? '#EF4444' : '#6B7280',
+              background: pulseState === 'active' ? '#10B981' : pulseState === 'error' ? '#EF4444' : 'var(--text-muted)',
               boxShadow: pulseState === 'active' ? '0 0 10px #10B981' : 'none'
             }} />
             {pulseState === 'active' && (
@@ -245,7 +234,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
                 height: '100%',
                 borderRadius: '50%',
                 background: '#10B981',
-                animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
+                animation: 'dsPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite',
                 opacity: 0.75
               }} />
             )}
@@ -254,7 +243,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
             {pulseState === 'active' ? t('watching_active') : pulseState === 'error' ? t('scan_error') : t('idle')}
           </span>
           {lastScanCount > 0 && (
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', borderLeft: '1px solid var(--border-color)', paddingLeft: '0.75rem', marginLeft: '0.25rem' }}>
               {t('last_scan_count', { count: lastScanCount })}
             </span>
           )}
@@ -262,16 +251,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
       </div>
 
       {/* Control panel */}
-      <div style={{
-        background: 'rgba(20, 28, 20, 0.3)',
-        border: '1px solid var(--border-color)',
-        borderRadius: '12px',
-        padding: '1.25rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '1rem',
-        boxSizing: 'border-box'
-      }}>
+      <div className="ds-panel">
         
         {/* File selector input */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -285,18 +265,8 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
               value={savPath}
               onChange={(e) => setSavPath(e.target.value)}
               disabled={isCapturing}
-              style={{
-                flex: 1,
-                background: 'rgba(0, 0, 0, 0.25)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '8px',
-                padding: '0.6rem 0.8rem',
-                color: 'var(--text-primary)',
-                fontFamily: 'monospace',
-                fontSize: '0.75rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
+              className="ds-path-input"
+              style={{ flex: 1 }}
             />
             <button
               type="button"
@@ -325,7 +295,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
           <button
             type="button"
             onClick={handleToggleCapture}
-            className={`btn ${isCapturing ? 'btn-danger' : 'btn-primary'}`}
+            className={`btn ${isCapturing ? 'btn-danger' : 'btn-primary'} ds-capture-btn`}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -336,8 +306,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
               height: '38px',
               fontWeight: 600,
               flexShrink: 0,
-              boxShadow: isCapturing ? '0 0 15px rgba(239, 68, 68, 0.2)' : 'none',
-              transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
+              boxShadow: isCapturing ? '0 0 15px rgba(239, 68, 68, 0.2)' : 'none'
             }}
           >
             {isCapturing ? (
@@ -382,7 +351,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
               setIsMuted(nextMute);
               cachedIsMuted = nextMute;
             }}
-            className="btn btn-secondary"
+            className="btn btn-secondary ds-mute-btn"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -391,8 +360,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
               marginLeft: 'auto',
               color: isMuted ? '#ef4444' : '#10B981',
               borderColor: isMuted ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.35)',
-              background: isMuted ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.15)',
-              transition: 'all 0.2s ease'
+              background: isMuted ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.15)'
             }}
             title={isMuted ? 'Notification Sound Muted (Click to Unmute)' : 'Notification Sound Active (Click to Mute)'}
           >
@@ -401,19 +369,11 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
         </div>
       </div>
 
-      {/* How Direct SAV Sync Works Explanation Card */}
-      <div style={{
-        background: 'rgba(16, 185, 129, 0.04)',
-        border: '1px solid rgba(16, 185, 129, 0.2)',
-        borderRadius: '12px',
-        padding: '1.1rem 1.35rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.85rem'
-      }}>
+{/* How Direct SAV Sync Works Explanation Card */}
+      <div className="ds-info-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <HelpCircle size={18} style={{ color: '#10b981' }} />
+            <HelpCircle size={18} style={{ color: 'var(--accent-color)' }} />
             <h3 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, letterSpacing: '0.02em', color: 'var(--text-primary)' }}>
               {t('how_direct_sync_works_title')}
             </h3>
@@ -438,21 +398,21 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '0.85rem', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-          <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <div className="ds-step-tile">
             <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
               {t('how_direct_sync_step1_title')}
             </strong>
             {t('how_direct_sync_step1_desc')}
           </div>
 
-          <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(16, 185, 129, 0.25)' }}>
-            <strong style={{ color: '#10b981', display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
+          <div className="ds-step-tile">
+            <strong style={{ color: 'var(--accent-color)', display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
               {t('how_direct_sync_step2_title')}
             </strong>
             {t('how_direct_sync_step2_desc')}
           </div>
 
-          <div style={{ background: 'rgba(0, 0, 0, 0.3)', padding: '0.85rem', borderRadius: '8px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+          <div className="ds-step-tile">
             <strong style={{ color: 'var(--text-primary)', display: 'block', marginBottom: '0.3rem', fontSize: '0.8rem' }}>
               {t('how_direct_sync_step3_title')}
             </strong>
@@ -462,56 +422,17 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
       </div>
 
       {/* Terminal Log Console */}
-      <div style={{
-        background: '#090d09',
-        border: '1px solid var(--border-color)',
-        borderRadius: '12px',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '350px',
-        overflow: 'hidden',
-        boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.5)'
-      }}>
-        
+      <div className="ds-terminal">
+
         {/* Terminal Header */}
-        <div style={{
-          background: 'rgba(18, 26, 18, 0.8)',
-          borderBottom: '1px solid var(--border-color)',
-          padding: '0.5rem 1rem',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
+        <div className="ds-terminal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600 }}>
             <Terminal size={14} /> Live Sync Log Stream
           </div>
           <button
             type="button"
             onClick={handleClearLogs}
-            style={{
-              background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '5px',
-              padding: '0.25rem 0.65rem',
-              color: 'var(--text-secondary)',
-              fontSize: '0.7rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-              transition: 'all 0.15s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
-              e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-              e.currentTarget.style.color = '#ef4444';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = 'var(--text-secondary)';
-            }}
+            className="ds-clear-btn"
           >
             <Trash2 size={12} /> Clear Log
           </button>
@@ -553,7 +474,7 @@ export const DirectSyncTab: React.FC<DirectSyncTabProps> = ({ onSyncStockpiles }
               }
               
               return (
-                <div key={log.id} style={{
+                <div key={log.id} className="ds-log-row" style={{
                   color,
                   display: 'flex',
                   alignItems: 'flex-start',

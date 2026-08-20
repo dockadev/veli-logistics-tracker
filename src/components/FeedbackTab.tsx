@@ -30,7 +30,7 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
     };
 
     return (
-        <div className="panel-card anim-fade-in" style={{ maxWidth: '600px', margin: '1rem auto' }}>
+        <div className="panel-card anim-row-in" style={{ maxWidth: '600px', margin: '1rem auto', borderRadius: '6px' }}>
             <div className="card-header">
                 <Lightbulb size={18} style={{ color: 'var(--accent-color)' }} />
                 <h2>{language === 'tr' ? 'Geri Bildirim ve Öneriler' : 'Feedback & Suggestions'}</h2>
@@ -42,15 +42,17 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
                         ? 'Sistem hakkındaki fikirlerinizi, yeni özellik önerilerinizi veya karşılaştığınız sorunları bizimle paylaşabilirsiniz. Gönderdiğiniz geri bildirimler sadece geliştiriciler tarafından görülecektir.' 
                         : 'Share your ideas, feature requests, or issues with us. Your feedback will be delivered securely and viewed exclusively by developers.'}
                 </p>
-                <div style={{
+                <div className="anim-row-in" style={{
                     padding: '0.65rem 0.85rem',
                     marginBottom: '1.25rem',
-                    borderRadius: 'var(--radius-sm)',
+                    borderRadius: '6px',
                     background: 'rgba(59, 130, 246, 0.08)',
                     border: '1px solid rgba(59, 130, 246, 0.2)',
+                    borderLeft: '3px solid #3b82f6',
                     fontSize: '0.72rem',
                     color: 'var(--text-secondary)',
-                    lineHeight: '1.4'
+                    lineHeight: '1.4',
+                    animationDelay: '60ms'
                 }}>
                     <strong>{language === 'tr' ? 'Not:' : 'Note:'}</strong> {language === 'tr'
                         ? 'Ekran görüntüsü eklemek için lütfen ücretsiz bir resim yükleme sitesine (Imgur, ImgBB vb.) yükleyip bağlantıyı mesajınıza ekleyin.'
@@ -67,22 +69,26 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
                             <button
                                 type="button"
                                 onClick={() => setCategory('idea')}
+                                className="anim-row-in"
                                 style={{
                                     flex: 1,
                                     padding: '0.75rem',
-                                    borderRadius: 'var(--radius-sm)',
+                                    borderRadius: '6px',
                                     border: '1px solid ' + (category === 'idea' ? 'var(--accent-color)' : 'var(--border-color)'),
                                     background: category === 'idea' ? 'rgba(249, 115, 22, 0.06)' : 'var(--btn-secondary-bg)',
                                     color: category === 'idea' ? 'var(--accent-color)' : 'var(--text-secondary)',
                                     cursor: 'pointer',
                                     fontWeight: 700,
                                     fontSize: '0.75rem',
-                                    transition: 'all 0.2s',
+                                    transition: 'all 0.2s, transform 0.15s',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '0.5rem'
+                                    gap: '0.5rem',
+                                    animationDelay: '100ms'
                                 }}
+                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                             >
                                 <Sparkles size={14} />
                                 <span>{language === 'tr' ? 'Yeni Özellik / Fikir' : 'New Feature / Idea'}</span>
@@ -90,22 +96,26 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
                             <button
                                 type="button"
                                 onClick={() => setCategory('bug')}
+                                className="anim-row-in"
                                 style={{
                                     flex: 1,
                                     padding: '0.75rem',
-                                    borderRadius: 'var(--radius-sm)',
+                                    borderRadius: '6px',
                                     border: '1px solid ' + (category === 'bug' ? '#ef4444' : 'var(--border-color)'),
                                     background: category === 'bug' ? 'rgba(239, 68, 68, 0.06)' : 'var(--btn-secondary-bg)',
                                     color: category === 'bug' ? '#ef4444' : 'var(--text-secondary)',
                                     cursor: 'pointer',
                                     fontWeight: 700,
                                     fontSize: '0.75rem',
-                                    transition: 'all 0.2s',
+                                    transition: 'all 0.2s, transform 0.15s',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '0.5rem'
+                                    gap: '0.5rem',
+                                    animationDelay: '140ms'
                                 }}
+                                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                             >
                                 <Bug size={14} />
                                 <span>{language === 'tr' ? 'Hata Bildirimi' : 'Bug Report'}</span>
@@ -113,7 +123,7 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
                         </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem' }}>
+                    <div className="anim-row-in" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem', animationDelay: '180ms' }}>
                         <textarea
                             value={message}
                             onChange={(e) => setMessage(e.target.value)}
@@ -125,14 +135,16 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
                                 padding: '0.75rem',
                                 background: 'var(--input-bg)',
                                 border: '1px solid var(--border-color)',
-                                borderRadius: 'var(--radius-sm)',
+                                borderRadius: '6px',
                                 color: 'var(--text-primary)',
                                 outline: 'none',
                                 resize: 'vertical',
                                 fontSize: '0.8rem',
                                 fontFamily: 'var(--font-body)',
-                                transition: 'border-color 0.2s'
+                                transition: 'border-color 0.2s, box-shadow 0.2s'
                             }}
+                            onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(var(--accent-color-rgb), 0.5)'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(var(--accent-color-rgb), 0.12)'; }}
+                            onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.boxShadow = 'none'; }}
                         />
                         <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.68rem', color: 'var(--text-muted)' }}>
                             <span>{message.length} / 1000</span>
@@ -150,8 +162,11 @@ export const FeedbackTab: React.FC<FeedbackTabProps> = React.memo(({ language, o
                             gap: '0.5rem',
                             padding: '0.6rem 1.25rem',
                             alignSelf: 'flex-end',
-                            minWidth: '120px'
+                            minWidth: '120px',
+                            transition: 'all 0.2s, transform 0.15s'
                         }}
+                        onMouseEnter={(e) => { if (!e.currentTarget.disabled) e.currentTarget.style.transform = 'translateY(-2px)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; }}
                     >
                         <Send size={14} />
                         <span>{isSubmitting ? '...' : (language === 'tr' ? 'Gönder' : 'Submit')}</span>

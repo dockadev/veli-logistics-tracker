@@ -1,100 +1,113 @@
 /* ============================================================
-   METRICS PANELS & STAT CARDS
+   METRICS PANELS & STAT CARDS — compact matte
    ============================================================ */
 
 .metrics-container {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1rem;
-    margin-bottom: 1.25rem;
+    gap: 0.6rem;
+    margin-bottom: 1rem;
 }
 
-@media (max-width: 1300px) { .metrics-container { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 768px) { .metrics-container { grid-template-columns: 1fr; } }
+@media (max-width: 1300px) {
+    .metrics-container { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 768px) {
+    .metrics-container { grid-template-columns: 1fr; }
+}
 
+/* ---------- BASE STAT CARD ---------- */
 .stat-card-modern {
+    position: relative;
     background: var(--bg-card);
     border: 1px solid var(--border-color);
-    border-radius: var(--radius-md);
-    padding: 1.15rem;
+    border-radius: 6px;
+    padding: 0.7rem 0.9rem;
     display: flex;
     flex-direction: column;
-    position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(var(--black-rgb), 0.15);
-    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.stat-card-modern::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 3px;
-    background: var(--accent-color);
-    opacity: 0.4;
-    transition: opacity 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .stat-card-modern:hover {
-    transform: translateY(-3px);
-    border-color: var(--border-hover);
-    box-shadow: 0 8px 24px rgba(var(--black-rgb), 0.25);
+    border-color: rgba(228, 234, 229, 0.45);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
 }
 
-.stat-card-modern:hover::before {
-    opacity: 1;
+/* Status-colored borders (always visible, intensify on hover) */
+.stat-card-modern.text-positive {
+    border-color: rgba(34, 197, 94, 0.35);
+}
+.stat-card-modern.text-negative {
+    border-color: rgba(239, 68, 68, 0.35);
+}
+.stat-card-modern.text-warning {
+    border-color: rgba(245, 158, 11, 0.35);
 }
 
-.stat-card-modern.text-positive::before { background: var(--color-positive); }
 .stat-card-modern.text-positive:hover {
-    border-color: var(--color-positive-border);
-    box-shadow: 0 8px 24px var(--color-positive-bg);
+    border-color: var(--color-positive);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3), 0 0 8px var(--color-positive-bg);
 }
-
-.stat-card-modern.text-negative::before { background: var(--color-negative); }
 .stat-card-modern.text-negative:hover {
-    border-color: var(--color-negative-border);
-    box-shadow: 0 8px 24px var(--color-negative-bg);
+    border-color: var(--color-negative);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3), 0 0 8px var(--color-negative-bg);
 }
-
-.stat-card-modern.text-warning::before { background: var(--color-warning); }
 .stat-card-modern.text-warning:hover {
-    border-color: var(--color-warning-border);
-    box-shadow: 0 8px 24px var(--color-warning-bg);
+    border-color: var(--color-warning);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3), 0 0 8px var(--color-warning-bg);
 }
 
+/* ---------- CARD CONTENT ---------- */
 .stat-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem;
+    position: relative;
+    z-index: 1;
 }
-
 .stat-card-title {
     font-family: var(--font-heading);
-    font-size: 0.72rem;
+    font-size: 0.62rem;
     font-weight: 700;
     text-transform: uppercase;
     color: var(--text-secondary);
-    letter-spacing: 0.05em;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
-
 .stat-card-value {
     font-family: var(--font-heading);
-    font-size: 1.85rem;
+    font-size: 1.4rem;
     font-weight: 800;
     color: var(--text-primary);
-    line-height: 1.1;
-    margin-bottom: 0.25rem;
+    line-height: 1;
+    margin-bottom: 0.2rem;
+    letter-spacing: -0.02em;
+    position: relative;
+    z-index: 1;
 }
 
 .stat-card-modern.text-positive .stat-card-value { color: var(--color-positive); }
 .stat-card-modern.text-negative .stat-card-value { color: var(--color-negative); }
-.stat-card-modern.text-warning .stat-card-value { color: var(--color-warning); }
+.stat-card-modern.text-warning  .stat-card-value { color: var(--color-warning); }
+
+.stat-card-modern.text-positive .stat-card-sub { color: var(--color-positive); opacity: 0.85; }
+.stat-card-modern.text-negative .stat-card-sub { color: var(--color-negative); opacity: 0.85; }
+.stat-card-modern.text-warning  .stat-card-sub { color: var(--color-warning); opacity: 0.85; }
 
 .stat-card-sub {
-    font-size: 0.65rem;
+    font-family: var(--font-body);
+    font-size: 0.6rem;
     color: var(--text-muted);
+    letter-spacing: 0.02em;
+    margin-top: auto;
+    position: relative;
+    z-index: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }

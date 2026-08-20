@@ -1,8 +1,8 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { 
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import {
     Search, CheckCircle, Info,
-    Package, MapPin, ChevronDown, ChevronUp, BarChart3,
-    Eye, EyeOff
+    Package, ChevronDown, ChevronUp, BarChart3,
+    Eye, EyeOff, Plus, Minus
 } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { COLONIAL_NEUTRAL_ITEMS } from '../utils/colonialItems';
@@ -10,6 +10,86 @@ import { ITEM_CATEGORY_MAP, getItemOfficialCategory, type OfficialCategory } fro
 import { CustomSelect } from './CustomSelect';
 import { getItemIconUrl } from '../utils/itemIcons';
 import type { Depot, StockpileTemplates, RegionSettings } from '../types';
+
+interface CountUpStatProps {
+    value: number;
+    color?: string;
+    durationMs?: number;
+}
+
+const useCountUp = (target: number, durationMs = 700): number => {
+    const [display, setDisplay] = useState(target);
+    const lastDisplayRef = useRef(target);
+    const rafRef = useRef<number | null>(null);
+    const reducedMotion = useRef(
+        typeof window !== 'undefined' &&
+        window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    );
+
+    useEffect(() => {
+        if (reducedMotion.current) {
+            if (lastDisplayRef.current !== target) {
+                lastDisplayRef.current = target;
+                setDisplay(target);
+            }
+            return;
+        }
+        const start = performance.now();
+        const from = lastDisplayRef.current;
+        const tick = (now: number) => {
+            const elapsed = now - start;
+            const t = Math.min(1, elapsed / durationMs);
+            const eased = 1 - Math.pow(1 - t, 3);
+            const current = Math.round(from + (target - from) * eased);
+            setDisplay(current);
+            if (t < 1) {
+                rafRef.current = requestAnimationFrame(tick);
+            } else {
+                lastDisplayRef.current = target;
+            }
+        };
+        rafRef.current = requestAnimationFrame(tick);
+        return () => {
+            if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+        };
+    }, [target, durationMs]);
+
+    return display;
+};
+
+const CountUpStat: React.FC<CountUpStatProps> = ({ value, color, durationMs }) => {
+    const display = useCountUp(value, durationMs);
+    return (
+        <div className="demand-stat-box-value" style={color ? { color } : undefined}>
+            {display.toLocaleString()}
+        </div>
+    );
+};
+CountUpStat.displayName = 'CountUpStat';
+
+interface DemandCityChipProps {
+    name: string;
+    valueText: string;
+    isNeeded: boolean;
+    chipIndex: number;
+}
+
+const DemandCityChip: React.FC<DemandCityChipProps> = ({ name, valueText, isNeeded, chipIndex }) => {
+    return (
+        <span
+            className="demand-city-chip"
+            style={{ '--chip-index': chipIndex } as React.CSSProperties}
+            title={`${name} (${valueText})`}
+        >
+            <span className="demand-city-chip-name">{name}</span>
+            <span className={`demand-city-chip-badge ${isNeeded ? 'negative' : 'positive'}`}>
+                {valueText}
+            </span>
+        </span>
+    );
+};
+DemandCityChip.displayName = 'DemandCityChip';
 
 interface DemandTabProps {
     depots: Record<string, Depot>;
@@ -38,9 +118,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
     const { t, language } = useLanguage();
     const [searchTerm, setSearchTerm] = useState('');
     const [sortBy, setSortBy] = useState<'high_low' | 'low_high' | 'alpha'>('high_low');
-    const [viewMode, setViewMode] = useState<'items' | 'cities'>('items');
     const [disabledCategories, setDisabledCategories] = useState<Set<string>>(new Set());
-    const [hoveredCategory, setHoveredCategory] = useState<string | null>(null);
 
     const toggleCategory = (cat: string) => {
         setDisabledCategories(prev => {
@@ -65,39 +143,14 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
     const renderCategoryFilters = () => {
         const allDisabled = disabledCategories.size === OFFICIAL_CATEGORIES.length;
-        const isAllHovered = hoveredCategory === 'all_master';
 
         return (
-            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '0.4rem', marginBottom: '1.25rem' }}>
+            <div className="demand-chips">
                 <button
                     type="button"
                     onClick={toggleAllCategories}
-                    onMouseEnter={() => setHoveredCategory('all_master')}
-                    onMouseLeave={() => setHoveredCategory(null)}
-                    style={{
-                        padding: '0.25rem 0.65rem',
-                        borderRadius: '4px',
-                        fontSize: '0.62rem',
-                        fontWeight: 800,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.05em',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                        background: isAllHovered 
-                            ? 'rgba(255, 255, 255, 0.08)' 
-                            : (allDisabled ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
-                        border: isAllHovered 
-                            ? '1px solid rgba(255, 255, 255, 0.55)' 
-                            : (allDisabled ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
-                        color: allDisabled ? 'var(--text-muted)' : 'var(--text-primary)',
-                        opacity: allDisabled && !isAllHovered ? 0.5 : 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
-                        userSelect: 'none',
-                        WebkitUserSelect: 'none',
-                        marginRight: '0.25rem'
-                    }}
+                    className={`demand-chip ${allDisabled ? 'disabled' : ''}`}
+                    style={{ marginRight: '0.25rem', fontWeight: 800 }}
                 >
                     {allDisabled ? <EyeOff size={10} /> : <Eye size={10} />}
                     {language === 'tr' ? 'Tümü' : 'All'}
@@ -105,37 +158,12 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                 {OFFICIAL_CATEGORIES.map(cat => {
                     const isDisabled = disabledCategories.has(cat);
-                    const isHovered = hoveredCategory === cat;
                     return (
                         <button
                             key={cat}
                             type="button"
                             onClick={() => toggleCategory(cat)}
-                            onMouseEnter={() => setHoveredCategory(cat)}
-                            onMouseLeave={() => setHoveredCategory(null)}
-                            style={{
-                                padding: '0.25rem 0.65rem',
-                                borderRadius: '4px',
-                                fontSize: '0.62rem',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.05em',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease',
-                                background: isHovered 
-                                    ? 'rgba(255, 255, 255, 0.08)' 
-                                    : (isDisabled ? 'rgba(255, 255, 255, 0.01)' : 'rgba(255, 255, 255, 0.05)'),
-                                border: isHovered 
-                                    ? '1px solid rgba(255, 255, 255, 0.55)' 
-                                    : (isDisabled ? '1px solid rgba(255, 255, 255, 0.07)' : '1px solid rgba(255, 255, 255, 0.18)'),
-                                color: isDisabled ? 'var(--text-muted)' : 'var(--text-primary)',
-                                opacity: isDisabled && !isHovered ? 0.5 : 1,
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.25rem',
-                                userSelect: 'none',
-                                WebkitUserSelect: 'none'
-                            }}
+                            className={`demand-chip ${isDisabled ? 'disabled' : ''}`}
                         >
                             {isDisabled ? <EyeOff size={10} /> : <Eye size={10} />}
                             {t(`cat_${cat}` as any)}
@@ -150,12 +178,27 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
     const [neededPage, setNeededPage] = useState(1);
     const [surplusPage, setSurplusPage] = useState(1);
     const ITEMS_PER_PAGE = 20;
+    const CITY_CHIP_COLLAPSE_LIMIT = 2;
+    const [expandedCities, setExpandedCities] = useState<Set<string>>(new Set());
+    const toggleCityExpansion = useCallback((itemName: string) => {
+        setExpandedCities(prev => {
+            const next = new Set(prev);
+            if (next.has(itemName)) next.delete(itemName);
+            else next.add(itemName);
+            return next;
+        });
+    }, []);
+
+    const neededGridAnimKey = useMemo(() => {
+        const cats = Array.from(disabledCategories).sort().join(',');
+        return `${neededPage}|${sortBy}|${searchTerm}|${cats}`;
+    }, [neededPage, sortBy, searchTerm, disabledCategories]);
 
     // Reset pagination on filter change
     useEffect(() => {
         setNeededPage(1);
         setSurplusPage(1);
-    }, [searchTerm, sortBy, viewMode, disabledCategories]);
+    }, [searchTerm, sortBy, disabledCategories]);
 
     // Collapsible states
 
@@ -354,91 +397,6 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         return itemsList;
     }, [allDemandItems, townGroups, templates, regionSettings, depots]);
 
-    // 3. Compute stats for each Town Group (City View)
-    const demandCities = useMemo(() => {
-        const citiesList: {
-            name: string;
-            region: string;
-            town: string;
-            target: number;
-            available: number;
-            needed: number;
-            surplus: number;
-            itemsNeeded: { name: string; target: number; available: number; needed: number; surplus: number }[];
-        }[] = [];
-
-        Object.entries(townGroups).forEach(([groupName, groupData]) => {
-            let cityTarget = 0;
-            let cityAvailable = 0;
-            let cityNeeded = 0;
-            let citySurplus = 0;
-            const itemsNeeded: { name: string; target: number; available: number; needed: number; surplus: number }[] = [];
-
-            allDemandItems.forEach(([itemName, category]) => {
-                if (disabledCategories.has(category)) {
-                    return;
-                }
-
-                const setting = regionSettings[groupName] || { 
-                    regionName: groupName, 
-                    templateType: 'backline', 
-                    demandPercentage: 100 
-                };
-                const template = templates[setting.templateType] || {};
-                
-                let rule = template[itemName];
-                if (!rule) {
-                    return;
-                }
-
-                const maxVal = (rule.min === 0 && rule.max === 0) 
-                    ? 0 
-                    : Math.round(rule.max * (setting.demandPercentage / 100));
-                
-                const availableVal = getItemAvailable(groupData.depots, itemName, category);
-                const neededVal = Math.max(0, maxVal - availableVal);
-                const surplusVal = Math.max(0, availableVal - maxVal);
-
-                cityAvailable += availableVal;
-                citySurplus += surplusVal;
-
-                if (maxVal > 0) {
-                    cityTarget += maxVal;
-                    cityNeeded += neededVal;
-
-                    itemsNeeded.push({
-                        name: itemName,
-                        target: maxVal,
-                        available: availableVal,
-                        needed: neededVal,
-                        surplus: surplusVal
-                    });
-                } else if (surplusVal > 0) {
-                    itemsNeeded.push({
-                        name: itemName,
-                        target: 0,
-                        available: availableVal,
-                        needed: 0,
-                        surplus: surplusVal
-                    });
-                }
-            });
-
-            citiesList.push({
-                name: groupName,
-                region: groupData.region,
-                town: groupData.town,
-                target: cityTarget,
-                available: cityAvailable,
-                needed: cityNeeded,
-                surplus: citySurplus,
-                itemsNeeded: itemsNeeded.sort((a, b) => b.needed - a.needed)
-            });
-        });
-
-        return citiesList;
-    }, [townGroups, templates, regionSettings, disabledCategories]);
-
     // Global Statistics Calculations
     const globalStats = useMemo(() => {
         let target = 0;
@@ -503,50 +461,6 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
         return { needed: fNeeded, surplus: fSurplus };
     }, [demandItems, searchTerm, sortBy, disabledCategories]);
 
-    const splitCities = useMemo(() => {
-        const neededList: typeof demandCities = [];
-        const surplusList: typeof demandCities = [];
-
-        demandCities.forEach(city => {
-            if (city.available > city.target) {
-                surplusList.push(city);
-            } else if (city.needed > 0) {
-                neededList.push(city);
-            }
-        });
-
-        // Apply filtering and sorting to Needed list
-        let fNeeded = [...neededList];
-        if (searchTerm.trim() !== '') {
-            const query = searchTerm.toLowerCase();
-            fNeeded = fNeeded.filter(city => city.name.toLowerCase().includes(query));
-        }
-        if (sortBy === 'high_low') {
-            fNeeded.sort((a, b) => b.needed - a.needed);
-        } else if (sortBy === 'low_high') {
-            fNeeded.sort((a, b) => a.needed - b.needed);
-        } else {
-            fNeeded.sort((a, b) => a.name.localeCompare(b.name));
-        }
-
-        // Apply filtering and sorting to Surplus list
-        let fSurplus = [...surplusList];
-        if (searchTerm.trim() !== '') {
-            const query = searchTerm.toLowerCase();
-            fSurplus = fSurplus.filter(city => city.name.toLowerCase().includes(query));
-        }
-        if (sortBy === 'high_low') {
-            fSurplus.sort((a, b) => b.surplus - a.surplus);
-        } else if (sortBy === 'low_high') {
-            fSurplus.sort((a, b) => a.surplus - b.surplus);
-        } else {
-            fSurplus.sort((a, b) => a.name.localeCompare(b.name));
-        }
-
-        return { needed: fNeeded, surplus: fSurplus };
-    }, [demandCities, searchTerm, sortBy]);
-
-
 
     // Vibrant HSL transition coloring (from 0 = red to 120 = green)
     const getFulfillColor = (percent: number) => {
@@ -561,17 +475,12 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
     ];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', animation: 'fadeIn 0.25s ease-out' }}>
+        <div className="demand-tab">
             
             {/* 1. Demand Overview Header */}
-            <div className="panel-card" style={{ 
-                padding: '1.5rem', 
-                background: 'var(--bg-card)', 
-                border: '1px solid var(--border-color)',
-                borderRadius: 'var(--radius-md)'
-            }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', margin: '0 0 1.25rem 0' }}>
-                    <h2 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div className="demand-section">
+                <div className="demand-section-header">
+                    <h2>
                         <BarChart3 size={18} style={{ color: 'var(--accent-color)' }} />
                         {t('demand_overview')}
                     </h2>
@@ -630,64 +539,28 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                     </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
-                    <div style={{ 
-                        padding: '1.25rem', 
-                        background: 'rgba(255, 255, 255, 0.01)', 
-                        borderRadius: 'var(--radius-md)', 
-                        border: '1px solid var(--border-color)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.25rem'
-                    }}>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                            {t('demand_target')}
-                        </span>
-                        <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-heading)' }}>
-                            {globalStats.target.toLocaleString()}
-                        </div>
+                <div className="demand-stats-grid">
+                    <div className="demand-stat anim-row-in">
+                        <span className="demand-stat-label">{t('demand_target')}</span>
+                        <div className="demand-stat-value">{globalStats.target.toLocaleString()}</div>
                     </div>
-                    <div style={{ 
-                        padding: '1.25rem', 
-                        background: 'rgba(255, 255, 255, 0.01)', 
-                        borderRadius: 'var(--radius-md)', 
-                        border: '1px solid var(--border-color)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.25rem'
-                    }}>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                            {t('demand_available')}
-                        </span>
-                        <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#10b981', fontFamily: 'var(--font-heading)' }}>
-                            {globalStats.available.toLocaleString()}
-                        </div>
+                    <div className="demand-stat anim-row-in" style={{ animationDelay: '50ms' }}>
+                        <span className="demand-stat-label">{t('demand_available')}</span>
+                        <div className="demand-stat-value" style={{ color: '#10b981' }}>{globalStats.available.toLocaleString()}</div>
                     </div>
-                    <div style={{ 
-                        padding: '1.25rem', 
-                        background: 'rgba(255, 255, 255, 0.01)', 
-                        borderRadius: 'var(--radius-md)', 
-                        border: '1px solid var(--border-color)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.25rem'
-                    }}>
-                        <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                            {t('demand_needed')}
-                        </span>
-                        <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#ef4444', fontFamily: 'var(--font-heading)' }}>
-                            {globalStats.needed.toLocaleString()}
-                        </div>
+                    <div className="demand-stat anim-row-in" style={{ animationDelay: '100ms' }}>
+                        <span className="demand-stat-label">{t('demand_needed')}</span>
+                        <div className="demand-stat-value" style={{ color: '#ef4444' }}>{globalStats.needed.toLocaleString()}</div>
                     </div>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <div style={{ height: '8px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${globalStats.percent}%`, background: getFulfillColor(globalStats.percent), borderRadius: '4px', transition: 'width 0.5s ease-out' }} />
+                    <div className="demand-progress-track">
+                        <div className="demand-progress-fill" style={{ transform: `scaleX(${globalStats.percent / 100})`, background: getFulfillColor(globalStats.percent) }} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    <div className="demand-progress-label">
                         <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{globalStats.percent.toFixed(1)}%</span>
-                        <span style={{ marginLeft: '0.25rem' }}>{t('demand_fulfilled')}</span>
+                        <span>{t('demand_fulfilled')}</span>
                     </div>
                 </div>
             </div>
@@ -715,56 +588,19 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                         />
                     </div>
                 </div>
-
-                <div style={{ display: 'flex', background: 'rgba(255, 255, 255, 0.03)', borderRadius: '6px', padding: '2px', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                    <button
-                        onClick={() => setViewMode('items')}
-                        style={{
-                            padding: '0.4rem 1rem',
-                            background: viewMode === 'items' ? 'var(--btn-primary-bg, #3b82f6)' : 'transparent',
-                            color: viewMode === 'items' ? '#ffffff' : 'var(--text-secondary)',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                        }}
-                    >
-                        {t('demand_items_view')}
-                    </button>
-                    <button
-                        onClick={() => setViewMode('cities')}
-                        style={{
-                            padding: '0.4rem 1rem',
-                            background: viewMode === 'cities' ? 'var(--btn-primary-bg, #3b82f6)' : 'transparent',
-                            color: viewMode === 'cities' ? '#ffffff' : 'var(--text-secondary)',
-                            border: 'none',
-                            borderRadius: '4px',
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            transition: 'all 0.15s ease'
-                        }}
-                    >
-                        {t('demand_cities_view')}
-                    </button>
-                </div>
             </div>
 
             {/* 4. Collapsible Needed Section (Collapsed by default, fits 4 columns) */}
-            <div className="panel-card" style={{ padding: '1.25rem', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
+            <div className="demand-section">
                 <div 
                     onClick={() => setIsNeededExpanded(!isNeededExpanded)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+                    className="demand-collapse-header"
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <Package size={16} style={{ color: '#ef4444' }} />
-                        <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '0.9rem', letterSpacing: '0.05em' }}>
-                            {viewMode === 'items' 
-                                ? `${t('needed_demands')} (${(viewMode === 'items' ? splitItems.needed.length : splitCities.needed.length)})` 
-                                : `${t('needed_cities_title')} (${splitCities.needed.length})`}
-                        </h3>
+                            <h3>
+                                {`${t('needed_demands')} (${splitItems.needed.length})`}
+                            </h3>
                     </div>
                     {isNeededExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </div>
@@ -772,15 +608,14 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                 {isNeededExpanded && (
                     <div style={{ marginTop: '1.25rem', animation: 'slideDown 0.2s ease-out' }}>
                         {renderCategoryFilters()}
-                        {viewMode === 'items' ? (
-                            (() => {
+                        {(() => {
                                 const totalItemsCount = splitItems.needed.length;
                                 const totalPages = Math.ceil(totalItemsCount / ITEMS_PER_PAGE);
                                 const displayedItems = splitItems.needed.slice((neededPage - 1) * ITEMS_PER_PAGE, neededPage * ITEMS_PER_PAGE);
 
                                 if (totalItemsCount === 0) {
                                     return (
-                                        <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                        <div className="demand-empty">
                                             {language === 'tr' ? 'İhtiyaç duyulan talep bulunmamaktadır.' : 'No deficits found.'}
                                         </div>
                                     );
@@ -788,94 +623,112 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
 
                                 return (
                                     <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                                            {displayedItems.map(item => {
+                                        <div key={neededGridAnimKey} className="demand-cards-grid">
+                                            {displayedItems.map((item, idx) => {
                                                 const percent = item.target > 0 ? Math.min(100, (item.available / item.target) * 100) : 0;
                                                 const itemIcon = getItemIconUrl(item.name);
                                                 const citiesWithStatus = item.citiesNeeded.filter(c => c.needed > 0 || c.surplus > 0);
+                                                const isCitiesExpanded = expandedCities.has(item.name);
+                                                const visibleCities = isCitiesExpanded
+                                                    ? citiesWithStatus
+                                                    : citiesWithStatus.slice(0, CITY_CHIP_COLLAPSE_LIMIT);
+                                                const hiddenCitiesCount = citiesWithStatus.length - visibleCities.length;
 
                                                 return (
-                                                    <div key={item.name} className="panel-card needed-demand-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                                                        {/* Header: Icon & Item Name */}
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(255, 255, 255, 0.04)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(255,255,255,0.06)' }}>
-                                                                {itemIcon ? (
-                                                                    <img src={itemIcon} alt={item.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                                                                ) : (
-                                                                    <Package size={16} style={{ color: '#ef4444' }} />
-                                                                )}
-                                                            </div>
-                                                            <div style={{ flex: 1, minWidth: 0 }}>
-                                                                <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)', display: 'block', wordBreak: 'break-word', lineHeight: 1.25 }} title={item.name}>
-                                                                    {item.name}
-                                                                </strong>
-                                                            </div>
-                                                        </div>
-
-                                                        {/* 3-Stat Numbers Box */}
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{item.target.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
-                                                                    {item.available.toLocaleString()}
+                                                    <div key={item.name} className={`demand-card needed is-spring-in ${citiesWithStatus.length === 0 ? 'no-cities' : ''}`} style={{ animationDelay: `${idx * 45}ms` }}>
+                                                        <div className="demand-card-main">
+                                                            {/* Header: Icon & Item Name */}
+                                                            <div className="demand-card-header">
+                                                                <div className="demand-card-icon">
+                                                                    {itemIcon ? (
+                                                                        <img src={itemIcon} alt={item.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                                                                    ) : (
+                                                                        <Package size={16} style={{ color: '#ef4444' }} />
+                                                                    )}
+                                                                </div>
+                                                                <div style={{ flex: 1, minWidth: 0 }}>
+                                                                    <strong className="demand-card-title" title={item.name}>
+                                                                        {item.name}
+                                                                    </strong>
                                                                 </div>
                                                             </div>
+
+                                                            {/* 3-Stat Numbers Box */}
+                                                            <div className="demand-stat-box">
+                                                                <div>
+                                                                    <div className="demand-stat-box-label">{t('demand_target')}</div>
+                                                                    <CountUpStat value={item.target} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="demand-stat-box-label">{t('demand_available')}</div>
+                                                                    <CountUpStat value={item.available} color="#10b981" />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="demand-stat-box-label">{t('demand_needed')}</div>
+                                                                    <CountUpStat value={item.needed} color="#ef4444" />
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Progress Bar */}
                                                             <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_needed')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ef4444', marginTop: '0.1rem' }}>{item.needed.toLocaleString()}</div>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                                                        {t('demand_fulfilled')}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: getFulfillColor(percent) }}>
+                                                                        {percent.toFixed(0)}%
+                                                                    </span>
+                                                                </div>
+                                                                <div className="demand-progress-thin-track">
+                                                                    <div className="demand-progress-thin-fill" style={{ transform: `scaleX(${percent / 100})`, background: getFulfillColor(percent) }} />
+                                                                </div>
                                                             </div>
                                                         </div>
 
-                                                        {/* Progress Bar */}
-                                                        <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                                                    {t('demand_fulfilled')}
-                                                                </span>
-                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: getFulfillColor(percent) }}>
-                                                                    {percent.toFixed(0)}%
-                                                                </span>
-                                                            </div>
-                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: getFulfillColor(percent), borderRadius: '3px', transition: 'width 0.3s ease' }} />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Status in Cities (Spacious, Clear Rows) */}
+                                                        {/* Status in Cities (chips layout) */}
                                                         {citiesWithStatus.length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                            <div className="demand-city-panel">
+                                                                <div className="demand-rows-title">
                                                                     <span>{language === 'tr' ? 'Şehirlerdeki Durum' : 'Status in Cities'}</span>
-                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({citiesWithStatus.length})</span>
+                                                                    <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-muted)' }}>({citiesWithStatus.length})</span>
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
-                                                                    {citiesWithStatus.map(city => {
+                                                                <div className="demand-city-chip-list">
+                                                                    {visibleCities.map((city, cIdx) => {
                                                                         const isNeeded = city.needed > 0;
-                                                                        const valueText = isNeeded ? `-${city.needed.toLocaleString()}` : `+${city.surplus.toLocaleString()}`;
-                                                                        const badgeBg = isNeeded ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)';
-                                                                        const badgeBorder = isNeeded ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)';
-                                                                        const valueColor = isNeeded ? '#f87171' : '#34d399';
-
+                                                                        const valueText = isNeeded
+                                                                            ? `-${city.needed.toLocaleString()}`
+                                                                            : `+${city.surplus.toLocaleString()}`;
                                                                         return (
-                                                                            <div key={city.cityName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                                <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={city.cityName}>
-                                                                                    {city.cityName}
-                                                                                </span>
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                                                    <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
-                                                                                        {city.available} / {city.target}
-                                                                                    </span>
-                                                                                    <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: badgeBg, border: `1px solid ${badgeBorder}`, color: valueColor, fontWeight: 700, fontSize: '0.68rem' }}>
-                                                                                        {valueText}
-                                                                                    </span>
-                                                                                </div>
-                                                                            </div>
+                                                                            <DemandCityChip
+                                                                                key={city.cityName}
+                                                                                name={city.cityName}
+                                                                                valueText={valueText}
+                                                                                isNeeded={isNeeded}
+                                                                                chipIndex={cIdx}
+                                                                            />
                                                                         );
                                                                     })}
+                                                                    {hiddenCitiesCount > 0 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="demand-show-more"
+                                                                            data-expanded={isCitiesExpanded}
+                                                                            onClick={() => toggleCityExpansion(item.name)}
+                                                                        >
+                                                                            <span className="demand-show-more-icon">
+                                                                                {isCitiesExpanded ? <Minus size={10} /> : <Plus size={10} />}
+                                                                            </span>
+                                                                            {isCitiesExpanded
+                                                                                ? t('show_less_cities')
+                                                                                : (
+                                                                                    <>
+                                                                                        {t('show_more_cities')}
+                                                                                        <span className="demand-show-more-count">+{hiddenCitiesCount}</span>
+                                                                                    </>
+                                                                                )
+                                                                            }
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         )}
@@ -903,129 +756,22 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                                     </>
                                 );
                             })()
-                        ) : (
-                            (() => {
-                                const totalCitiesCount = splitCities.needed.length;
-                                const totalPages = Math.ceil(totalCitiesCount / ITEMS_PER_PAGE);
-                                const displayedCities = splitCities.needed.slice((neededPage - 1) * ITEMS_PER_PAGE, neededPage * ITEMS_PER_PAGE);
-
-                                if (totalCitiesCount === 0) {
-                                    return (
-                                        <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                            {language === 'tr' ? 'İhtiyaç duyulan şehir bulunmamaktadır.' : 'No cities with deficits found.'}
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                                            {displayedCities.map(city => {
-                                                const percent = city.target > 0 ? Math.min(100, (city.available / city.target) * 100) : 0;
-                                                const itemsWithDeficit = city.itemsNeeded.filter(i => i.needed > 0);
-
-                                                return (
-                                                    <div key={city.name} className="panel-card needed-demand-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
-                                                                <MapPin size={16} style={{ color: '#ef4444' }} />
-                                                            </div>
-                                                            <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={city.name}>
-                                                                {city.name}
-                                                            </strong>
-                                                        </div>
-
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{city.target.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>{city.available.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_needed')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ef4444', marginTop: '0.1rem' }}>{city.needed.toLocaleString()}</div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                                                    {t('demand_fulfilled')}
-                                                                </span>
-                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: getFulfillColor(percent) }}>
-                                                                    {percent.toFixed(0)}%
-                                                                </span>
-                                                            </div>
-                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: getFulfillColor(percent), borderRadius: '3px', transition: 'width 0.3s ease' }} />
-                                                            </div>
-                                                        </div>
-
-                                                        {itemsWithDeficit.length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                    <span>{t('needed_items')}</span>
-                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({itemsWithDeficit.length})</span>
-                                                                </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
-                                                                    {itemsWithDeficit.map(item => (
-                                                                        <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                            <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={item.name}>
-                                                                                {item.name}
-                                                                            </span>
-                                                                            <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.68rem' }}>
-                                                                                -{item.needed.toLocaleString()}
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Pagination controls */}
-                                        {totalPages > 1 && (
-                                            <div className="pagination-container" style={{ marginTop: '1.25rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                                                <div className="pagination-info">
-                                                    {language === 'tr' 
-                                                        ? `Sayfa ${neededPage} / ${totalPages} (Toplam ${totalCitiesCount} şehir)` 
-                                                        : `Page ${neededPage} of ${totalPages} (Total ${totalCitiesCount} cities)`}
-                                                </div>
-                                                <div className="pagination-controls">
-                                                    <button onClick={() => setNeededPage(1)} disabled={neededPage === 1} className="pagination-btn">&laquo;</button>
-                                                    <button onClick={() => setNeededPage(prev => Math.max(1, prev - 1))} disabled={neededPage === 1} className="pagination-btn">{language === 'tr' ? 'Önceki' : 'Previous'}</button>
-                                                    <button onClick={() => setNeededPage(prev => Math.min(totalPages, prev + 1))} disabled={neededPage === totalPages} className="pagination-btn">{language === 'tr' ? 'Sonraki' : 'Next'}</button>
-                                                    <button onClick={() => setNeededPage(totalPages)} disabled={neededPage === totalPages} className="pagination-btn">&raquo;</button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                );
-                            })()
-                        )}
+                        }
                     </div>
                 )}
             </div>
 
             {/* 5. Collapsible Surplus Section (Collapsed by default, fits 4 columns) */}
-            <div className="panel-card" style={{ padding: '1.25rem', border: '1px solid rgba(255, 255, 255, 0.05)' }}>
-                <div 
+            <div className="demand-section">
+                <div
                     onClick={() => setIsSurplusExpanded(!isSurplusExpanded)}
-                    style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+                    className="demand-collapse-header"
                 >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                         <CheckCircle size={16} style={{ color: '#10b981' }} />
-                        <h3 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontSize: '0.9rem', letterSpacing: '0.05em' }}>
-                            {viewMode === 'items' 
-                                ? `${t('surplus_stocks')} (${(viewMode === 'items' ? splitItems.surplus.length : splitCities.surplus.length)})` 
-                                : `${t('surplus_cities')} (${splitCities.surplus.length})`}
-                        </h3>
+                            <h3>
+                                {`${t('surplus_stocks')} (${splitItems.surplus.length})`}
+                            </h3>
                     </div>
                     {isSurplusExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                 </div>
@@ -1033,103 +779,123 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                 {isSurplusExpanded && (
                     <div style={{ marginTop: '1.25rem', animation: 'slideDown 0.2s ease-out' }}>
                         {renderCategoryFilters()}
-                        {viewMode === 'items' ? (
-                            (() => {
+                        {(() => {
                                 const totalItemsCount = splitItems.surplus.length;
                                 const totalPages = Math.ceil(totalItemsCount / ITEMS_PER_PAGE);
                                 const displayedItems = splitItems.surplus.slice((surplusPage - 1) * ITEMS_PER_PAGE, surplusPage * ITEMS_PER_PAGE);
 
                                 if (totalItemsCount === 0) {
                                     return (
-                                        <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                            {language === 'tr' ? 'Fazla stok bulunmamaktadır.' : 'No surplus stocks found.'}
+                                        <div className="demand-empty">
+                                            {language === 'tr' ? 'Fazla stok bulunmamaktad�r.' : 'No surplus stocks found.'}
                                         </div>
                                     );
                                 }
 
                                 return (
                                     <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                                            {displayedItems.map(item => {
+                                        <div className="demand-cards-grid">
+                                            {displayedItems.map((item, idx) => {
                                                 const surplus = item.available - item.target;
                                                 const percent = 100;
                                                 const itemIcon = getItemIconUrl(item.name);
                                                 const citiesWithStatus = item.citiesNeeded.filter(c => c.needed > 0 || c.surplus > 0);
+                                                const isCitiesExpanded = expandedCities.has(item.name);
+                                                const visibleCities = isCitiesExpanded
+                                                    ? citiesWithStatus
+                                                    : citiesWithStatus.slice(0, CITY_CHIP_COLLAPSE_LIMIT);
+                                                const hiddenCitiesCount = citiesWithStatus.length - visibleCities.length;
 
                                                 return (
-                                                    <div key={item.name} className="panel-card surplus-stock-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                                                                {itemIcon ? (
-                                                                    <img src={itemIcon} alt={item.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
-                                                                ) : (
-                                                                    <Package size={16} style={{ color: '#10b981' }} />
-                                                                )}
-                                                            </div>
-                                                            <strong style={{ fontSize: '0.82rem', color: 'var(--text-primary)', wordBreak: 'break-word', lineHeight: 1.25, flex: 1 }} title={item.name}>
-                                                                {item.name}
-                                                            </strong>
-                                                        </div>
-
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{item.target.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{item.available.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{language === 'tr' ? 'Fazla' : 'Surplus'}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>+{surplus.toLocaleString()}</div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                                                    {t('demand_fulfilled')}
-                                                                </span>
-                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
-                                                                    {percent.toFixed(0)}%
-                                                                </span>
-                                                            </div>
-                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: '#10b981', borderRadius: '3px' }} />
-                                                            </div>
-                                                        </div>
-
-                                                        {citiesWithStatus.length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                    <span>{language === 'tr' ? 'Şehirlerdeki Durum' : 'Status in Cities'}</span>
-                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({citiesWithStatus.length})</span>
+                                                    <div key={item.name} className={`demand-card surplus is-spring-in ${citiesWithStatus.length === 0 ? 'no-cities' : ''}`} style={{ animationDelay: `${idx * 45}ms` }}>
+                                                        <div className="demand-card-main">
+                                                            <div className="demand-card-header">
+                                                                <div className="demand-card-icon" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                                    {itemIcon ? (
+                                                                        <img src={itemIcon} alt={item.name} style={{ width: '24px', height: '24px', objectFit: 'contain' }} />
+                                                                    ) : (
+                                                                        <Package size={16} style={{ color: '#10b981' }} />
+                                                                    )}
                                                                 </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
-                                                                    {citiesWithStatus.map(city => {
-                                                                        const isNeeded = city.needed > 0;
-                                                                        const valueText = isNeeded ? `-${city.needed.toLocaleString()}` : `+${city.surplus.toLocaleString()}`;
-                                                                        const badgeBg = isNeeded ? 'rgba(239, 68, 68, 0.12)' : 'rgba(16, 185, 129, 0.12)';
-                                                                        const badgeBorder = isNeeded ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)';
-                                                                        const valueColor = isNeeded ? '#f87171' : '#34d399';
+                                                                <strong className="demand-card-title" title={item.name}>
+                                                                    {item.name}
+                                                                </strong>
+                                                            </div>
 
+                                                            <div className="demand-stat-box">
+                                                                <div>
+                                                                    <div className="demand-stat-box-label">{t('demand_target')}</div>
+                                                                    <CountUpStat value={item.target} />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="demand-stat-box-label">{t('demand_available')}</div>
+                                                                    <CountUpStat value={item.available} color="#10b981" />
+                                                                </div>
+                                                                <div>
+                                                                    <div className="demand-stat-box-label">{language === 'tr' ? 'Fazla' : 'Surplus'}</div>
+                                                                    <CountUpStat value={surplus} color="#10b981" />
+                                                                </div>
+                                                            </div>
+
+                                                            <div>
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                                                                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                                                        {t('demand_fulfilled')}
+                                                                    </span>
+                                                                    <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#10b981' }}>
+                                                                        {percent.toFixed(0)}%
+                                                                    </span>
+                                                                </div>
+                                                                <div className="demand-progress-thin-track">
+                                                                    <div className="demand-progress-thin-fill" style={{ transform: `scaleX(${percent / 100})`, background: '#10b981' }} />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Status in Cities (chips layout) */}
+                                                        {citiesWithStatus.length > 0 && (
+                                                            <div className="demand-city-panel">
+                                                                <div className="demand-rows-title">
+                                                                    <span>{language === 'tr' ? 'Şehirlerdeki Durum' : 'Status in Cities'}</span>
+                                                                    <span style={{ fontSize: '0.6rem', fontWeight: 600, color: 'var(--text-muted)' }}>({citiesWithStatus.length})</span>
+                                                                </div>
+                                                                <div className="demand-city-chip-list">
+                                                                    {visibleCities.map((city, cIdx) => {
+                                                                        const isNeeded = city.needed > 0;
+                                                                        const valueText = isNeeded
+                                                                            ? `-${city.needed.toLocaleString()}`
+                                                                            : `+${city.surplus.toLocaleString()}`;
                                                                         return (
-                                                                            <div key={city.cityName} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                                <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={city.cityName}>
-                                                                                    {city.cityName}
-                                                                                </span>
-                                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                                                                    <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)' }}>
-                                                                                        {city.available} / {city.target}
-                                                                                    </span>
-                                                                                    <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: badgeBg, border: `1px solid ${badgeBorder}`, color: valueColor, fontWeight: 700, fontSize: '0.68rem' }}>
-                                                                                        {valueText}
-                                                                                    </span>
-                                                                                </div>
-                                                                            </div>
+                                                                            <DemandCityChip
+                                                                                key={city.cityName}
+                                                                                name={city.cityName}
+                                                                                valueText={valueText}
+                                                                                isNeeded={isNeeded}
+                                                                                chipIndex={cIdx}
+                                                                            />
                                                                         );
                                                                     })}
+                                                                    {hiddenCitiesCount > 0 && (
+                                                                        <button
+                                                                            type="button"
+                                                                            className="demand-show-more"
+                                                                            data-expanded={isCitiesExpanded}
+                                                                            onClick={() => toggleCityExpansion(item.name)}
+                                                                        >
+                                                                            <span className="demand-show-more-icon">
+                                                                                {isCitiesExpanded ? <Minus size={10} /> : <Plus size={10} />}
+                                                                            </span>
+                                                                            {isCitiesExpanded
+                                                                                ? t('show_less_cities')
+                                                                                : (
+                                                                                    <>
+                                                                                        {t('show_more_cities')}
+                                                                                        <span className="demand-show-more-count">+{hiddenCitiesCount}</span>
+                                                                                    </>
+                                                                                )
+                                                                            }
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                             </div>
                                                         )}
@@ -1138,17 +904,16 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                                             })}
                                         </div>
 
-                                        {/* Pagination controls */}
                                         {totalPages > 1 && (
                                             <div className="pagination-container" style={{ marginTop: '1.25rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                                                 <div className="pagination-info">
-                                                    {language === 'tr' 
-                                                        ? `Sayfa ${surplusPage} / ${totalPages} (Toplam ${totalItemsCount} malzeme)` 
+                                                    {language === 'tr'
+                                                        ? `Sayfa ${surplusPage} / ${totalPages} (Toplam ${totalItemsCount} malzeme)`
                                                         : `Page ${surplusPage} of ${totalPages} (Total ${totalItemsCount} items)`}
                                                 </div>
                                                 <div className="pagination-controls">
                                                     <button onClick={() => setSurplusPage(1)} disabled={surplusPage === 1} className="pagination-btn">&laquo;</button>
-                                                    <button onClick={() => setSurplusPage(prev => Math.max(1, prev - 1))} disabled={surplusPage === 1} className="pagination-btn">{language === 'tr' ? 'Önceki' : 'Previous'}</button>
+                                                    <button onClick={() => setSurplusPage(prev => Math.max(1, prev - 1))} disabled={surplusPage === 1} className="pagination-btn">{language === 'tr' ? '�nceki' : 'Previous'}</button>
                                                     <button onClick={() => setSurplusPage(prev => Math.min(totalPages, prev + 1))} disabled={surplusPage === totalPages} className="pagination-btn">{language === 'tr' ? 'Sonraki' : 'Next'}</button>
                                                     <button onClick={() => setSurplusPage(totalPages)} disabled={surplusPage === totalPages} className="pagination-btn">&raquo;</button>
                                                 </div>
@@ -1157,112 +922,7 @@ export const DemandTab: React.FC<DemandTabProps> = ({ depots, templates, regionS
                                     </>
                                 );
                             })()
-                        ) : (
-                            (() => {
-                                const totalCitiesCount = splitCities.surplus.length;
-                                const totalPages = Math.ceil(totalCitiesCount / ITEMS_PER_PAGE);
-                                const displayedCities = splitCities.surplus.slice((surplusPage - 1) * ITEMS_PER_PAGE, surplusPage * ITEMS_PER_PAGE);
-
-                                if (totalCitiesCount === 0) {
-                                    return (
-                                        <div style={{ padding: '2rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
-                                            {language === 'tr' ? 'Fazla stoklu şehir bulunmamaktadır.' : 'No cities with surplus stocks found.'}
-                                        </div>
-                                    );
-                                }
-
-                                return (
-                                    <>
-                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-                                            {displayedCities.map(city => {
-                                                const percent = 100;
-                                                const itemsSurplusList = city.itemsNeeded.filter(i => i.surplus > 0);
-
-                                                return (
-                                                    <div key={city.name} className="panel-card surplus-stock-card" style={{ padding: '1.1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: 'rgba(20, 22, 28, 0.6)', border: '1px solid rgba(255, 255, 255, 0.07)' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                                                            <div style={{ width: '34px', height: '34px', borderRadius: '6px', background: 'rgba(16, 185, 129, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                                                                <MapPin size={16} style={{ color: '#10b981' }} />
-                                                            </div>
-                                                            <strong style={{ fontSize: '0.85rem', color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', flex: 1 }} title={city.name}>
-                                                                {city.name}
-                                                            </strong>
-                                                        </div>
-
-                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', textAlign: 'center', background: 'rgba(0, 0, 0, 0.25)', padding: '0.6rem 0.4rem', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.04)' }}>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_target')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{city.target.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{t('demand_available')}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>{city.available.toLocaleString()}</div>
-                                                            </div>
-                                                            <div>
-                                                                <div style={{ fontSize: '0.6rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.04em' }}>{language === 'tr' ? 'Fazla' : 'Surplus'}</div>
-                                                                <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>+{city.surplus.toLocaleString()}</div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div>
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
-                                                                <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                                                    {t('demand_fulfilled')}
-                                                                </span>
-                                                                <span style={{ fontSize: '0.82rem', fontWeight: 800, color: '#10b981' }}>
-                                                                    {percent.toFixed(0)}%
-                                                                </span>
-                                                            </div>
-                                                            <div style={{ height: '5px', background: 'rgba(255,255,255,0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                                                <div style={{ height: '100%', width: `${percent}%`, background: '#10b981', borderRadius: '3px' }} />
-                                                            </div>
-                                                        </div>
-
-                                                        {itemsSurplusList.length > 0 && (
-                                                            <div style={{ marginTop: 'auto', paddingTop: '0.6rem', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                                                                <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '0.4rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                                    <span>{language === 'tr' ? 'Fazla Stoklu Malzemeler' : 'Surplus Items'}</span>
-                                                                    <span style={{ fontSize: '0.62rem', fontWeight: 600, color: 'rgba(255,255,255,0.4)' }}>({itemsSurplusList.length})</span>
-                                                                </div>
-                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', maxHeight: '140px', overflowY: 'auto', paddingRight: '0.2rem' }}>
-                                                                    {itemsSurplusList.map(item => (
-                                                                        <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', padding: '0.3rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '4px', border: '1px solid rgba(255,255,255,0.03)' }}>
-                                                                            <span style={{ color: 'var(--text-primary)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: '0.5rem' }} title={item.name}>
-                                                                                {item.name}
-                                                                            </span>
-                                                                            <span style={{ padding: '0.1rem 0.4rem', borderRadius: '4px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#34d399', fontWeight: 700, fontSize: '0.68rem' }}>
-                                                                                +{item.surplus.toLocaleString()}
-                                                                            </span>
-                                                                        </div>
-                                                                    ))}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {/* Pagination controls */}
-                                        {totalPages > 1 && (
-                                            <div className="pagination-container" style={{ marginTop: '1.25rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                                                <div className="pagination-info">
-                                                    {language === 'tr' 
-                                                        ? `Sayfa ${surplusPage} / ${totalPages} (Toplam ${totalCitiesCount} şehir)` 
-                                                        : `Page ${surplusPage} of ${totalPages} (Total ${totalCitiesCount} cities)`}
-                                                </div>
-                                                <div className="pagination-controls">
-                                                    <button onClick={() => setSurplusPage(1)} disabled={surplusPage === 1} className="pagination-btn">&laquo;</button>
-                                                    <button onClick={() => setSurplusPage(prev => Math.max(1, prev - 1))} disabled={surplusPage === 1} className="pagination-btn">{language === 'tr' ? 'Önceki' : 'Previous'}</button>
-                                                    <button onClick={() => setSurplusPage(prev => Math.min(totalPages, prev + 1))} disabled={surplusPage === totalPages} className="pagination-btn">{language === 'tr' ? 'Sonraki' : 'Next'}</button>
-                                                    <button onClick={() => setSurplusPage(totalPages)} disabled={surplusPage === totalPages} className="pagination-btn">&raquo;</button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </>
-                                );
-                            })()
-                        )}
+                        }
                     </div>
                 )}
             </div>
