@@ -28,7 +28,7 @@ const COALITION_TAGLINES = [
     'Entwickelt für die VELI-Koalition'
 ];
 
-export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, version = '0.2.1' }) => {
+export const SecureGateOverlay: React.FC<SecureGateOverlayProps> = React.memo(({ onLoginSuccess, version = '0.2.2' }) => {
     const { language, setLanguage, t } = useLanguage();
     const [loginError, setLoginError] = useState('');
     const [authTab, setAuthTab] = useState<'login' | 'register'>('login');

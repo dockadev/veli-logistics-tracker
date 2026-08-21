@@ -104,7 +104,7 @@ function getDepotMatchKey(rawFullName: string): string {
 
 const IS_TAURI = typeof window !== 'undefined' && !!(window as Window & { __TAURI_INTERNALS__?: unknown }).__TAURI_INTERNALS__;
 
-const APP_VERSION = '0.2.1';
+const APP_VERSION = '0.2.2';
 
 const isOutdatedVersion = (clientVer: string, minVer: string): boolean => {
     const parse = (v: string) => v.split('.').map(Number);
@@ -982,6 +982,44 @@ export const App: React.FC = () => {
         setAuditLogs([]);
         showToast(t('session_terminated'), 'info');
     }, [showToast, t]);
+
+    // Server-side session validation on mount (auto-login restore).
+    // Prevents deleted / no-longer-approved users from re-entering the app
+    // through a still-stored session (masterKey + role in sessionStorage/localStorage).
+    const sessionValidatedRef = useRef(false);
+    useEffect(() => {
+        if (!isSupabaseConfigured || !supabase || !masterKey || !userRole) return;
+        if (sessionValidatedRef.current) return;
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+
+        sessionValidatedRef.current = true;
+        let cancelled = false;
+        (async () => {
+            try {
+                const { data, error } = await supabase.auth.getUser();
+                if (cancelled) return;
+                if (error || !data?.user) {
+                    await supabase.auth.signOut().catch(() => {});
+                    handleDisconnect();
+                    return;
+                }
+                const { data: profile, error: pErr } = await supabase
+                    .from('profiles')
+                    .select('status')
+                    .eq('id', data.user.id)
+                    .single();
+                if (cancelled) return;
+                if (pErr || !profile || profile.status !== 'approved') {
+                    await supabase.auth.signOut().catch(() => {});
+                    handleDisconnect();
+                }
+            } catch (e) {
+                // Network / transient error: do not lock out on mount.
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [masterKey, userRole]);
 
     const handleRefreshRequests = useCallback(async () => {
         if (!masterKey) return;

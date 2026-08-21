@@ -281,7 +281,7 @@ export const StockpileTemplatesTab: React.FC<StockpileTemplatesTabProps> = React
 
             const exportData = {
                 _app: "Veli Logistics Tracker",
-                _version: "0.2.1",
+                _version: "0.2.2",
                 _exportedAt: new Date().toISOString(),
                 _activeRole: activeRole,
                 templateColors,
